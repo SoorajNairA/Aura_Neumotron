@@ -1,0 +1,92 @@
+# Python
+
+**pycache**/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Environment / Secrets
+
+.env
+.env.local
+.env.*.local
+
+# Logs and Runtime Data
+
+logs/
+*.log
+*.jsonl
+memory/
+workspace/
+DemoWorkspace/
+Code/
+notes.txt
+
+# Temporary Files
+
+temp/
+tmp/
+tts_cache/
+*.tmp
+
+# Model Storage
+
+models/
+.cache/
+huggingface/
+torch_cache/
+
+# AI Model Files
+
+*.pth
+*.pt
+*.bin
+*.onnx
+*.gguf
+*.safetensors
+
+# Voice Cloning Files
+
+voices/*.wav
+voices/*.mp3
+voices/*.flac
+
+# Keep voice folder structure
+
+!voices/.gitkeep
+!voices/README.md
+
+# IDE
+
+.vscode/
+.idea/
+
+# Build Artifacts
+
+dist/
+build/
+generated/
+
+# Diagnostics
+
+diagnostics_report.md
+
+# Local Scratch Files
+
+_test*.py
+
+# OS Files
+
+Thumbs.db
+.DS_Store
+
+# Git LFS leftovers (safety)
+
+.gitattributes
