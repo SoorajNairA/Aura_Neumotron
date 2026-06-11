@@ -8,11 +8,15 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .actions import ExecutionAgent
+from .computer_operator import ComputerOperator
+from .domain_manager import DomainManager
+from .executive_behavior import ExecutiveBehavior
 from .memory_store import MemoryStore
 from .models import ActionRequest, ActionResult
 from .planner import PlannerAgent
 from .result_revealer import ResultRevealer
 from .safety import SafetyLayer
+from .software_director import SoftwareDirector
 
 
 @dataclass
@@ -452,8 +456,6 @@ if __name__ == "__main__":
 
     def _python_calculator(self, goal: str) -> AssumedExecution:
         project_name = self._project_name(goal, "CalculatorApp")
-        if "calculator" in goal.lower():
-            project_name = "CalculatorApp"
         project_path = self.workspace_root / "Code" / project_name
         assumptions = {
             "language": "Python 3.11",
@@ -807,6 +809,10 @@ class ExecutiveAgent:
         workspace_root: Path,
         confirmation_callback: Optional[Callable[[str], bool]] = None,
         result_revealer: Optional[ResultRevealer] = None,
+        status_callback: Optional[Callable[[str], None]] = None,
+        software_director: Optional[SoftwareDirector] = None,
+        computer_operator: Optional[ComputerOperator] = None,
+        domain_manager: Optional[DomainManager] = None,
     ) -> None:
         self.planner = planner
         self.executor = executor
@@ -815,11 +821,43 @@ class ExecutiveAgent:
         self.memory = memory
         self.safety = safety
         self.workspace_root = workspace_root.resolve()
+        self.executor.workspace_root = self.workspace_root
         self.confirmation_callback = confirmation_callback
         self.result_revealer = result_revealer
+        self.status_callback = status_callback
+        self.computer_operator = computer_operator or ComputerOperator(
+            executor=self.executor,
+            memory=self.memory,
+            safety=self.safety,
+            result_revealer=self.result_revealer,
+            status_callback=self.status_callback,
+        )
+        self.software_director = software_director or SoftwareDirector(
+            workspace_root=self.workspace_root,
+            executor=self.executor,
+            memory=self.memory,
+            safety=self.safety,
+            result_revealer=self.result_revealer,
+            status_callback=self.status_callback,
+        )
+        self.domain_manager = domain_manager or DomainManager(
+            memory=self.memory,
+            domains_dir=self.workspace_root / "domains",
+            operator_executor=self.computer_operator.execute,
+            software_executor=self.software_director.execute,
+        )
 
     def can_handle(self, goal: str) -> bool:
         lowered = goal.strip().lower()
+        domain_manager = getattr(self, "domain_manager", None)
+        if domain_manager is not None and domain_manager.can_handle(goal):
+            return True
+        computer_operator = getattr(self, "computer_operator", None)
+        if computer_operator is not None and computer_operator.can_handle(goal):
+            return True
+        software_director = getattr(self, "software_director", None)
+        if software_director is not None and software_director.can_handle(goal):
+            return True
         if "sponsor" in lowered and "email" in lowered:
             return True
         action_words = (
@@ -843,18 +881,14 @@ class ExecutiveAgent:
             "racing",
             "website",
             "web app",
-            "site",
             "portfolio",
             "landing page",
             "dashboard",
-            "app",
             "application",
             "tool",
             "program",
             "utility",
             "script",
-            " ai ",
-            "ai ",
             "assistant",
             "chatbot",
             "agent",
@@ -884,29 +918,104 @@ class ExecutiveAgent:
             for phrase in (
                 "i want ",
                 "i need ",
-                "could you ",
-                "can you ",
-                "would you ",
             )
         )
-        has_project = any(marker in lowered for marker in project_markers)
+        has_project = any(
+            re.search(rf"\b{re.escape(marker)}\b", lowered)
+            for marker in project_markers
+        )
+        has_project = has_project or bool(
+            re.search(r"\b(?:web\s+app|landing\s+page|discord\s+bot|telegram\s+bot)\b", lowered)
+        )
+        if re.search(r"\bai\b", lowered):
+            has_project = has_project or bool(
+                re.search(r"\b(?:project|assistant|agent|chatbot|app|tool|classifier|vision)\b", lowered)
+            )
+        if re.search(r"\bapp\b", lowered):
+            has_project = True
         return has_project and (has_action or conversational_build_intent)
 
     def execute(self, goal: str) -> ExecutiveOutcome:
-        assumed = self.assumption_engine.infer(goal)
+        domain_manager = getattr(self, "domain_manager", None)
+        if domain_manager is not None and domain_manager.can_handle(goal):
+            result = domain_manager.execute(goal)
+            return ExecutiveOutcome(
+                ok=result.ok,
+                message=result.message,
+                assumptions={
+                    "domain_manager": "ATLAS",
+                    "domains": ", ".join(route.domain_id for route in result.routes),
+                },
+                actions=result.actions,
+                artifacts=result.artifacts,
+            )
 
-        # Existing planner is invoked once at most. It may use one local model
-        # call; when no model is available it returns its deterministic fallback.
-        goal_state = self.planner.create_plan(
-            goal,
-            known_constraints={"assumptions": assumed.assumptions},
-        )
+        computer_operator = getattr(self, "computer_operator", None)
+        if computer_operator is not None and computer_operator.can_handle(goal):
+            outcome = computer_operator.execute(goal)
+            return ExecutiveOutcome(
+                ok=outcome.ok,
+                message=outcome.message,
+                assumptions={
+                    "operator": outcome.plan.environment,
+                    "application": outcome.plan.application,
+                },
+                actions=[
+                    {
+                        "id": step.id,
+                        "action": step.kind,
+                        "target": step.target,
+                        "status": step.status,
+                    }
+                    for step in outcome.plan.steps
+                ],
+                artifacts=[],
+            )
+
+        software_director = getattr(self, "software_director", None)
+        if software_director is not None and software_director.can_handle(goal):
+            outcome = self.software_director.execute(goal)
+            return ExecutiveOutcome(
+                ok=outcome.ok,
+                message=outcome.message,
+                assumptions={
+                    "engineering": "software director",
+                    "complexity": str(outcome.blueprint.complexity_level),
+                },
+                actions=outcome.actions,
+                artifacts=outcome.artifacts,
+            )
+
+        self._status(ExecutiveBehavior.ANALYZING.label)
+        assumed = self.assumption_engine.infer(goal)
+        self._status(ExecutiveBehavior.PLANNING.label)
+        now = datetime.now(timezone.utc).isoformat()
+        planner_state = {
+            "goal": goal,
+            "constraints": {"assumptions": assumed.assumptions},
+            "context": {"source": "deterministic_assumption_engine"},
+            "plan": [
+                {
+                    "id": f"T{index}",
+                    "title": request.action.replace("_", " ").title(),
+                    "owner": "AURA",
+                    "dependencies": [],
+                    "risk": request.risk.value,
+                    "execution_type": "execution",
+                    "status": "pending",
+                }
+                for index, request in enumerate(assumed.requests, start=1)
+            ],
+            "created_at": now,
+            "updated_at": now,
+        }
 
         action_records: list[dict[str, Any]] = []
         artifacts: list[str] = []
         all_ok = True
 
         for request in assumed.requests:
+            self._status(self._status_for_request(request))
             request.risk = self.safety.classify(request.action)
             if self.safety.requires_confirmation(request):
                 if not self._confirm(f"Approve high-risk action {request.action}?"):
@@ -915,18 +1024,39 @@ class ExecutiveAgent:
                     break
 
             path = str(request.args.get("path", ""))
-            if path and self.safety.requires_path_confirmation(
-                request.action,
-                path,
-                self.workspace_root,
-            ):
-                if not self._confirm(f"Approve modifying existing file outside AURA: {path}?"):
+            if path:
+                path_decision = self.safety.assess_path(
+                    request.action,
+                    path,
+                    self.workspace_root,
+                )
+            else:
+                path_decision = None
+            if path_decision is not None and path_decision.denied:
+                action_records.append(self._record(request, None, False, path_decision.reason))
+                all_ok = False
+                break
+            if path_decision is not None and path_decision.requires_confirmation:
+                if not self._confirm(f"{path_decision.reason} Approve access to {path_decision.target}?"):
                     action_records.append(self._record(request, None, False, "Rejected by user"))
                     all_ok = False
                     break
+                if "existing" in path_decision.reason.lower():
+                    request.args["overwrite"] = True
+                if "outside approved workspace" in path_decision.reason:
+                    request.args["allow_external_write"] = True
 
             result = self.executor.run(request)
+            self._status(ExecutiveBehavior.VERIFYING.label)
             verified, verification = self.verifier.verify(request, result)
+            if not verified and not self._should_not_retry(result):
+                self._status(ExecutiveBehavior.RECOVERING.label)
+                retry = self.executor.run(request)
+                retry_verified, retry_verification = self.verifier.verify(request, retry)
+                if retry_verified:
+                    result = retry
+                    verified = retry_verified
+                    verification = f"Recovered after retry. {retry_verification}"
             record = self._record(request, result, verified, verification)
             action_records.append(record)
             self.memory.append_log(
@@ -950,7 +1080,7 @@ class ExecutiveAgent:
             "project_name": assumed.project_name,
             "project_path": str(assumed.project_path),
             "assumptions": assumed.assumptions,
-            "planner_state": goal_state.model_dump(),
+            "planner_state": planner_state,
             "actions": action_records,
             "artifacts": artifacts,
             "status": "completed" if all_ok else "failed",
@@ -959,12 +1089,17 @@ class ExecutiveAgent:
         self.memory.upsert_project(assumed.project_name, project_data)
 
         if all_ok:
+            self._status(ExecutiveBehavior.REVEALING.label)
             reveal_method = self._reveal_result(assumed)
             message = self._completion_message(assumed, artifacts, reveal_method)
         else:
+            self._status(ExecutiveBehavior.RECOVERING.label)
             failed = next((row for row in action_records if not row["verified"]), None)
             detail = failed["verification"] if failed else "Execution stopped."
-            message = f"I could not complete {assumed.project_name}. {detail}"
+            message = ExecutiveBehavior.sanitize_for_user(
+                f"I couldn't complete {assumed.project_name}. {detail}"
+            )
+        self._status(ExecutiveBehavior.COMPLETE.label)
 
         return ExecutiveOutcome(
             ok=all_ok,
@@ -1002,10 +1137,10 @@ class ExecutiveAgent:
         if assumed.project_name == "SponsorEmail":
             opened = " Saved and opened" if reveal_method == "file" else " Saved"
             return f"Done.{opened} sponsor_email.txt at {assumed.project_path}."
-        opened = f" and opened it in {reveal_method}" if reveal_method else ""
-        return (
-            f"Done. Created {assumed.project_name}{opened} at {assumed.project_path}. "
-            f"Generated {len(artifacts)} verified artifacts."
+        return ExecutiveBehavior.concise_completion(
+            project_name=assumed.project_name,
+            artifact_count=len(artifacts),
+            reveal_method=reveal_method,
         )
 
     def _reveal_result(self, assumed: AssumedExecution) -> str:
@@ -1015,3 +1150,26 @@ class ExecutiveAgent:
             return "file" if self.result_revealer.reveal_file(assumed.project_path) else ""
         revealed, method = self.result_revealer.reveal_project(assumed.project_path)
         return method if revealed else ""
+
+    def _status(self, message: str) -> None:
+        if self.status_callback is None:
+            return
+        try:
+            self.status_callback(message)
+        except Exception:
+            pass
+
+    def _status_for_request(self, request: ActionRequest) -> str:
+        if request.action == "create_folder":
+            return "Creating folders..."
+        if request.action in {"create_file", "write_text_file"}:
+            return "Generating files..."
+        if request.action in {"open_app", "open_url"}:
+            return "Launching..."
+        return ExecutiveBehavior.EXECUTING.label
+
+    def _should_not_retry(self, result: ActionResult) -> bool:
+        return bool(
+            result.output.get("overwrite_required")
+            or result.output.get("already_exists")
+        )

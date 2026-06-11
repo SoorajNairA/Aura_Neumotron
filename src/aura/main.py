@@ -192,7 +192,8 @@ def main() -> None:
         report("Speech recognition ready", "complete")
         if settings.tts_backend == "xtts":
             report("Warming XTTS voice", "active")
-            if supervisor.tts.wait_until_xtts_ready(timeout=60):
+            supervisor.tts.wait_until_initialization_done(timeout=120)
+            if supervisor.tts.wait_until_xtts_ready(timeout=0):
                 report("XTTS voice ready", "complete")
             else:
                 report("XTTS unavailable; local voice fallback active", "warning")

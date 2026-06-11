@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Optional
 
 from PySide6.QtCore import QObject, Property, QTimer, QUrl, Signal, Slot
-from PySide6.QtGui import QFont, QGuiApplication
+from PySide6.QtGui import QFont, QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 
 if TYPE_CHECKING:
@@ -41,6 +41,8 @@ class AuraBridge(QObject):
     _startupFailed = Signal(str)
     _modelChanged = Signal(str)
     _modelChangeFailed = Signal(str)
+    _systemStatusLoaded = Signal(object)
+    _modelOptionsLoaded = Signal(object, str)
 
     def __init__(self, supervisor: Optional["AuraSupervisor"] = None) -> None:
         super().__init__()
@@ -59,6 +61,8 @@ class AuraBridge(QObject):
         self._current_model = ""
         self._busy = False
         self._refresh_tick = 0
+        self._system_status_loading = False
+        self._model_options_loading = False
         self._requestCompleted.connect(self._finish_request)
         self._requestFailed.connect(self._fail_request)
         self._uiEvent.connect(self._handle_ui_event)
@@ -67,11 +71,13 @@ class AuraBridge(QObject):
         self._startupFailed.connect(self._fail_startup)
         self._modelChanged.connect(self._finish_model_change)
         self._modelChangeFailed.connect(self._fail_model_change)
+        self._systemStatusLoaded.connect(self._apply_system_status)
+        self._modelOptionsLoaded.connect(self._apply_model_options)
         if supervisor is not None:
             self._connect_supervisor(supervisor)
 
         self._state_timer = QTimer(self)
-        self._state_timer.setInterval(100)
+        self._state_timer.setInterval(150)
         self._state_timer.timeout.connect(self._sync_supervisor_state)
         self._state_timer.start()
         if supervisor is not None:
@@ -226,7 +232,7 @@ class AuraBridge(QObject):
         if self.supervisor is None:
             return
         self._refresh_tick += 1
-        if self._refresh_tick % 5 == 0:
+        if self._refresh_tick % 10 == 0:
             self._refresh_execution_feed()
             self._refresh_projects()
             self._refresh_transcript()
@@ -335,6 +341,16 @@ class AuraBridge(QObject):
             self.transcriptEntriesChanged.emit()
 
     def _refresh_system_status(self) -> None:
+        if self.supervisor is None or self._system_status_loading:
+            return
+        self._system_status_loading = True
+        threading.Thread(
+            target=self._load_system_status,
+            daemon=True,
+            name="aura-status-refresh",
+        ).start()
+
+    def _load_system_status(self) -> None:
         if self.supervisor is None:
             return
         statuses: list[dict[str, str]] = []
@@ -349,24 +365,21 @@ class AuraBridge(QObject):
         except (AttributeError, RuntimeError):
             statuses.append({"name": "GPU", "value": "CPU", "ok": "true"})
 
-        llm = getattr(self.supervisor, "llm", None)
-        model = getattr(getattr(llm, "_conv_model", None), "model_name", "Local")
-        try:
-            tts_name = str(
-                self.supervisor.tts.get_diagnostics().get("backend", "Local")
-            )
-        except AttributeError:
-            tts_name = "Local"
         statuses.extend(
             [
-                {"name": "LLM", "value": str(model), "ok": "true"},
-                {"name": "TTS", "value": tts_name, "ok": "true"},
+                {"name": "BRAIN", "value": "READY", "ok": "true"},
+                {"name": "VOICE", "value": "READY", "ok": "true"},
                 {"name": "MEMORY", "value": "ACTIVE", "ok": "true"},
                 {"name": "TOOLS", "value": "ONLINE", "ok": "true"},
                 {"name": "AGENT", "value": "EXECUTIVE", "ok": "true"},
             ]
         )
-        self._system_status = statuses
+        self._systemStatusLoaded.emit(statuses)
+
+    @Slot(object)
+    def _apply_system_status(self, statuses: object) -> None:
+        self._system_status_loading = False
+        self._system_status = list(statuses) if isinstance(statuses, list) else []
         self.systemStatusChanged.emit()
 
     def _connect_supervisor(self, supervisor: "AuraSupervisor") -> None:
@@ -405,13 +418,7 @@ class AuraBridge(QObject):
                 {**entry, "status": "complete"}
                 for entry in self._startup_entries
             ],
-            {
-                "label": (
-                    f"Ready: {hardware.selected_model} + "
-                    f"{hardware.selected_tts.upper()}"
-                ),
-                "status": "complete",
-            },
+            {"label": "Ready.", "status": "complete"},
         ]
         self.startupEntriesChanged.emit()
         self._startup_ready = True
@@ -432,6 +439,16 @@ class AuraBridge(QObject):
         self._set_status("Startup failed")
 
     def _refresh_model_options(self) -> None:
+        if self.supervisor is None or self._model_options_loading:
+            return
+        self._model_options_loading = True
+        threading.Thread(
+            target=self._load_model_options,
+            daemon=True,
+            name="aura-model-options",
+        ).start()
+
+    def _load_model_options(self) -> None:
         if self.supervisor is None:
             return
         try:
@@ -448,7 +465,12 @@ class AuraBridge(QObject):
         )
         if current and current not in options:
             options.insert(0, current)
-        self._model_options = options
+        self._modelOptionsLoaded.emit(options, current)
+
+    @Slot(object, str)
+    def _apply_model_options(self, options: object, current: str) -> None:
+        self._model_options_loading = False
+        self._model_options = list(options) if isinstance(options, list) else []
         self._current_model = current
         self.modelOptionsChanged.emit()
         self.currentModelChanged.emit()
@@ -459,7 +481,7 @@ class AuraBridge(QObject):
         self._current_model = model
         self.currentModelChanged.emit()
         self._refresh_system_status()
-        self._set_status(f"Model changed to {model}")
+        self._set_status("Reasoning engine changed.")
 
     @Slot(str)
     def _fail_model_change(self, message: str) -> None:
@@ -476,6 +498,8 @@ class AuraBridge(QObject):
             self._set_state(
                 "THINKING" if state in {"CONVERSING", "PLANNING"} else state
             )
+        elif event == "status":
+            self._set_status(str(payload))
         elif event == "speech_started":
             self._set_state("SPEAKING")
             self._set_status("Speaking")
@@ -501,6 +525,9 @@ class FutureHUDApp:
         self.app.setApplicationName("AURA")
         self.app.setOrganizationName("AURA")
         self.app.setFont(QFont("Segoe UI", 10))
+        icon_path = Path(__file__).resolve().parents[2] / "assets" / "icons" / "aura.ico"
+        if icon_path.is_file():
+            self.app.setWindowIcon(QIcon(str(icon_path)))
 
         self.bridge = AuraBridge()
         self.engine = QQmlApplicationEngine()

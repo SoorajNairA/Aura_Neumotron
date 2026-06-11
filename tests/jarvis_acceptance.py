@@ -73,6 +73,8 @@ class RecordingRevealer(ResultRevealer):
 class AcceptanceRunner:
     def __init__(self, live: bool) -> None:
         self.live = live
+        if RUN_ROOT.exists():
+            shutil.rmtree(RUN_ROOT)
         RUN_ROOT.mkdir(parents=True, exist_ok=True)
         os.chdir(RUN_ROOT)
         self.results: list[AcceptanceResult] = []
@@ -256,6 +258,13 @@ class AcceptanceRunner:
             self.record("7-9 Autonomy", text, "Create, verify, remember, and reveal project.", check)
 
     def run_multistep_and_typos(self) -> None:
+        # These projects are also created by the autonomy section. Reset only
+        # the test fixtures so overwrite protection remains enabled in AURA.
+        for duplicate in ("CalculatorApp", "WeatherApp"):
+            project_path = (RUN_ROOT / "Code" / duplicate).resolve()
+            if RUN_ROOT.resolve() in project_path.parents and project_path.exists():
+                shutil.rmtree(project_path)
+
         cases = [
             (
                 "Create a folder named DemoApp, create a Python script inside it that prints Hello World, and open the folder.",

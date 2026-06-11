@@ -28,8 +28,9 @@ ollama pull qwen2.5:3b
 
 AURA selects them automatically:
 
-- Capable hardware: Qwen 8B with XTTS-v2
-- Lower-end hardware: Qwen 3B with pyttsx3
+- 6 GB+ NVIDIA GPU: Qwen 8B with XTTS-v2
+- 3.5-6 GB NVIDIA GPU: Qwen 3B with XTTS-v2
+- CPU or smaller GPU: Qwen 3B with pyttsx3
 - Manual selection: use the model menu in the AURA top bar
 
 ### 2. Install AURA
@@ -65,12 +66,14 @@ Leave Ollama running in the background.
 For the normal Windows experience, double-click:
 
 ```text
-launch_demo.bat
+launch_aura.vbs
 ```
 
 The launcher opens AURA without leaving a terminal visible. Hardware detection,
 Ollama warmup, speech recognition, XTTS initialization, memory, and tool status
 are shown inside the startup animation.
+
+Use `launch_demo.bat` only for the isolated hackathon demonstration workspace.
 
 For development or visible console logs:
 
@@ -279,6 +282,40 @@ python -m aura.main
 - Jarvis acceptance: 39/39
 - Tool routing, safety, memory, planner isolation, and visibility tests pass
 - XTTS activation and fallback behavior are documented under `docs/`
+
+### TITAN Proving Grounds
+
+Phase Omega validation lives in `src/aura/titan_validation.py` and
+`tests/live_titan_validation.py`. It creates a disposable Unreal project named
+`TitanValidationProject`, generates a C++ automation-test module, runs live
+benchmarks, and writes:
+
+```text
+logs/titan_validation_results.json
+logs/titan_validation_dashboard.md
+```
+
+Dry runs deliberately block every benchmark so capabilities cannot be credited
+without Unreal:
+
+```powershell
+python tests/live_titan_validation.py
+```
+
+Live execution requires a real Unreal Editor executable:
+
+```powershell
+python tests/live_titan_validation.py --live --editor "C:\Program Files\Epic Games\UE_5.6\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+```
+
+Run selected benchmarks with:
+
+```powershell
+python tests/live_titan_validation.py --live --only A01 B01 C01
+```
+
+Benchmarks without a real automation implementation fail explicitly rather than
+passing by launching Unreal and quitting.
 
 ## Hardware Used
 

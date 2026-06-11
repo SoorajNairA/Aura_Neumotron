@@ -26,8 +26,8 @@ _logger = logging.getLogger("aura")
 # ---------------------------------------------------------------------------
 # Flush a speech chunk when: word_count >= MIN and a natural break is found.
 # Force-flush regardless at MAX words.
-_MIN_WORDS_PER_CHUNK: int = 20
-_MAX_WORDS_PER_CHUNK: int = 40
+_MIN_WORDS_PER_CHUNK: int = 8
+_MAX_WORDS_PER_CHUNK: int = 18
 _SENTENCE_END_CHARS: frozenset = frozenset({"." , "?", "!"})
 
 
@@ -69,6 +69,7 @@ class TTSService:
         self._backend_lock = threading.RLock()
         self._active_backend = "pyttsx3"
         self._dotnet_tts_available = os.name == "nt"
+        self._pyttsx3_available = True
         self._xtts_ready = threading.Event()
         self._xtts_init_done = threading.Event()
         self._xtts_init_thread: Optional[threading.Thread] = None
@@ -193,6 +194,8 @@ class TTSService:
                 or self._elevenlabs_available
                 or self._dotnet_tts_available
             ),
+            "pyttsx3_available": self._pyttsx3_available,
+            "windows_dotnet_available": self._dotnet_tts_available,
             "device": "cpu",
             "voice": f"local voice {self.local_voice_index}",
             "warmup": False,
@@ -202,6 +205,9 @@ class TTSService:
 
     def wait_until_xtts_ready(self, timeout: float | None = None) -> bool:
         return self._xtts_ready.wait(timeout=timeout)
+
+    def wait_until_initialization_done(self, timeout: float | None = None) -> bool:
+        return self._xtts_init_done.wait(timeout=timeout)
 
     def set_amplitude_callback(
         self,
@@ -316,25 +322,34 @@ class TTSService:
         spoken: list[str] = []
         first_chunk_ms: float | None = None
 
-        while True:
+        def chunks() -> Iterator[str]:
+            nonlocal first_chunk_ms
+            while True:
+                try:
+                    chunk = chunk_queue.get(timeout=120)
+                except queue.Empty:
+                    _logger.warning("TTS stream: 120s timeout waiting for chunk. Aborting.")
+                    return
+                if chunk is None:
+                    return
+                if first_chunk_ms is None:
+                    first_chunk_ms = (time.perf_counter() - t_start) * 1000
+                    _logger.info(
+                        f"TRACE  Stream first chunk : {first_chunk_ms:.0f}ms  "
+                        f"words={len(chunk.split())}"
+                    )
+                yield chunk
+
+        if self._active_backend == "xtts" and self.xtts is not None:
             try:
-                chunk = chunk_queue.get(timeout=120)
-            except queue.Empty:
-                _logger.warning("TTS stream: 120s timeout waiting for chunk. Aborting.")
-                break
-
-            if chunk is None:  # sentinel — stream complete
-                break
-
-            if first_chunk_ms is None:
-                first_chunk_ms = (time.perf_counter() - t_start) * 1000
-                _logger.info(
-                    f"TRACE  Stream first chunk : {first_chunk_ms:.0f}ms  "
-                    f"words={len(chunk.split())}"
-                )
-
-            spoken.append(chunk)
-            self.speak(chunk)
+                spoken.extend(self.xtts.speak_pipelined(chunks()))
+            except Exception as exc:
+                errors.append(exc)
+                _logger.warning("XTTS streaming pipeline failed: %s", exc)
+        else:
+            for chunk in chunks():
+                spoken.append(chunk)
+                self.speak(chunk)
 
         prod.join(timeout=5)
 
@@ -437,6 +452,11 @@ class TTSService:
             if self.local_tts is not None:
                 self._active_backend = "pyttsx3"
                 return True
+            if not self._pyttsx3_available:
+                if self._dotnet_tts_available:
+                    self._active_backend = "windows_dotnet"
+                _logger.debug("TTS: pyttsx3 skipped; backend marked unavailable for this session.")
+                return False
             try:
                 local_tts = pyttsx3.init()
                 local_tts.setProperty("rate", self.local_rate)
@@ -456,6 +476,7 @@ class TTSService:
                 return True
             except Exception as exc:
                 self.local_tts = None
+                self._pyttsx3_available = False
                 _logger.error(f"TTS: pyttsx3 fallback initialization failed: {exc}")
                 if self._dotnet_tts_available:
                     self._active_backend = "windows_dotnet"

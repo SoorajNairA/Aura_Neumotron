@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
 from .actions import ExecutionAgent
+from .architecture_intelligence import ArchitectureIntelligenceEngine
 from .audio_io import AudioIO
 from .config import Settings
 from .conversation_context import (
@@ -16,6 +18,7 @@ from .conversation_context import (
     WorkingMemory,
 )
 from .conversation_model import ConversationModel
+from .executive_behavior import ExecutiveBehavior
 from .executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier
 from .llm import LLMService
 from .memory_store import MemoryStore
@@ -76,6 +79,10 @@ class AuraSupervisor:
         )
 
         self.memory = MemoryStore(settings.memory_dir)
+        self.architecture = ArchitectureIntelligenceEngine(
+            project_root=Path(__file__).resolve().parents[2],
+            memory=self.memory,
+        )
         self.planner = PlannerAgent(self.llm)
         self.safety = SafetyLayer()
         self.executor = ExecutionAgent(max_research_results=settings.max_research_results)
@@ -88,6 +95,7 @@ class AuraSupervisor:
             _logger.info(f"DEMO MODE ACTIVE: Workspace redirected to {workspace_root}")
         else:
             workspace_root = Path.cwd()
+        self.executor.workspace_root = workspace_root.resolve()
 
         self.executive = ExecutiveAgent(
             planner=self.planner,
@@ -99,6 +107,7 @@ class AuraSupervisor:
             workspace_root=workspace_root,
             confirmation_callback=self._confirm,
             result_revealer=self.result_revealer,
+            status_callback=self._report_status,
         )
 
         # v2: Working memory replaces flat conversation_history list.
@@ -145,6 +154,10 @@ class AuraSupervisor:
                 listener(event, payload)
             except Exception:
                 _logger.debug("HUD listener failed.", exc_info=True)
+
+    def _report_status(self, message: str) -> None:
+        self._notify_ui("status", message)
+        _logger.info("STATUS: %s", message)
 
     def _set_conversation_state(self, state: ConversationState) -> None:
         self.conversation_state = state
@@ -362,13 +375,13 @@ class AuraSupervisor:
         lowered = text.lower()
         if "show capabilities" in lowered:
             capabilities = (
-                "I am AURA, your local AI executive assistant. My capabilities include:\n"
+                "I'm AURA, your local executive assistant. I can:\n"
                 "- Conversation and Memory: I remember our past interactions.\n"
                 "- Desktop Automation: I can open applications and websites.\n"
                 "- Project Generation: I can build games, websites, and scripts from scratch.\n"
                 "- Task Planning: I decompose complex goals into executable steps.\n"
-                "- XTTS Voice: I use a high-quality local voice for communication.\n"
-                "- Offline Operation: I run entirely on your local hardware via Ollama."
+                "- Voice Interaction: I can listen and respond naturally.\n"
+                "- Offline Operation: I run on this computer."
             )
             self._speak(capabilities)
             self._append_conversation_turn("assistant", capabilities)
@@ -453,12 +466,42 @@ class AuraSupervisor:
             if not approved:
                 self._speak("Understood. I cancelled that command.")
                 return
+        path = str(request.args.get("path", "")).strip()
+        if path:
+            path_decision = self.safety.assess_path(
+                request.action,
+                path,
+                self.executor.workspace_root,
+                self.executor.approved_roots,
+            )
+        else:
+            path_decision = None
+        if path_decision is not None and path_decision.denied:
+            self._speak(f"I blocked that file operation. {path_decision.reason}")
+            return
+        if path_decision is not None and path_decision.requires_confirmation:
+            approved = self._confirm(f"{path_decision.reason} Approve access to {path_decision.target}?")
+            if not approved:
+                self._speak("Understood. I kept the file operation inside the approved scope.")
+                return
+            if "existing" in path_decision.reason.lower():
+                request.args["overwrite"] = True
+            if "outside approved workspace" in path_decision.reason:
+                request.args["allow_external_write"] = True
 
+        status_message = self._direct_command_status_message(request)
+        if status_message:
+            self._report_status(status_message)
         pre_message = self._direct_command_pre_message(request)
         if pre_message:
             self._speak(pre_message)
 
         result = self.executor.run(request)
+        if not result.ok:
+            recovered = self._recover_direct_command(request, result)
+            if recovered is not None:
+                request, result = recovered
+        self._report_status("Verifying results...")
         revealed = self._reveal_action_result(request, result) if result.ok else False
         self.memory.append_log(
             {
@@ -477,9 +520,15 @@ class AuraSupervisor:
             return
         if result.ok:
             final_message = self._direct_command_result_message(request, result, revealed)
+            self._report_status("Completed.")
             self._speak(self.llm.voice_reply(command_text, task_context=f"Command completed: {final_message}", fallback=final_message))
             return
-        self._speak(self.llm.voice_reply(command_text, task_context=f"Command failed: {result.message}", fallback=result.message))
+        self._report_status("Trying another route.")
+        self._speak(self.llm.voice_reply(
+            command_text,
+            task_context=f"Command failed: {result.message}",
+            fallback=ExecutiveBehavior.sanitize_for_user(result.message),
+        ))
 
     def _direct_command_pre_message(self, request: ActionRequest) -> str:
         if request.action == "open_app":
@@ -488,13 +537,16 @@ class AuraSupervisor:
         if request.action == "open_url":
             url = str(request.args.get("url", "that site")).strip()
             return f"Opening {_friendly_url_name(url)}."
-        if request.action == "create_folder":
-            return "Creating the folder."
-        if request.action == "create_file":
-            return "Creating the file."
-        if request.action == "write_text_file":
-            return "Writing the file."
         return ""
+
+    def _direct_command_status_message(self, request: ActionRequest) -> str:
+        if request.action in {"open_app", "open_url"}:
+            return "Launching..."
+        if request.action == "create_folder":
+            return "Creating folders..."
+        if request.action in {"create_file", "write_text_file"}:
+            return "Generating files..."
+        return "Executing..."
 
     def _direct_command_result_message(
         self,
@@ -517,6 +569,34 @@ class AuraSupervisor:
             return f"Done. Saved and opened {path.name}."
         return result.message
 
+    def _recover_direct_command(
+        self,
+        request: ActionRequest,
+        result: Any,
+    ) -> tuple[ActionRequest, Any] | None:
+        self._report_status("Trying another route.")
+        if request.action == "open_app":
+            app = str(request.args.get("app_name", "")).strip().lower().replace(" ", "")
+            if app in {"vscode", "visualstudiocode"}:
+                fallback = ActionRequest(action="open_app", args={"app_name": "explorer"})
+                fallback.risk = self.safety.classify(fallback.action)
+                fallback_result = self.executor.run(fallback)
+                if fallback_result.ok:
+                    fallback_result.message = "VS Code wasn't available, so I opened Explorer instead."
+                    fallback_result.output["fallback_used"] = True
+                    fallback_result.output["fallback_reason"] = "vscode_unavailable"
+                    return fallback, fallback_result
+            if app in {"chrome", "googlechrome", "edge", "microsoftedge", "firefox"}:
+                fallback = ActionRequest(action="open_url", args={"url": "https://google.com"})
+                fallback.risk = self.safety.classify(fallback.action)
+                fallback_result = self.executor.run(fallback)
+                if fallback_result.ok:
+                    fallback_result.message = "The requested browser wasn't available, so I opened the default browser."
+                    fallback_result.output["fallback_used"] = True
+                    fallback_result.output["fallback_reason"] = "browser_unavailable"
+                    return fallback, fallback_result
+        return None
+
     def _reveal_action_result(self, request: ActionRequest, result: Any) -> bool:
         revealer = getattr(self, "result_revealer", None)
         if revealer is None or not revealer.enabled:
@@ -538,6 +618,12 @@ class AuraSupervisor:
         # ------------------------------------------------------------------
         # Fast path: exact token match — zero LLM calls, zero memory reads.
         # ------------------------------------------------------------------
+        contextual_greeting = self._contextual_greeting_reply(user_text)
+        if contextual_greeting is not None:
+            self._append_conversation_turn("assistant", contextual_greeting)
+            self._speak(contextual_greeting)
+            return
+
         fast_reply = self.llm.fast_path_reply(user_text, working_memory=self.working_memory)
         if fast_reply is not None:
             _ctrace.info("" + "-" * 46)
@@ -602,7 +688,11 @@ class AuraSupervisor:
                 interaction_type=interaction_type,
                 context=ctx,
             )
-            assembled = self.tts.speak_streamed(token_stream)
+            self._notify_ui("speech_started", "")
+            try:
+                assembled = self.tts.speak_streamed(token_stream)
+            finally:
+                self._notify_ui("speech_finished", "")
             if assembled:
                 # At least one chunk was spoken — streaming succeeded.
                 reply = assembled
@@ -636,22 +726,44 @@ class AuraSupervisor:
 
         self._append_conversation_turn("assistant", reply)
 
+    def _contextual_greeting_reply(self, user_text: str) -> str | None:
+        token = user_text.strip().lower().rstrip(".,!?")
+        if token not in {"hello", "hi", "hey", "good morning", "good afternoon", "good evening"}:
+            return None
+        try:
+            projects = self.memory.get_projects()
+        except Exception:
+            projects = {}
+        if projects:
+            name = str(next(reversed(projects))).replace("_", " ").title()
+            return f"Welcome back. We still have {name} open."
+        try:
+            logs = self.memory.read_recent_logs(limit=1)
+        except Exception:
+            logs = []
+        if logs:
+            latest = logs[-1]
+            goal = str(latest.get("goal") or latest.get("command") or "").strip()
+            if goal:
+                return f"Welcome back. Last time, we were working on {goal}."
+        return None
+
     def handle_spoken_text(self, spoken: str, require_wake_word: bool = True) -> bool:
         spoken = spoken.strip()
         if not spoken:
             return True
 
         lowered = spoken.lower()
-        if "exit" in lowered or "shutdown" in lowered:
+        if _is_shutdown_command(lowered):
             self._speak("Shutting down. Goodbye.")
             return False
 
         goal_text = spoken
         if require_wake_word:
-            if self.settings.wake_word not in lowered:
+            extracted = _extract_wake_request(spoken, self.settings.wake_word)
+            if extracted is None:
                 return True
-            idx = lowered.find(self.settings.wake_word)
-            goal_text = spoken[idx + len(self.settings.wake_word):].strip(" ,:.-")
+            goal_text = extracted
 
         if not goal_text:
             self._speak("I heard the wake word but not the message. Please repeat.")
@@ -667,6 +779,22 @@ class AuraSupervisor:
         # Demo Commands
         if self._handle_demo_commands(goal_text):
             _logger.info(f"Router: Demo command handled: '{goal_text}'")
+            return True
+
+        architecture = getattr(self, "architecture", None)
+        if architecture is not None and architecture.can_handle(goal_text):
+            answer = architecture.answer(goal_text)
+            response = answer.answer
+            if answer.diagram:
+                response = f"{response}\n\n{answer.diagram}"
+            self._speak(response)
+            self._append_conversation_turn("assistant", response)
+            _logger.info(
+                "Router: ArchitectureIntelligence handled request confidence=%.2f",
+                answer.confidence,
+            )
+            _logger.info(f"TRACE  Total              : {(time.perf_counter() - req_start) * 1000:.1f}ms")
+            _logger.info("TRACE " + "=" * 50)
             return True
 
         tool_selection = self.llm.detect_direct_tool_call(
@@ -693,10 +821,7 @@ class AuraSupervisor:
             _logger.info(f"Router: Activating ExecutiveAgent for: '{goal_text[:80]}'")
             self._set_conversation_state(ConversationState.EXECUTING)
             outcome = self.executive.execute(goal_text)
-            response = outcome.message
-            if outcome.assumptions:
-                assumption_values = ", ".join(outcome.assumptions.values())
-                response = f"{response} Assumptions: {assumption_values}."
+            response = ExecutiveBehavior.sanitize_for_user(outcome.message)
             self._speak(response)
             self._append_conversation_turn("assistant", response)
             self._set_conversation_state(ConversationState.CONVERSING)
@@ -823,6 +948,26 @@ def _friendly_app_name(app: str) -> str:
         "fileexplorer": "Explorer",
     }
     return names.get(key, app.strip() or "that app")
+
+
+def _is_shutdown_command(text: str) -> bool:
+    return text.strip().lower().strip(" .!?") in {
+        "exit",
+        "quit",
+        "shutdown",
+        "shut down",
+        "exit aura",
+        "quit aura",
+        "shutdown aura",
+        "shut down aura",
+    }
+
+
+def _extract_wake_request(spoken: str, wake_word: str) -> str | None:
+    match = re.search(rf"\b{re.escape(wake_word.lower())}\b", spoken.lower())
+    if match is None:
+        return None
+    return spoken[match.end():].strip(" ,:.-")
 
 
 def _friendly_url_name(url: str) -> str:

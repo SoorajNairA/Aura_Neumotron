@@ -95,8 +95,11 @@ def main() -> None:
             raise AssertionError("Executive goal reached conversation classifier")
 
         supervisor.llm.classify_interaction = classification_must_not_run
-        assert supervisor.handle_spoken_text("Make a Python Calculator", require_wake_word=False)
-        assert spoken and spoken[-1].startswith("Done. Created CalculatorApp")
+        assert supervisor.handle_spoken_text(
+            "Make a Python Calculator named FreshCalculator",
+            require_wake_word=False,
+        )
+        assert spoken and spoken[-1].startswith("Done. Created FreshCalculator")
         print("  Orchestrator routing: PASS")
 
     print("  TEST 10 PASS")
