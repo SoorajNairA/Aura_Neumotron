@@ -24,11 +24,22 @@ class VerificationDecision(str, Enum):
 
 
 @dataclass(frozen=True)
+class VerificationFinding:
+    id: str
+    check: str
+    state: VerificationState
+    severity: str
+    message: str
+    entity_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class VerificationResult:
     decision: VerificationDecision
     state: VerificationState
     reasons: tuple[str, ...]
     patch: GraphPatch | None
+    findings: tuple[VerificationFinding, ...] = ()
 
     @property
     def accepted(self) -> bool:

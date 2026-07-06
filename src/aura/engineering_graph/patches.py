@@ -14,6 +14,7 @@ class PatchOperation(str, Enum):
     UPDATE_ENTITY = "update_entity"
     REMOVE_ENTITY = "remove_entity"
     ADD_RELATIONSHIP = "add_relationship"
+    UPDATE_RELATIONSHIP = "update_relationship"
     REMOVE_RELATIONSHIP = "remove_relationship"
 
 
@@ -80,6 +81,13 @@ def _apply_operation(graph: EngineeringGraph, change: GraphOperation) -> None:
         if change.relationship is None or change.relationship.id in graph.relationships:
             raise ValueError("add_relationship requires a new relationship")
         graph.relationships[change.relationship.id] = change.relationship
+    elif change.operation == PatchOperation.UPDATE_RELATIONSHIP:
+        if change.target_id not in graph.relationships:
+            raise ValueError(f"Cannot update missing relationship {change.target_id}")
+        allowed = {"source_id", "target_id", "type", "metadata"}
+        if unknown := set(change.changes) - allowed:
+            raise ValueError(f"Unsupported relationship changes: {sorted(unknown)}")
+        graph.relationships[change.target_id] = replace(graph.relationships[change.target_id], **change.changes)
     elif change.operation == PatchOperation.REMOVE_RELATIONSHIP:
         if change.target_id not in graph.relationships:
             raise ValueError(f"Cannot remove missing relationship {change.target_id}")
