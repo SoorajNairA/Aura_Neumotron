@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import webbrowser
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -16,6 +15,11 @@ from starlette.concurrency import run_in_threadpool
 
 from aura.engineering_graph.model import EngineeringGraph, EntityKind
 from aura.engineering_graph.serialization import graph_to_dict
+from aura.engineering_graph.serialization import patch_to_dict
+from aura.infrastructure.project_repository import (
+    CorruptProjectData, PersistenceFailure, ProjectRepository, SQLiteProjectRepository,
+    StoredEvent, StoredProject, UnsupportedSchemaVersion,
+)
 from aura.planner.live import LivePlanner, PlanningOutcome
 from aura.planner.schemas import ProjectRequest
 from aura.planner.service import PlannerService
@@ -47,47 +51,45 @@ class EventEnvelope(BaseModel):
     timestamp: str
 
 
-@dataclass
-class ProjectRecord:
-    graph: EngineeringGraph
-    objective: str
-    planning_mode: str
-    fallback_reason: str | None
-    representations: list[RepresentationRequest]
-
-
 class EventBroker:
-    def __init__(self) -> None:
+    def __init__(self, repository: ProjectRepository) -> None:
+        self.repository = repository
         self.events: dict[str, list[EventEnvelope]] = {}
         self.listeners: dict[str, set[asyncio.Queue[EventEnvelope]]] = {}
 
     def reset(self, project_id: str) -> None:
         self.events[project_id] = []
 
-    async def publish(self, project_id: str, event_type: str, semantic_ids: list[str] | None = None,
-                      payload: dict[str, Any] | None = None, revision: int = 0) -> EventEnvelope:
-        history = self.events.setdefault(project_id, [])
-        envelope = EventEnvelope(eventId=len(history) + 1, projectId=project_id,
-            revision=revision, type=event_type, semanticIds=semantic_ids or [],
-            payload=payload or {}, timestamp=datetime.now(timezone.utc).isoformat())
-        history.append(envelope)
-        for queue in tuple(self.listeners.get(project_id, set())):
+    async def publish_committed(self, event: StoredEvent) -> EventEnvelope:
+        envelope = EventEnvelope(eventId=event.event_id, projectId=event.project_id,
+            revision=event.revision, type=event.type, semanticIds=event.semantic_ids,
+            payload=event.payload, timestamp=event.timestamp)
+        self.events.setdefault(event.project_id, []).append(envelope)
+        for queue in tuple(self.listeners.get(event.project_id, set())):
             await queue.put(envelope)
         return envelope
 
     def replay(self, project_id: str, after: int) -> list[EventEnvelope]:
-        return [event for event in self.events.get(project_id, []) if event.eventId > after]
+        return [EventEnvelope(eventId=item.event_id, projectId=item.project_id, revision=item.revision,
+            type=item.type, semanticIds=item.semantic_ids, payload=item.payload, timestamp=item.timestamp)
+            for item in self.repository.get_events_after(project_id, after)]
 
 
 class WorkspaceApplication:
-    def __init__(self, provider: Any | None = None, planner_timeout: float | None = None) -> None:
+    def __init__(self, provider: Any | None = None, planner_timeout: float | None = None,
+                 repository: ProjectRepository | None = None, storage_mode: str | None = None,
+                 db_path: str | Path | None = None, artifact_dir: Path | None = None) -> None:
+        from aura.config import Settings
+        settings = Settings()
         self.provider = provider
         if planner_timeout is None:
-            from aura.config import Settings
-            planner_timeout = Settings().planner_timeout
+            planner_timeout = settings.planner_timeout
         self.planner_timeout = planner_timeout
-        self.projects: dict[str, ProjectRecord] = {}
-        self.broker = EventBroker()
+        mode = storage_mode or settings.workspace_storage_mode
+        if mode not in {"sqlite", "memory"}: raise ValueError(f"Unsupported workspace storage mode: {mode}")
+        database = ":memory:" if mode == "memory" else str(db_path or settings.workspace_db_path)
+        self.repository = repository or SQLiteProjectRepository(database, artifact_dir or settings.workspace_artifact_dir)
+        self.broker = EventBroker(self.repository)
 
     def _request(self, objective: str) -> ProjectRequest:
         return ProjectRequest("Automatic Irrigation System", objective,
@@ -126,45 +128,51 @@ class WorkspaceApplication:
         except Exception:
             return None
 
-    async def create(self, body: CreateProjectBody) -> ProjectRecord:
+    async def create(self, body: CreateProjectBody) -> StoredProject:
         try:
             outcome = await run_in_threadpool(self.plan, body)
         except RuntimeError as exc:
             raise HTTPException(503, detail=str(exc)) from exc
         plan = outcome.plan
         project_id = plan.entities[0].id
-        self.broker.reset(project_id)
-        await self.broker.publish(project_id, "project.started", payload={"planningMode": outcome.mode})
+        event_drafts = [{"type": "project.started", "payload": {"planningMode": outcome.mode}, "semantic_ids": []}]
         if outcome.mode == "live_model":
-            await self.broker.publish(project_id, "planning.live_model", payload={"message": "Planning with live model"})
+            event_drafts.append({"type": "planning.live_model", "payload": {"message": "Planning with live model"}, "semantic_ids": []})
         elif outcome.mode == "deterministic_fallback":
-            await self.broker.publish(project_id, "task.fallback_used", payload={"reason": outcome.fallback_reason})
+            event_drafts.append({"type": "task.fallback_used", "payload": {"reason": outcome.fallback_reason}, "semantic_ids": []})
         verified = VerificationService().verify(plan)
         if not verified.accepted:
-            await self.broker.publish(project_id, "project.failed", payload={"reasons": list(verified.reasons)})
             raise HTTPException(422, detail=list(verified.reasons))
         bridge = WorkspaceBridge()
         graph = bridge.commit(EngineeringGraph(project_id), verified)
-        record = ProjectRecord(graph, body.objective, outcome.mode, outcome.fallback_reason,
+        now = datetime.now(timezone.utc).isoformat()
+        record = StoredProject(project_id, body.objective, outcome.mode, outcome.fallback_reason, "ready", graph,
             [RepresentationRequest(component.id, RepresentationType.PLACEHOLDER,
-                RepresentationStatus.CONCEPTUAL) for component in graph.find(kind=EntityKind.COMPONENT)])
-        self.projects[project_id] = record
+                RepresentationStatus.CONCEPTUAL).to_dict() for component in graph.find(kind=EntityKind.COMPONENT)], now, now)
         for event in bridge.events:
             if event.type == "project.started":
                 continue
-            await self._publish_workspace(event, graph)
+            event_drafts.append(self._event_draft(event, graph))
+        verification = {"state": verified.state.value, "decision": verified.decision.value,
+            "reasons": list(verified.reasons), "findings": [finding.__dict__ | {"state": finding.state.value} for finding in verified.findings]}
+        try:
+            committed = self.repository.save_commit(record, verified.patch, verification, event_drafts)  # type: ignore[arg-type]
+        except PersistenceFailure as exc:
+            raise HTTPException(503, detail={"code": "persistence_failure", "message": str(exc)}) from exc
+        self.broker.reset(project_id)
+        for event in committed: await self.broker.publish_committed(event)
         return record
 
-    async def _publish_workspace(self, event: WorkspaceEvent, graph: EngineeringGraph) -> None:
+    def _event_draft(self, event: WorkspaceEvent, graph: EngineeringGraph) -> dict[str, Any]:
         semantic_ids = []
         if event.entity_id:
             semantic_ids.append(event.entity_id)
         semantic_ids.extend(value for value in event.payload.get("entity_ids", []) if value not in semantic_ids)
-        await self.broker.publish(event.project_id, event.type, semantic_ids, event.payload,
-            len(graph.revisions) if event.revision_id else 0)
+        return {"type": event.type, "semantic_ids": semantic_ids, "payload": event.payload,
+                "revision": len(graph.revisions) if event.revision_id else 0, "timestamp": event.created_at}
 
     async def modify(self, project_id: str, body: ModificationBody) -> dict[str, Any]:
-        record = self.projects.get(project_id)
+        record = self.repository.get_project(project_id)
         if record is None:
             raise HTTPException(404, "Project not found")
         try:
@@ -178,17 +186,27 @@ class WorkspaceApplication:
         result = VerificationService().verify_modification(record.graph, patch)
         bridge = WorkspaceBridge()
         updated = bridge.commit(record.graph, result)
-        record.graph = updated
-        for event in bridge.events:
-            await self._publish_workspace(event, updated)
+        updated_record = StoredProject(record.project_id, record.objective, record.planning_mode,
+            record.fallback_reason, "ready", updated, record.representations, record.created_at,
+            datetime.now(timezone.utc).isoformat())
+        event_drafts = [self._event_draft(event, updated) for event in bridge.events]
+        verification = {"state": result.state.value, "decision": result.decision.value,
+            "reasons": list(result.reasons), "findings": [finding.__dict__ | {"state": finding.state.value} for finding in result.findings]}
+        try:
+            committed = self.repository.save_commit(updated_record, result.patch, verification, event_drafts)  # type: ignore[arg-type]
+        except PersistenceFailure as exc:
+            raise HTTPException(503, detail={"code": "persistence_failure", "message": str(exc)}) from exc
+        for event in committed: await self.broker.publish_committed(event)
         after_entity = updated.get(selected.id)
         after = {"id": after_entity.id, "name": after_entity.name, "revision": len(updated.revisions)}
         return {"projectId": project_id, "before": before, "after": after,
                 "summary": patch.summary, "rerunChecks": [finding.check for finding in result.findings]}
 
 
-def create_app(provider: Any | None = None, planner_timeout: float | None = None) -> FastAPI:
-    application = WorkspaceApplication(provider, planner_timeout)
+def create_app(provider: Any | None = None, planner_timeout: float | None = None,
+               repository: ProjectRepository | None = None, storage_mode: str | None = None,
+               db_path: str | Path | None = None, artifact_dir: Path | None = None) -> FastAPI:
+    application = WorkspaceApplication(provider, planner_timeout, repository, storage_mode, db_path, artifact_dir)
     app = FastAPI(title="AURA Engineering Workspace", version="0.2.0")
     app.state.workspace = application
     web_root = Path(__file__).with_name("web")
@@ -203,6 +221,10 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         record = await application.create(body)
         return _project_payload(record)
 
+    @app.get("/api/projects")
+    def list_projects() -> list[dict[str, Any]]:
+        return [_project_payload(record, concise=True) for record in application.repository.list_projects()]
+
     @app.get("/api/projects/{project_id}")
     def get_project(project_id: str) -> dict[str, Any]:
         record = _record(application, project_id)
@@ -214,7 +236,11 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.get("/api/projects/{project_id}/revisions")
     def get_revisions(project_id: str) -> list[dict[str, Any]]:
-        return [revision.__dict__ for revision in _record(application, project_id).graph.revisions]
+        _record(application, project_id)
+        return [{"revision": item["revision"], "revisionId": item["revisionId"],
+                 "patchId": item["patch"].id, "summary": item["patch"].summary,
+                 "verification": item["verification"], "createdAt": item["createdAt"]}
+                for item in application.repository.list_revisions(project_id)]
 
     @app.post("/api/projects/{project_id}/modifications")
     async def modify_project(project_id: str, body: ModificationBody) -> dict[str, Any]:
@@ -239,22 +265,22 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     return app
 
 
-def _record(application: WorkspaceApplication, project_id: str) -> ProjectRecord:
+def _record(application: WorkspaceApplication, project_id: str) -> StoredProject:
     try:
-        return application.projects[project_id]
-    except KeyError as exc:
-        raise HTTPException(404, "Project not found") from exc
+        record = application.repository.get_project(project_id)
+    except (CorruptProjectData, UnsupportedSchemaVersion) as exc:
+        raise HTTPException(500, detail={"code": "stored_data_error", "message": str(exc)}) from exc
+    if record is None: raise HTTPException(404, "Project not found")
+    return record
 
 
-def _project_payload(record: ProjectRecord) -> dict[str, Any]:
+def _project_payload(record: StoredProject, concise: bool = False) -> dict[str, Any]:
     graph = record.graph
     return {"projectId": graph.project_id, "objective": record.objective,
             "planningMode": record.planning_mode, "fallbackReason": record.fallback_reason,
-            "revision": len(graph.revisions), "status": "ready",
-            "representations": [item.to_dict() for item in record.representations]}
-
-
-app = create_app()
+            "revision": len(graph.revisions), "status": record.status,
+            "createdAt": record.created_at, "updatedAt": record.updated_at,
+            **({} if concise else {"representations": record.representations})}
 
 
 def main() -> None:
@@ -268,7 +294,7 @@ def main() -> None:
     if args.open_browser:
         webbrowser.open(f"http://{args.host}:{args.port}")
     import uvicorn
-    uvicorn.run("aura.workspace.server:app", host=args.host, port=args.port, reload=False)
+    uvicorn.run("aura.workspace.server:create_app", host=args.host, port=args.port, reload=False, factory=True)
 
 
 if __name__ == "__main__":

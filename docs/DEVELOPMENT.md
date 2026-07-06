@@ -25,6 +25,11 @@ python -m aura.workspace.server --open
 The QML assistant, voice stack, and Unreal domain are optional compatibility
 systems. They are not imported by the workspace server.
 
+SQLite is the normal storage mode. Configure `AURA_WORKSPACE_DB_PATH` and
+`AURA_WORKSPACE_ARTIFACT_DIR` with repository-relative or deployment-managed
+paths. Artifact metadata is stored in SQLite; binary content is written under
+the artifact directory using generated IDs and atomic replacement.
+
 ## Validate
 
 ```powershell

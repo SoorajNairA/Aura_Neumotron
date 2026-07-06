@@ -58,7 +58,7 @@ def create_project(client: TestClient, mode="deterministic_test"):
 
 @pytest.mark.integration
 def test_project_graph_revision_and_frontend_apis() -> None:
-    app = create_app()
+    app = create_app(storage_mode="memory")
     with TestClient(app) as client:
         project = create_project(client)
         assert project["planningMode"] == "deterministic_test"
@@ -73,7 +73,7 @@ def test_project_graph_revision_and_frontend_apis() -> None:
 
 @pytest.mark.integration
 def test_websocket_order_and_replay_after_event_id() -> None:
-    app = create_app()
+    app = create_app(storage_mode="memory")
     with TestClient(app) as client:
         project_id = create_project(client)["projectId"]
         history = app.state.workspace.broker.events[project_id]
@@ -91,7 +91,7 @@ def test_websocket_order_and_replay_after_event_id() -> None:
 
 @pytest.mark.integration
 def test_modification_endpoint_is_partial_and_revalidated() -> None:
-    app = create_app()
+    app = create_app(storage_mode="memory")
     with TestClient(app) as client:
         project_id = create_project(client)["projectId"]
         response = client.post(f"/api/projects/{project_id}/modifications", json={
@@ -109,7 +109,7 @@ def test_modification_endpoint_is_partial_and_revalidated() -> None:
 
 @pytest.mark.integration
 def test_live_mode_metadata_and_fallback_event() -> None:
-    app = create_app(provider=FakeProvider(["bad", "bad"]))
+    app = create_app(provider=FakeProvider(["bad", "bad"]), storage_mode="memory")
     with TestClient(app) as client:
         project = create_project(client, "live_model")
         assert project["planningMode"] == "deterministic_fallback"

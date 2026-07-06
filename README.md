@@ -101,6 +101,11 @@ selection, information display, verification warnings, representation states,
 and AURA focus highlighting. The existing QML interface remains a legacy
 assistant fallback and is not imported by the workspace server.
 
+Projects persist by default in `runtime/workspace/aura.db`; artifact binaries
+are stored separately under `runtime/workspace/artifacts/`. Both locations are
+configurable and ignored by Git. Set `AURA_WORKSPACE_STORAGE_MODE=memory` only
+for disposable development or tests.
+
 ## Testing
 
 Install development dependencies:
