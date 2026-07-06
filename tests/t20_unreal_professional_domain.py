@@ -9,9 +9,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.domain_manager import DomainManager  # noqa: E402
-from aura.memory_store import MemoryStore  # noqa: E402
-from aura.unreal_domain import (  # noqa: E402
+from aura.legacy.assistant.domain_manager import DomainManager  # noqa: E402
+from aura.infrastructure.persistence.memory_store import MemoryStore  # noqa: E402
+from aura.legacy.unreal.domain import (  # noqa: E402
     BlueprintGraphEngine,
     UnrealDecisionEngine,
     UnrealDirector,
@@ -119,6 +119,7 @@ def main() -> None:
             memory=memory,
             domains_dir=root / "domains",
             operator_executor=operator_executor,
+            include_legacy_unreal=True,
         )
         domain = manager.domains["unreal"]
         assert isinstance(domain, UnrealProfessionalDomain)

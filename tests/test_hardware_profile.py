@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from aura.config import Settings
-from aura.hardware_profile import resolve_runtime_settings
+from aura.app.config import Settings
+from aura.app.hardware_profile import resolve_runtime_settings
 
 
 def test_performance_profile_uses_qwen8b_and_xtts() -> None:
@@ -13,13 +13,13 @@ def test_performance_profile_uses_qwen8b_and_xtts() -> None:
         hardware_profile="auto",
     )
     with (
-        patch("aura.hardware_profile._total_ram_gb", return_value=16.0),
+        patch("aura.app.hardware_profile._total_ram_gb", return_value=16.0),
         patch(
-            "aura.hardware_profile._cuda_info",
+            "aura.app.hardware_profile._cuda_info",
             return_value=(True, "RTX 4060", 8.0),
         ),
         patch(
-            "aura.hardware_profile._installed_ollama_models",
+            "aura.app.hardware_profile._installed_ollama_models",
             return_value={"qwen3:8b", "qwen2.5:3b"},
         ),
     ):
@@ -38,13 +38,13 @@ def test_four_gb_gpu_uses_qwen3b_with_xtts() -> None:
         hardware_profile="auto",
     )
     with (
-        patch("aura.hardware_profile._total_ram_gb", return_value=16.0),
+        patch("aura.app.hardware_profile._total_ram_gb", return_value=16.0),
         patch(
-            "aura.hardware_profile._cuda_info",
+            "aura.app.hardware_profile._cuda_info",
             return_value=(True, "RTX 3050", 4.0),
         ),
         patch(
-            "aura.hardware_profile._installed_ollama_models",
+            "aura.app.hardware_profile._installed_ollama_models",
             return_value={"qwen3:8b", "qwen2.5:3b"},
         ),
     ):
@@ -63,13 +63,13 @@ def test_low_profile_uses_qwen3b_and_pyttsx3() -> None:
         hardware_profile="auto",
     )
     with (
-        patch("aura.hardware_profile._total_ram_gb", return_value=8.0),
+        patch("aura.app.hardware_profile._total_ram_gb", return_value=8.0),
         patch(
-            "aura.hardware_profile._cuda_info",
+            "aura.app.hardware_profile._cuda_info",
             return_value=(False, "None", 0.0),
         ),
         patch(
-            "aura.hardware_profile._installed_ollama_models",
+            "aura.app.hardware_profile._installed_ollama_models",
             return_value={"qwen2.5:3b"},
         ),
     ):
@@ -89,13 +89,13 @@ def test_missing_8b_uses_installed_3b_fallback() -> None:
         hardware_profile="performance",
     )
     with (
-        patch("aura.hardware_profile._total_ram_gb", return_value=16.0),
+        patch("aura.app.hardware_profile._total_ram_gb", return_value=16.0),
         patch(
-            "aura.hardware_profile._cuda_info",
+            "aura.app.hardware_profile._cuda_info",
             return_value=(True, "RTX 3050", 4.0),
         ),
         patch(
-            "aura.hardware_profile._installed_ollama_models",
+            "aura.app.hardware_profile._installed_ollama_models",
             return_value={"qwen2.5:3b"},
         ),
     ):

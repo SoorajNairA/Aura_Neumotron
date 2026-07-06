@@ -9,9 +9,9 @@ from datetime import datetime as _dt
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
-    from .conversation_context import ConversationContext
-    from .conversation_model import ConversationModel
-    from .conversation_context import WorkingMemory
+    from aura.legacy.assistant.conversation_context import ConversationContext
+    from aura.infrastructure.llm.ollama import ConversationModel
+    from aura.legacy.assistant.conversation_context import WorkingMemory
 
 _logger = logging.getLogger("aura")
 _ctrace = logging.getLogger("aura.trace")

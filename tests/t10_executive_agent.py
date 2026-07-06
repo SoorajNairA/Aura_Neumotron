@@ -7,14 +7,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.actions import ExecutionAgent
-from aura.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier
-from aura.llm import LLMService
-from aura.memory_store import MemoryStore
-from aura.planner import PlannerAgent
-from aura.safety import SafetyLayer
-from aura.conversation_context import ConversationState, WorkingMemory
-from aura.orchestrator import AuraSupervisor
+from aura.infrastructure.tools.execution import ExecutionAgent
+from aura.legacy.assistant.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier
+from aura.legacy.assistant.llm import LLMService
+from aura.infrastructure.persistence.memory_store import MemoryStore
+from aura.legacy.assistant.planner import PlannerAgent
+from aura.safety.policies import SafetyLayer
+from aura.legacy.assistant.conversation_context import ConversationState, WorkingMemory
+from aura.legacy.assistant.orchestrator import AuraSupervisor
 
 
 def build_agent(root: Path) -> ExecutiveAgent:

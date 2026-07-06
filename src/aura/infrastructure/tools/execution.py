@@ -14,9 +14,9 @@ from typing import Any, Optional
 from urllib.parse import urlparse
 from urllib.parse import unquote
 
-from .models import ActionRequest, ActionResult
-from .research import ResearchAgent
-from .safety import SafetyLayer
+from aura.legacy.assistant.models import ActionRequest, ActionResult
+from aura.verification.adapters.research import ResearchAgent
+from aura.safety.policies import SafetyLayer
 
 _logger = logging.getLogger("aura")
 

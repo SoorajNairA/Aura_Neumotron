@@ -16,13 +16,13 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.actions import ExecutionAgent
-from aura.conversation_context import WorkingMemory
-from aura.llm import LLMService
-from aura.memory_store import MemoryStore
-from aura.models import ActionRequest
-from aura.orchestrator import AuraSupervisor
-from aura.safety import SafetyLayer
+from aura.infrastructure.tools.execution import ExecutionAgent
+from aura.legacy.assistant.conversation_context import WorkingMemory
+from aura.legacy.assistant.llm import LLMService
+from aura.infrastructure.persistence.memory_store import MemoryStore
+from aura.legacy.assistant.models import ActionRequest
+from aura.legacy.assistant.orchestrator import AuraSupervisor
+from aura.safety.policies import SafetyLayer
 
 
 ROOT = Path(__file__).parent.parent

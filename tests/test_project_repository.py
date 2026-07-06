@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from aura.engineering_graph.serialization import patch_from_dict, patch_to_dict
-from aura.infrastructure.project_repository import (
+from aura.infrastructure.persistence.project_repository import (
     PersistenceFailure, SCHEMA_VERSION, SQLiteProjectRepository, UnsupportedSchemaVersion,
 )
 from aura.workspace.server import create_app

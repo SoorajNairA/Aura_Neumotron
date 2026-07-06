@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.titan_validation import TitanValidationSuite, UnrealEnvironment  # noqa: E402
+from aura.legacy.unreal.titan_validation import TitanValidationSuite, UnrealEnvironment  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parent.parent

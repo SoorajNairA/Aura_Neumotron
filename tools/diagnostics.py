@@ -8,7 +8,7 @@ sys.path.append(str(Path(__file__).parent.parent / "src"))
 try:
     import torch
 
-    from aura.config import Settings
+    from aura.app.config import Settings
 except ImportError:
     print("Error: Missing dependencies. Run 'pip install -r requirements.txt'.")
     sys.exit(1)

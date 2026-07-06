@@ -6,17 +6,17 @@ import tempfile
 import time
 from pathlib import Path
 
-from aura.actions import ExecutionAgent
-from aura.config import Settings
-from aura.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier
-from aura.llm import LLMService
-from aura.memory_store import MemoryStore
-from aura.models import ActionRequest
-from aura.planner import PlannerAgent
-from aura.result_revealer import ResultRevealer
-from aura.safety import SafetyLayer
-from aura.tts import TTSService
-from aura.xtts_backend import XTTSBackend
+from aura.infrastructure.tools.execution import ExecutionAgent
+from aura.app.config import Settings
+from aura.legacy.assistant.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier
+from aura.legacy.assistant.llm import LLMService
+from aura.infrastructure.persistence.memory_store import MemoryStore
+from aura.legacy.assistant.models import ActionRequest
+from aura.legacy.assistant.planner import PlannerAgent
+from aura.infrastructure.desktop.result_revealer import ResultRevealer
+from aura.safety.policies import SafetyLayer
+from aura.infrastructure.voice.tts import TTSService
+from aura.infrastructure.voice.xtts_backend import XTTSBackend
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORT = ROOT / "logs" / "xtts_live_results.json"

@@ -8,9 +8,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from .architecture_intelligence import ArchitectureGraph, ArchitectureIntelligenceEngine
-from .memory_store import MemoryStore
-from .operator_quality import OperatorBenchmark, WorkflowAnalytics
+from aura.verification.adapters.architecture_analysis import ArchitectureGraph, ArchitectureIntelligenceEngine
+from aura.infrastructure.persistence.memory_store import MemoryStore
+from aura.legacy.assistant.operator_quality import OperatorBenchmark, WorkflowAnalytics
 
 
 @dataclass

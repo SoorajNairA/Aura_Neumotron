@@ -8,19 +8,19 @@ from unittest.mock import patch
 
 import pytest
 
-from aura.actions import ExecutionAgent
-from aura.conversation_model import OllamaConversationModel
-from aura.executive_agent import (
+from aura.infrastructure.tools.execution import ExecutionAgent
+from aura.infrastructure.llm.ollama import OllamaConversationModel
+from aura.legacy.assistant.executive_agent import (
     AssumptionEngine,
     ExecutiveAgent,
     ExecutionVerifier,
 )
-from aura.llm import LLMService
-from aura.memory_store import MemoryStore
-from aura.models import ActionRequest
-from aura.orchestrator import _extract_wake_request, _is_shutdown_command
-from aura.safety import SafetyLayer
-from aura.xtts_backend import XTTSBackend
+from aura.legacy.assistant.llm import LLMService
+from aura.infrastructure.persistence.memory_store import MemoryStore
+from aura.legacy.assistant.models import ActionRequest
+from aura.legacy.assistant.orchestrator import _extract_wake_request, _is_shutdown_command
+from aura.safety.policies import SafetyLayer
+from aura.infrastructure.voice.xtts_backend import XTTSBackend
 
 
 def test_context_does_not_duplicate_current_request() -> None:
@@ -101,7 +101,7 @@ def test_executive_execution_does_not_call_planner_model() -> None:
 
 
 def test_url_open_failure_is_reported() -> None:
-    with patch("aura.actions.webbrowser.open", return_value=False):
+    with patch("aura.infrastructure.tools.execution.webbrowser.open", return_value=False):
         result = ExecutionAgent().run(
             ActionRequest(
                 action="open_url",

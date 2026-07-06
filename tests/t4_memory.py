@@ -13,11 +13,11 @@ os.environ.setdefault("AURA_OLLAMA_MODEL", "qwen2.5:3b")
 os.environ.setdefault("AURA_CONVERSATION_BACKEND", "ollama")
 os.environ.setdefault("AURA_OLLAMA_TIMEOUT", "60")
 
-from aura.config import Settings
-from aura.conversation_context import ConversationContextBuilder, ConversationState, WorkingMemory
-from aura.conversation_model import OllamaConversationModel
-from aura.llm import LLMService
-from aura.memory_store import MemoryStore
+from aura.app.config import Settings
+from aura.legacy.assistant.conversation_context import ConversationContextBuilder, ConversationState, WorkingMemory
+from aura.infrastructure.llm.ollama import OllamaConversationModel
+from aura.legacy.assistant.llm import LLMService
+from aura.infrastructure.persistence.memory_store import MemoryStore
 
 SEP = "=" * 60
 

@@ -8,9 +8,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.domain_manager import DomainManager  # noqa: E402
-from aura.memory_store import MemoryStore  # noqa: E402
-from aura.unreal_domain import UnrealDirector, UnrealStudioEngineeringEngine  # noqa: E402
+from aura.legacy.assistant.domain_manager import DomainManager  # noqa: E402
+from aura.infrastructure.persistence.memory_store import MemoryStore  # noqa: E402
+from aura.legacy.unreal.domain import UnrealDirector, UnrealStudioEngineeringEngine  # noqa: E402
 
 
 def main() -> None:
@@ -93,7 +93,7 @@ def main() -> None:
         assert engine.workflow_reuse(["Combat", "Farming"])
         print("  Professional workflow reuse: PASS")
 
-        manager = DomainManager(memory, root / "domains")
+        manager = DomainManager(memory, root / "domains", include_legacy_unreal=True)
         result = manager.execute(goal + " in Unreal.")
         assert result.ok
         assert any(action["action"] == "studio_production_qa" for action in result.actions)

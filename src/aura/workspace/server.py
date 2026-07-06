@@ -16,7 +16,7 @@ from starlette.concurrency import run_in_threadpool
 from aura.engineering_graph.model import EngineeringGraph, EntityKind
 from aura.engineering_graph.serialization import graph_to_dict
 from aura.engineering_graph.serialization import patch_to_dict
-from aura.infrastructure.project_repository import (
+from aura.infrastructure.persistence.project_repository import (
     CorruptProjectData, PersistenceFailure, ProjectRepository, SQLiteProjectRepository,
     StoredEvent, StoredProject, UnsupportedSchemaVersion,
 )
@@ -79,7 +79,7 @@ class WorkspaceApplication:
     def __init__(self, provider: Any | None = None, planner_timeout: float | None = None,
                  repository: ProjectRepository | None = None, storage_mode: str | None = None,
                  db_path: str | Path | None = None, artifact_dir: Path | None = None) -> None:
-        from aura.config import Settings
+        from aura.app.config import Settings
         settings = Settings()
         self.provider = provider
         if planner_timeout is None:
@@ -97,7 +97,7 @@ class WorkspaceApplication:
             assumptions=("Use a capacitive moisture sensor", "Use a splash-resistant electronics enclosure"))
 
     def plan(self, body: CreateProjectBody) -> PlanningOutcome:
-        from aura.config import Settings
+        from aura.app.config import Settings
         fallback_enabled = Settings().deterministic_fallback
         request = self._request(body.objective)
         if body.planningMode == "live_model":
@@ -115,9 +115,9 @@ class WorkspaceApplication:
 
     def _default_provider(self) -> Any | None:
         try:
-            from aura.config import Settings
-            from aura.conversation_model import OllamaConversationModel
-            from aura.infrastructure.model_provider import ConversationModelAdapter
+            from aura.app.config import Settings
+            from aura.infrastructure.llm.ollama import OllamaConversationModel
+            from aura.infrastructure.llm.provider import ConversationModelAdapter
             settings = Settings()
             if settings.planner_provider != "ollama":
                 return None
@@ -297,7 +297,7 @@ def _project_payload(record: StoredProject, concise: bool = False) -> dict[str, 
 
 
 def main() -> None:
-    from aura.config import Settings
+    from aura.app.config import Settings
     settings = Settings()
     parser = argparse.ArgumentParser(description="Run the AURA browser workspace")
     parser.add_argument("--host", default=settings.workspace_host)

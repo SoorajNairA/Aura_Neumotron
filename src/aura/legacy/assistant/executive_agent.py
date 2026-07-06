@@ -7,16 +7,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from .actions import ExecutionAgent
-from .computer_operator import ComputerOperator
-from .domain_manager import DomainManager
-from .executive_behavior import ExecutiveBehavior
-from .memory_store import MemoryStore
-from .models import ActionRequest, ActionResult
-from .planner import PlannerAgent
-from .result_revealer import ResultRevealer
-from .safety import SafetyLayer
-from .software_director import SoftwareDirector
+from aura.infrastructure.tools.execution import ExecutionAgent
+from aura.infrastructure.desktop.computer_operator import ComputerOperator
+from aura.legacy.assistant.domain_manager import DomainManager
+from aura.legacy.assistant.executive_behavior import ExecutiveBehavior
+from aura.infrastructure.persistence.memory_store import MemoryStore
+from aura.legacy.assistant.models import ActionRequest, ActionResult
+from aura.legacy.assistant.planner import PlannerAgent
+from aura.infrastructure.desktop.result_revealer import ResultRevealer
+from aura.safety.policies import SafetyLayer
+from aura.legacy.assistant.software_director import SoftwareDirector
 
 
 @dataclass

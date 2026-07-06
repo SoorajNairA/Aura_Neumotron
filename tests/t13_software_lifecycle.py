@@ -8,11 +8,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.actions import ExecutionAgent
-from aura.memory_store import MemoryStore
-from aura.result_revealer import ResultRevealer
-from aura.safety import SafetyLayer
-from aura.software_director import SoftwareDirector
+from aura.infrastructure.tools.execution import ExecutionAgent
+from aura.infrastructure.persistence.memory_store import MemoryStore
+from aura.infrastructure.desktop.result_revealer import ResultRevealer
+from aura.safety.policies import SafetyLayer
+from aura.legacy.assistant.software_director import SoftwareDirector
 
 
 class RecordingRevealer(ResultRevealer):

@@ -15,7 +15,9 @@ product architecture.
 | OperatorQuality | Legacy support for ComputerOperator | Recovery/observability data |
 
 `aura.legacy.unreal.create_unreal_domain()` is the explicit Unreal loader.
-Direct imports such as `aura.unreal_domain` remain temporarily compatible.
+The compatibility assistant is launched with `aura-assistant`; its canonical
+modules live under `aura.legacy.assistant`. No root-level legacy import shims
+are retained.
 
 No large subsystem has been deleted during this migration stage. Removal should
 occur only after useful deterministic code is extracted, old tests are marked

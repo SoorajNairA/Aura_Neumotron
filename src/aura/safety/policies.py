@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from .models import ActionRequest, RiskLevel
+from aura.legacy.assistant.models import ActionRequest, RiskLevel
 
 
 @dataclass(frozen=True)

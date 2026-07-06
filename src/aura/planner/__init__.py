@@ -1,7 +1,6 @@
-"""Structured Planner boundary with a compatibility export for PlannerAgent."""
+"""Structured Engineering Workspace Planner boundary."""
 
-from .legacy import PlannerAgent
 from .schemas import ProjectPlan, ProjectRequest
 from .service import PlannerService
 
-__all__ = ["PlannerAgent", "PlannerService", "ProjectPlan", "ProjectRequest"]
+__all__ = ["PlannerService", "ProjectPlan", "ProjectRequest"]

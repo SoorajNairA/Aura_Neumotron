@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from aura.infrastructure.model_provider import ModelProvider
+from aura.infrastructure.llm.provider import ModelProvider
 from .schemas import ProjectPlan, ProjectRequest
 from .service import PlannerService
 

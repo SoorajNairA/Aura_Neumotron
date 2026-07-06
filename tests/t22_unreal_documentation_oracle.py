@@ -8,9 +8,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.domain_manager import DomainManager  # noqa: E402
-from aura.memory_store import MemoryStore  # noqa: E402
-from aura.unreal_domain import (  # noqa: E402
+from aura.legacy.assistant.domain_manager import DomainManager  # noqa: E402
+from aura.infrastructure.persistence.memory_store import MemoryStore  # noqa: E402
+from aura.legacy.unreal.domain import (  # noqa: E402
     UnrealDirector,
     UnrealDocumentationDirector,
 )
@@ -98,7 +98,7 @@ def main() -> None:
             calls.append(goal)
             return None
 
-        manager = DomainManager(memory, root / "domains", operator_executor=operator_executor)
+        manager = DomainManager(memory, root / "domains", operator_executor=operator_executor, include_legacy_unreal=True)
         result = manager.execute("Create a replicated inventory with Gameplay Ability support in Unreal.")
         assert result.ok
         assert any(action["action"] == "validate_official_documentation" for action in result.actions)

@@ -14,14 +14,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional, Protocol
 
-from .actions import ExecutionAgent
-from .application_intelligence import ApplicationIntelligenceLayer, ApplicationModel, WorkflowRoute
-from .executive_behavior import ExecutiveBehavior
-from .memory_store import MemoryStore
-from .models import ActionRequest
-from .operator_quality import OperatorRunMetrics, RecoveryLibrary, WorkflowAnalytics
-from .result_revealer import ResultRevealer
-from .safety import SafetyLayer
+from aura.infrastructure.tools.execution import ExecutionAgent
+from aura.infrastructure.desktop.application_intelligence import ApplicationIntelligenceLayer, ApplicationModel, WorkflowRoute
+from aura.legacy.assistant.executive_behavior import ExecutiveBehavior
+from aura.infrastructure.persistence.memory_store import MemoryStore
+from aura.legacy.assistant.models import ActionRequest
+from aura.legacy.assistant.operator_quality import OperatorRunMetrics, RecoveryLibrary, WorkflowAnalytics
+from aura.infrastructure.desktop.result_revealer import ResultRevealer
+from aura.safety.policies import SafetyLayer
 
 _logger = logging.getLogger("aura")
 

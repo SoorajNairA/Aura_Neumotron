@@ -14,8 +14,8 @@ import tempfile
 from dataclasses import replace
 from pathlib import Path
 
-import aura.orchestrator as module
-from aura.config import Settings
+import aura.legacy.assistant.orchestrator as module
+from aura.app.config import Settings
 
 class STT:
     def __init__(self, *args, **kwargs): pass
@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory() as directory:
     settings = replace(Settings(), memory_dir=root / 'memory', log_dir=root / 'logs', auto_warmup=False)
     module.AuraSupervisor(settings)
 
-assert 'aura.unreal_domain' not in sys.modules
+assert 'aura.legacy.unreal.domain' not in sys.modules
 """
     completed = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True, timeout=20

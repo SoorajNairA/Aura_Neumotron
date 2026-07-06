@@ -15,7 +15,7 @@ dependencies = [
 
 [project.scripts]
 aura = "aura.workspace.server:main"
-aura-assistant = "aura.main:main"
+aura-assistant = "aura.legacy.assistant.main:main"
 
 [project.optional-dependencies]
 voice = [
@@ -50,6 +50,9 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"aura.legacy.ui" = ["qml/*.qml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

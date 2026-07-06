@@ -121,6 +121,14 @@ def test_live_mode_metadata_and_fallback_event() -> None:
 @pytest.mark.unit
 def test_server_import_does_not_load_heavy_optional_systems() -> None:
     import subprocess, sys
-    code="import sys; import aura.workspace.server; assert not any(x in sys.modules for x in ['PySide6','torch','TTS','aura.unreal_domain'])"
+    code="""
+import sys
+import aura
+import aura.main
+import aura.workspace.server
+blocked = [name for name in sys.modules if name.startswith('aura.legacy')]
+blocked += [name for name in ('PySide6','torch','TTS','aura.infrastructure.desktop.computer_operator','aura.infrastructure.voice.tts') if name in sys.modules]
+assert not blocked, blocked
+"""
     result=subprocess.run([sys.executable,"-c",code],capture_output=True,text=True,timeout=10)
     assert result.returncode == 0, result.stderr

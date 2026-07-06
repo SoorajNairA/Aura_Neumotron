@@ -11,8 +11,8 @@ from PySide6.QtGui import QFont, QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 
 if TYPE_CHECKING:
-    from .hardware_profile import HardwareProfile
-    from .orchestrator import AuraSupervisor
+    from aura.app.hardware_profile import HardwareProfile
+    from aura.legacy.assistant.orchestrator import AuraSupervisor
 
 
 _logger = logging.getLogger("aura")
@@ -525,7 +525,7 @@ class FutureHUDApp:
         self.app.setApplicationName("AURA")
         self.app.setOrganizationName("AURA")
         self.app.setFont(QFont("Segoe UI", 10))
-        icon_path = Path(__file__).resolve().parents[2] / "assets" / "icons" / "aura.ico"
+        icon_path = Path(__file__).resolve().parents[4] / "assets" / "icons" / "aura.ico"
         if icon_path.is_file():
             self.app.setWindowIcon(QIcon(str(icon_path)))
 
@@ -533,7 +533,7 @@ class FutureHUDApp:
         self.engine = QQmlApplicationEngine()
         self.engine.warnings.connect(self._log_qml_warnings)
         self.engine.rootContext().setContextProperty("auraBridge", self.bridge)
-        qml_path = Path(__file__).resolve().parents[2] / "qml" / "FutureHUD.qml"
+        qml_path = Path(__file__).resolve().parent / "qml" / "FutureHUD.qml"
         self.engine.load(QUrl.fromLocalFile(str(qml_path)))
         if not self.engine.rootObjects():
             raise RuntimeError(f"Could not load AURA HUD: {qml_path}")

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional, Protocol
 
-from .memory_store import MemoryStore
+from aura.infrastructure.persistence.memory_store import MemoryStore
 
 
 @dataclass
@@ -376,7 +376,7 @@ class DomainManager:
         if self.include_legacy_unreal:
             # Unreal is a large legacy experiment. Import it only when a caller
             # explicitly opts in so normal AURA startup stays lightweight.
-            from .legacy.unreal import create_unreal_domain
+            from aura.legacy.unreal import create_unreal_domain
 
             builtins.append(
                 create_unreal_domain(

@@ -9,15 +9,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.actions import ExecutionAgent  # noqa: E402
-from aura.domain_manager import BuiltinDomainPack, DomainCapability, DomainManager  # noqa: E402
-from aura.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier  # noqa: E402
-from aura.llm import LLMService  # noqa: E402
-from aura.memory_store import MemoryStore  # noqa: E402
-from aura.planner import PlannerAgent  # noqa: E402
-from aura.safety import SafetyLayer  # noqa: E402
-from aura.chief_architect import ChiefArchitect  # noqa: E402
-from aura.architecture_intelligence import ArchitectureIntelligenceEngine  # noqa: E402
+from aura.infrastructure.tools.execution import ExecutionAgent  # noqa: E402
+from aura.legacy.assistant.domain_manager import BuiltinDomainPack, DomainCapability, DomainManager  # noqa: E402
+from aura.legacy.assistant.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier  # noqa: E402
+from aura.legacy.assistant.llm import LLMService  # noqa: E402
+from aura.infrastructure.persistence.memory_store import MemoryStore  # noqa: E402
+from aura.legacy.assistant.planner import PlannerAgent  # noqa: E402
+from aura.safety.policies import SafetyLayer  # noqa: E402
+from aura.legacy.assistant.chief_architect import ChiefArchitect  # noqa: E402
+from aura.verification.adapters.architecture_analysis import ArchitectureIntelligenceEngine  # noqa: E402
 
 
 ROOT = Path(__file__).parent.parent
@@ -68,6 +68,7 @@ def main() -> None:
             domains_dir=domains_dir,
             operator_executor=operator_executor,
             software_executor=software_executor,
+            include_legacy_unreal=True,
         )
 
         custom = BuiltinDomainPack(

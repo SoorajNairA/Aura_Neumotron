@@ -1,5 +1,5 @@
-from aura.conversation_model import OllamaConversationModel
-from aura.llm import LLMService
+from aura.infrastructure.llm.ollama import OllamaConversationModel
+from aura.legacy.assistant.llm import LLMService
 
 
 def test_ollama_model_can_switch_at_runtime() -> None:

@@ -8,9 +8,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.domain_manager import DomainManager  # noqa: E402
-from aura.memory_store import MemoryStore  # noqa: E402
-from aura.unreal_domain import (  # noqa: E402
+from aura.legacy.assistant.domain_manager import DomainManager  # noqa: E402
+from aura.infrastructure.persistence.memory_store import MemoryStore  # noqa: E402
+from aura.legacy.unreal.domain import (  # noqa: E402
     BlueprintConnection,
     BlueprintGraph,
     BlueprintNode,
@@ -152,7 +152,7 @@ def main() -> None:
         assert dashboard["blueprint_reasoning"]["repair_plan"]
         print("  Live dashboard CORTEX panel: PASS")
 
-        manager = DomainManager(memory, root / "domains")
+        manager = DomainManager(memory, root / "domains", include_legacy_unreal=True)
         unreal_domain = manager.domains["unreal"]
         unreal_domain.director.session = director.session
         result = manager.execute("Repair the inventory Blueprint graph in Unreal.")

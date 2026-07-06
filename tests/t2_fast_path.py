@@ -8,8 +8,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.llm import LLMService
-from aura.conversation_context import WorkingMemory
+from aura.legacy.assistant.llm import LLMService
+from aura.legacy.assistant.conversation_context import WorkingMemory
 
 SEP = "=" * 60
 

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from .domain_manager import DomainCapability, DomainExecutionResult, DomainHealth, DomainRoute
+from aura.legacy.assistant.domain_manager import DomainCapability, DomainExecutionResult, DomainHealth, DomainRoute
 
 
 SUPPORTED_UNREAL_VERSIONS = ("5.1", "5.2", "5.3", "5.4", "5.5", "5.6")

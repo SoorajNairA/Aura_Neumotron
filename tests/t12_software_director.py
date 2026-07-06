@@ -8,14 +8,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.actions import ExecutionAgent
-from aura.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier
-from aura.llm import LLMService
-from aura.memory_store import MemoryStore
-from aura.planner import PlannerAgent
-from aura.result_revealer import ResultRevealer
-from aura.safety import SafetyLayer
-from aura.software_director import SoftwareDirector
+from aura.infrastructure.tools.execution import ExecutionAgent
+from aura.legacy.assistant.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier
+from aura.legacy.assistant.llm import LLMService
+from aura.infrastructure.persistence.memory_store import MemoryStore
+from aura.legacy.assistant.planner import PlannerAgent
+from aura.infrastructure.desktop.result_revealer import ResultRevealer
+from aura.safety.policies import SafetyLayer
+from aura.legacy.assistant.software_director import SoftwareDirector
 
 
 class RecordingRevealer(ResultRevealer):

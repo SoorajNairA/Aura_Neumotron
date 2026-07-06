@@ -8,14 +8,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.application_intelligence import ApplicationIntelligenceLayer  # noqa: E402
-from aura.architecture_intelligence import ArchitectureIntelligenceEngine  # noqa: E402
-from aura.chief_architect import ChiefArchitect  # noqa: E402
-from aura.computer_operator import ComputerOperator, DesktopSnapshot, OperatorStep, WindowInfo  # noqa: E402
-from aura.memory_store import MemoryStore  # noqa: E402
-from aura.models import ActionRequest, ActionResult  # noqa: E402
-from aura.operator_quality import BenchmarkTask, OperatorBenchmark, RecoveryLibrary, WorkflowAnalytics  # noqa: E402
-from aura.safety import SafetyLayer  # noqa: E402
+from aura.infrastructure.desktop.application_intelligence import ApplicationIntelligenceLayer  # noqa: E402
+from aura.verification.adapters.architecture_analysis import ArchitectureIntelligenceEngine  # noqa: E402
+from aura.legacy.assistant.chief_architect import ChiefArchitect  # noqa: E402
+from aura.infrastructure.desktop.computer_operator import ComputerOperator, DesktopSnapshot, OperatorStep, WindowInfo  # noqa: E402
+from aura.infrastructure.persistence.memory_store import MemoryStore  # noqa: E402
+from aura.legacy.assistant.models import ActionRequest, ActionResult  # noqa: E402
+from aura.legacy.assistant.operator_quality import BenchmarkTask, OperatorBenchmark, RecoveryLibrary, WorkflowAnalytics  # noqa: E402
+from aura.safety.policies import SafetyLayer  # noqa: E402
 
 
 ROOT = Path(__file__).parent.parent

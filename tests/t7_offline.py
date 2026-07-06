@@ -17,11 +17,11 @@ os.environ["OPENAI_API_KEY"] = ""
 os.environ["AURA_CONVERSATION_BACKEND"] = "ollama"
 os.environ["AURA_OLLAMA_MODEL"] = "qwen2.5:3b"
 
-from aura.conversation_context import ConversationContextBuilder, ConversationState, WorkingMemory
-from aura.conversation_model import OllamaConversationModel
-from aura.config import Settings
-from aura.llm import LLMService
-from aura.memory_store import MemoryStore
+from aura.legacy.assistant.conversation_context import ConversationContextBuilder, ConversationState, WorkingMemory
+from aura.infrastructure.llm.ollama import OllamaConversationModel
+from aura.app.config import Settings
+from aura.legacy.assistant.llm import LLMService
+from aura.infrastructure.persistence.memory_store import MemoryStore
 
 SEP = "=" * 60
 

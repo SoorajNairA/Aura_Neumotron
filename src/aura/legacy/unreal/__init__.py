@@ -6,6 +6,6 @@ from typing import Any
 
 
 def create_unreal_domain(*args: Any, **kwargs: Any) -> Any:
-    from aura.unreal_domain import UnrealProfessionalDomain
+    from aura.legacy.unreal.domain import UnrealProfessionalDomain
 
     return UnrealProfessionalDomain(*args, **kwargs)

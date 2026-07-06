@@ -7,11 +7,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.architecture_intelligence import ArchitectureIntelligenceEngine  # noqa: E402
-from aura.chief_architect import ChiefArchitect  # noqa: E402
-from aura.conversation_context import WorkingMemory  # noqa: E402
-from aura.memory_store import MemoryStore  # noqa: E402
-from aura.orchestrator import AuraSupervisor  # noqa: E402
+from aura.verification.adapters.architecture_analysis import ArchitectureIntelligenceEngine  # noqa: E402
+from aura.legacy.assistant.chief_architect import ChiefArchitect  # noqa: E402
+from aura.legacy.assistant.conversation_context import WorkingMemory  # noqa: E402
+from aura.infrastructure.persistence.memory_store import MemoryStore  # noqa: E402
+from aura.legacy.assistant.orchestrator import AuraSupervisor  # noqa: E402
 
 
 ROOT = Path(__file__).parent.parent

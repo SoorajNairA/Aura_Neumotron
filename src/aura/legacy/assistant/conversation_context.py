@@ -26,7 +26,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .memory_store import MemoryStore
+    from aura.infrastructure.persistence.memory_store import MemoryStore
 
 # ---------------------------------------------------------------------------
 # ConversationState

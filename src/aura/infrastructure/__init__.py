@@ -1,9 +1,8 @@
 """Narrow interfaces for optional runtime infrastructure."""
 
 from .desktop import DesktopActions
-from .model_provider import ModelProvider
-from .persistence import GraphRepository, JsonGraphRepository
-from .project_repository import ProjectRepository, SQLiteProjectRepository
+from .llm import ModelProvider
+from .persistence import GraphRepository, JsonGraphRepository, ProjectRepository, SQLiteProjectRepository
 from .tools import ToolExecutor
 from .voice import VoiceInteraction
 

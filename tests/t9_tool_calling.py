@@ -13,9 +13,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.actions import ExecutionAgent
-from aura.llm import LLMService
-from aura.models import ActionRequest
+from aura.infrastructure.tools.execution import ExecutionAgent
+from aura.legacy.assistant.llm import LLMService
+from aura.legacy.assistant.models import ActionRequest
 
 
 def main() -> None:

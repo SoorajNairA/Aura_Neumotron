@@ -8,12 +8,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from .actions import ExecutionAgent
-from .executive_behavior import ExecutiveBehavior
-from .memory_store import MemoryStore
-from .models import ActionRequest
-from .result_revealer import ResultRevealer
-from .safety import SafetyLayer
+from aura.infrastructure.tools.execution import ExecutionAgent
+from aura.legacy.assistant.executive_behavior import ExecutiveBehavior
+from aura.infrastructure.persistence.memory_store import MemoryStore
+from aura.legacy.assistant.models import ActionRequest
+from aura.infrastructure.desktop.result_revealer import ResultRevealer
+from aura.safety.policies import SafetyLayer
 
 
 @dataclass
@@ -1081,7 +1081,7 @@ class SoftwareDirector:
     def _repository_py(self, blueprint: EngineeringBlueprint) -> str:
         return (
             "from __future__ import annotations\n\n"
-            "from .models import Record\n\n\n"
+            "from aura.legacy.assistant.models import Record\n\n\n"
             "class InMemoryRepository:\n"
             "    def __init__(self) -> None:\n"
             "        self._records: dict[str, Record] = {}\n\n"
@@ -1096,7 +1096,7 @@ class SoftwareDirector:
         return (
             "from __future__ import annotations\n\n"
             "from uuid import uuid4\n\n"
-            "from .models import Record\n"
+            "from aura.legacy.assistant.models import Record\n"
             "from .repository import InMemoryRepository\n\n\n"
             "class CoreService:\n"
             "    def __init__(self, repository: InMemoryRepository | None = None) -> None:\n"
@@ -1130,7 +1130,7 @@ class SoftwareDirector:
 
     def _main_py(self, blueprint: EngineeringBlueprint) -> str:
         return (
-            "from .config import Settings\n\n\n"
+            "from aura.app.config import Settings\n\n\n"
             "def main() -> None:\n"
             "    settings = Settings()\n"
             "    print(f'{settings.app_name} scaffold is ready.')\n\n\n"

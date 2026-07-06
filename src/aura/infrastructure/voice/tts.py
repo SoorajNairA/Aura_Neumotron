@@ -17,7 +17,7 @@ import requests
 import sounddevice as sd
 import numpy as np
 
-from .xtts_backend import XTTSBackend
+from aura.infrastructure.voice.xtts_backend import XTTSBackend
 
 _logger = logging.getLogger("aura")
 

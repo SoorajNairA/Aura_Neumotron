@@ -9,8 +9,8 @@ from unittest.mock import patch
 import numpy as np
 import soundfile as sf
 
-from aura.tts import TTSService
-from aura.xtts_backend import TTSQueue, XTTSBackend
+from aura.infrastructure.voice.tts import TTSService
+from aura.infrastructure.voice.xtts_backend import TTSQueue, XTTSBackend
 
 
 class _FakeXTTSModel:
@@ -130,8 +130,8 @@ def test_voice_reference_duration_validation() -> None:
 def test_missing_xtts_falls_back_to_pyttsx3() -> None:
     fake_local = _FakeLocalEngine()
     with (
-        patch("aura.tts.XTTSBackend.initialize", side_effect=RuntimeError("missing model")),
-        patch("aura.tts.pyttsx3.init", return_value=fake_local),
+        patch("aura.infrastructure.voice.tts.XTTSBackend.initialize", side_effect=RuntimeError("missing model")),
+        patch("aura.infrastructure.voice.tts.pyttsx3.init", return_value=fake_local),
     ):
         service = _tts_service(
             backend="xtts",
@@ -156,7 +156,7 @@ def test_broken_pyttsx3_is_skipped_after_first_failure() -> None:
         return True
 
     with (
-        patch("aura.tts.pyttsx3.init", side_effect=RuntimeError("COM class not registered")) as init,
+        patch("aura.infrastructure.voice.tts.pyttsx3.init", side_effect=RuntimeError("COM class not registered")) as init,
         patch.object(TTSService, "_speak_windows_dotnet", dotnet_fallback),
     ):
         service = _tts_service(backend="pyttsx3")
@@ -185,16 +185,16 @@ def test_speech_waits_for_xtts_warmup() -> None:
         time.sleep(0.08)
 
     with (
-        patch("aura.tts.XTTSBackend.initialize", delayed_initialize),
-        patch("aura.tts.XTTSBackend.warmup", return_value=None),
-        patch("aura.tts.XTTSBackend.speak", side_effect=spoken.append),
-        patch("aura.tts.XTTSBackend.get_diagnostics", return_value={
+        patch("aura.infrastructure.voice.tts.XTTSBackend.initialize", delayed_initialize),
+        patch("aura.infrastructure.voice.tts.XTTSBackend.warmup", return_value=None),
+        patch("aura.infrastructure.voice.tts.XTTSBackend.speak", side_effect=spoken.append),
+        patch("aura.infrastructure.voice.tts.XTTSBackend.get_diagnostics", return_value={
             "device": "cpu",
             "voice": "aura_voice",
             "warmup": True,
             "gpu": "CPU",
         }),
-        patch("aura.tts.pyttsx3.init", return_value=fake_local),
+        patch("aura.infrastructure.voice.tts.pyttsx3.init", return_value=fake_local),
     ):
         service = _tts_service(
             backend="xtts",

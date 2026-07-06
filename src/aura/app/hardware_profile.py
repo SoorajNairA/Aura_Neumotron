@@ -8,7 +8,7 @@ from typing import Iterable
 
 import requests
 
-from .config import Settings
+from aura.app.config import Settings
 
 
 _logger = logging.getLogger("aura")

@@ -107,7 +107,7 @@ import aura.planner.service
 import aura.verification.service
 import aura.workspace.bridge
 import aura.infrastructure
-blocked = ['aura.unreal_domain', 'torch', 'PySide6', 'TTS']
+blocked = ['aura.legacy.unreal.domain', 'torch', 'PySide6', 'TTS']
 loaded = [name for name in blocked if name in sys.modules]
 raise SystemExit('unexpected imports: ' + repr(loaded) if loaded else 0)
 """

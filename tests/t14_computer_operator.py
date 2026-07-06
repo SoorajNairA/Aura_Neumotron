@@ -8,18 +8,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.computer_operator import (  # noqa: E402
+from aura.infrastructure.desktop.computer_operator import (  # noqa: E402
     ComputerOperator,
     DesktopSnapshot,
     OperatorStep,
     WindowInfo,
 )
-from aura.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier  # noqa: E402
-from aura.llm import LLMService  # noqa: E402
-from aura.memory_store import MemoryStore  # noqa: E402
-from aura.models import ActionRequest, ActionResult  # noqa: E402
-from aura.planner import PlannerAgent  # noqa: E402
-from aura.safety import SafetyLayer  # noqa: E402
+from aura.legacy.assistant.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier  # noqa: E402
+from aura.legacy.assistant.llm import LLMService  # noqa: E402
+from aura.infrastructure.persistence.memory_store import MemoryStore  # noqa: E402
+from aura.legacy.assistant.models import ActionRequest, ActionResult  # noqa: E402
+from aura.legacy.assistant.planner import PlannerAgent  # noqa: E402
+from aura.safety.policies import SafetyLayer  # noqa: E402
 
 
 class FakeExecutor:

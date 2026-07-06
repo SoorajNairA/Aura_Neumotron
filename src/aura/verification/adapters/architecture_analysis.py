@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from .memory_store import MemoryStore
+from aura.infrastructure.persistence.memory_store import MemoryStore
 
 
 @dataclass
@@ -501,8 +501,8 @@ class ArchitectureIntelligenceEngine:
 
     def _ocr_answer(self, question: str, graph: ArchitectureGraph) -> ArchitectureAnswer:
         evidence = [
-            "src/aura/application_intelligence.py owns replaceable interface, semantic, discovery, confidence, learning, adaptation, and state providers.",
-            "src/aura/computer_operator.py owns desktop perception/input/verification/recovery orchestration.",
+            "infrastructure/desktop/application_intelligence.py owns replaceable interface and discovery providers.",
+            "infrastructure/desktop/computer_operator.py owns compatibility desktop perception and recovery.",
         ]
         answer = (
             "OCR belongs as a provider under the Application Intelligence and Computer Operator boundary. "
@@ -598,7 +598,7 @@ class ArchitectureIntelligenceEngine:
             question,
             answer,
             0.88,
-            ["src/aura/executive_agent.py", "src/aura/computer_operator.py"],
+            ["legacy/assistant/executive_agent.py", "infrastructure/desktop/computer_operator.py"],
         )
 
     def _verification_answer(self, question: str, graph: ArchitectureGraph) -> ArchitectureAnswer:
@@ -611,7 +611,7 @@ class ArchitectureIntelligenceEngine:
             question,
             answer,
             0.86,
-            ["src/aura/executive_agent.py", "src/aura/software_director.py", "src/aura/computer_operator.py"],
+            ["legacy/assistant/executive_agent.py", "legacy/assistant/software_director.py", "infrastructure/desktop/computer_operator.py"],
         )
 
     def _self_explanation(self, question: str) -> ArchitectureAnswer:
@@ -624,7 +624,7 @@ class ArchitectureIntelligenceEngine:
         return ArchitectureAnswer(question, answer, 0.88)
 
     def _chief_architect_answer(self, question: str) -> ArchitectureAnswer:
-        from .chief_architect import ChiefArchitect
+        from aura.legacy.assistant.chief_architect import ChiefArchitect
 
         architect = ChiefArchitect(self.project_root, self.memory, architecture=self)
         audit = architect.audit()

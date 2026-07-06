@@ -7,7 +7,7 @@ import tkinter as tk
 from dataclasses import dataclass
 from pathlib import Path
 
-from .orchestrator import AuraSupervisor
+from aura.legacy.assistant.orchestrator import AuraSupervisor
 
 
 @dataclass
@@ -26,7 +26,7 @@ class AuraAppUI:
         self.root.title("AURA Voice Console")
         self.root.geometry("560x720")
         self.root.configure(bg="#070b14")
-        icon_path = Path(__file__).resolve().parents[2] / "assets" / "icons" / "aura.ico"
+        icon_path = Path(__file__).resolve().parents[4] / "assets" / "icons" / "aura.ico"
         if icon_path.is_file():
             self.root.iconbitmap(default=str(icon_path))
 

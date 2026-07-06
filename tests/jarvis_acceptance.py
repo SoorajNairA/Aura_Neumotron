@@ -16,16 +16,16 @@ from typing import Any, Callable
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aura.actions import ExecutionAgent
-from aura.conversation_context import ConversationContextBuilder, ConversationState, WorkingMemory
-from aura.conversation_model import OllamaConversationModel
-from aura.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier
-from aura.llm import LLMService
-from aura.memory_store import MemoryStore
-from aura.models import ActionRequest
-from aura.planner import PlannerAgent
-from aura.result_revealer import ResultRevealer
-from aura.safety import SafetyLayer
+from aura.infrastructure.tools.execution import ExecutionAgent
+from aura.legacy.assistant.conversation_context import ConversationContextBuilder, ConversationState, WorkingMemory
+from aura.infrastructure.llm.ollama import OllamaConversationModel
+from aura.legacy.assistant.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier
+from aura.legacy.assistant.llm import LLMService
+from aura.infrastructure.persistence.memory_store import MemoryStore
+from aura.legacy.assistant.models import ActionRequest
+from aura.legacy.assistant.planner import PlannerAgent
+from aura.infrastructure.desktop.result_revealer import ResultRevealer
+from aura.safety.policies import SafetyLayer
 
 
 ROOT = Path(__file__).parent.parent

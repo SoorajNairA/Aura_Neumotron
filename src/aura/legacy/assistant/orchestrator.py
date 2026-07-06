@@ -8,26 +8,26 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from .actions import ExecutionAgent
-from .architecture_intelligence import ArchitectureIntelligenceEngine
-from .audio_io import AudioIO
-from .config import Settings
-from .conversation_context import (
+from aura.infrastructure.tools.execution import ExecutionAgent
+from aura.verification.adapters.architecture_analysis import ArchitectureIntelligenceEngine
+from aura.infrastructure.voice.audio_io import AudioIO
+from aura.app.config import Settings
+from aura.legacy.assistant.conversation_context import (
     ConversationContextBuilder,
     ConversationState,
     WorkingMemory,
 )
-from .conversation_model import ConversationModel
-from .executive_behavior import ExecutiveBehavior
-from .executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier
-from .llm import LLMService
-from .memory_store import MemoryStore
-from .models import ActionRequest, GoalState
-from .planner import PlannerAgent
-from .result_revealer import ResultRevealer
-from .safety import SafetyLayer
-from .stt import STTService
-from .tts import TTSService
+from aura.infrastructure.llm.ollama import ConversationModel
+from aura.legacy.assistant.executive_behavior import ExecutiveBehavior
+from aura.legacy.assistant.executive_agent import AssumptionEngine, ExecutiveAgent, ExecutionVerifier
+from aura.legacy.assistant.llm import LLMService
+from aura.infrastructure.persistence.memory_store import MemoryStore
+from aura.legacy.assistant.models import ActionRequest, GoalState
+from aura.legacy.assistant.planner import PlannerAgent
+from aura.infrastructure.desktop.result_revealer import ResultRevealer
+from aura.safety.policies import SafetyLayer
+from aura.infrastructure.voice.stt import STTService
+from aura.infrastructure.voice.tts import TTSService
 
 _logger = logging.getLogger("aura")
 _ctrace = logging.getLogger("aura.trace")
