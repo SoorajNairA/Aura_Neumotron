@@ -192,12 +192,14 @@ class DomainManager:
         operator_executor: Optional[Callable[[str], Any]] = None,
         software_executor: Optional[Callable[[str], Any]] = None,
         min_confidence: float = 0.35,
+        include_legacy_unreal: bool = False,
     ) -> None:
         self.memory = memory
         self.domains_dir = domains_dir
         self.operator_executor = operator_executor
         self.software_executor = software_executor
         self.min_confidence = min_confidence
+        self.include_legacy_unreal = include_legacy_unreal
         self.domains: dict[str, DomainPack] = {}
         self.active_domains: set[str] = set()
         self.routing_history: list[dict[str, Any]] = []
@@ -370,13 +372,20 @@ class DomainManager:
         return selected
 
     def register_builtin_domains(self) -> None:
-        from .unreal_domain import UnrealProfessionalDomain
+        builtins: list[DomainPack] = []
+        if self.include_legacy_unreal:
+            # Unreal is a large legacy experiment. Import it only when a caller
+            # explicitly opts in so normal AURA startup stays lightweight.
+            from .unreal_domain import UnrealProfessionalDomain
 
-        builtins = [
-            UnrealProfessionalDomain(
-                memory_dir=self.memory.memory_dir / "domains" / "unreal",
-                operator_executor=self.operator_executor,
-            ),
+            builtins.append(
+                UnrealProfessionalDomain(
+                    memory_dir=self.memory.memory_dir / "domains" / "unreal",
+                    operator_executor=self.operator_executor,
+                )
+            )
+
+        builtins.extend([
             BuiltinDomainPack(
                 domain_id="blender",
                 name="Blender Domain",
@@ -441,6 +450,6 @@ class DomainManager:
                 benchmarks=["Generate report"],
                 director="software",
             ),
-        ]
+        ])
         for domain in builtins:
             self.register(domain)
