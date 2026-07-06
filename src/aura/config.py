@@ -21,6 +21,9 @@ class Settings:
     # Primary Engineering Workspace server and structured Planner.
     workspace_host: str = os.getenv("AURA_WORKSPACE_HOST", "127.0.0.1").strip()
     workspace_port: int = int(os.getenv("AURA_WORKSPACE_PORT", "8765"))
+    workspace_storage_mode: str = os.getenv("AURA_WORKSPACE_STORAGE_MODE", "sqlite").strip().lower()
+    workspace_db_path: Path = Path(os.getenv("AURA_WORKSPACE_DB_PATH", "runtime/workspace/aura.db"))
+    workspace_artifact_dir: Path = Path(os.getenv("AURA_WORKSPACE_ARTIFACT_DIR", "runtime/workspace/artifacts"))
     planner_provider: str = os.getenv("AURA_PLANNER_PROVIDER", "ollama").strip().lower()
     planner_model: str = os.getenv("AURA_PLANNER_MODEL", "qwen3:8b").strip()
     planner_timeout: float = float(os.getenv("AURA_PLANNER_TIMEOUT", "15"))

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .model import EngineeringEntity, EngineeringGraph, EntityKind, Relationship, Revision
+from .patches import GraphOperation, GraphPatch, PatchOperation
 
 
 def graph_to_dict(graph: EngineeringGraph) -> dict[str, Any]:
@@ -59,3 +60,36 @@ def save(graph: EngineeringGraph, path: Path) -> None:
 
 def load(path: Path) -> EngineeringGraph:
     return loads(path.read_text(encoding="utf-8"))
+
+
+def patch_to_dict(patch: GraphPatch) -> dict[str, Any]:
+    operations = []
+    for operation in patch.operations:
+        operations.append({
+            "operation": operation.operation.value,
+            "entity": asdict(operation.entity) if operation.entity else None,
+            "relationship": asdict(operation.relationship) if operation.relationship else None,
+            "target_id": operation.target_id,
+            "changes": operation.changes,
+        })
+    return {"id": patch.id, "summary": patch.summary,
+            "base_revision_id": patch.base_revision_id, "operations": operations}
+
+
+def patch_from_dict(payload: dict[str, Any]) -> GraphPatch:
+    operations = []
+    for item in payload["operations"]:
+        entity_data = item.get("entity")
+        relationship_data = item.get("relationship")
+        entity = None
+        if entity_data:
+            entity = EngineeringEntity(
+                id=entity_data["id"], kind=EntityKind(entity_data["kind"]), name=entity_data["name"],
+                parent_id=entity_data.get("parent_id"), metadata=entity_data.get("metadata", {}),
+                source_refs=tuple(entity_data.get("source_refs", ())),
+                verification_status=entity_data.get("verification_status", "conceptual"),
+                representation_refs=tuple(entity_data.get("representation_refs", ())))
+        relationship = Relationship(**relationship_data) if relationship_data else None
+        operations.append(GraphOperation(PatchOperation(item["operation"]), entity, relationship,
+                                         item.get("target_id"), item.get("changes", {})))
+    return GraphPatch(payload["id"], tuple(operations), payload["summary"], payload.get("base_revision_id"))
