@@ -1,89 +1,62 @@
 # AURA Architecture
 
-## Product boundary
-
-AURA is an AI Engineering Workspace built around four domain boundaries:
+## Product flow
 
 ```text
-Structured project request
-        |
-        v
-Planner --proposes--> GraphPatch
-        |
-        v
-Verification --accepts/modifies/rejects
-        |
-        v
-Engineering Graph --commits--> Revision
-        |
-        v
-Workspace --emits--> UI or narration adapters
+Browser Workspace <-> HTTP and WebSocket <-> Python application
+                                                |
+                                             Planner
+                                                |
+                                          Verification
+                                                |
+                                       Engineering Graph
+                                                |
+                                        Workspace events
 ```
 
-Infrastructure supplies model providers, persistence, voice, registered tools,
-desktop actions, configuration, and diagnostics. Infrastructure does not decide
-engineering project state.
+The Engineering Workspace has four domain boundaries: Planner, Verification,
+Engineering Graph, and Workspace. Infrastructure supplies model providers,
+persistence, voice, registered tools, desktop actions, configuration, and
+diagnostics without deciding engineering project state.
 
 ## Planner
 
-`aura.planner` owns validated request and proposal schemas. The deterministic
-service currently produces a minimal initial project hierarchy, relationships,
-representation request, verification request, and graph patch. It does not
-write files, call a GUI, execute tools, or mark its proposal verified.
-
-`PlannerAgent` remains as a compatibility export for the old assistant path.
+`aura.planner` produces validated structured proposals and never commits graph
+truth. The live adapter requests JSON from the configured Ollama model, makes
+one bounded repair attempt using exact validation errors, and reports an honest
+deterministic fallback when the model is unavailable or invalid.
 
 ## Verification
 
-`aura.verification` validates planner schemas, entity references, project
-cardinality, and permitted patch operations. It owns categorical states:
-
-- `tool_verified`
-- `source_verified`
-- `cross_checked`
-- `estimated`
-- `conceptual`
-- `stale`
-- `failed`
-- `unsupported`
-
-Current checks prove schema/reference correctness only. They do not claim CAD,
-circuit, simulation, catalogue, or physical engineering validation.
+`aura.verification` owns deterministic schema, reference, electrical, physical,
+and safety checks. It assigns categorical states such as `tool_verified`,
+`cross_checked`, `estimated`, `conceptual`, `stale`, `failed`, and
+`unsupported`. These rules are not simulation or production certification.
 
 ## Engineering Graph
 
-`aura.engineering_graph` contains frontend-independent immutable entities and
-relationships, mutable graph state, graph patches, revision records, JSON
-serialization, and deterministic lookup. It imports no GUI, voice, model,
-desktop, or legacy domain implementation.
+`aura.engineering_graph` owns entities, relationships, patches, revisions,
+serialization, and deterministic lookup. It has no browser, QML, voice, model,
+desktop, or Unreal dependency.
 
 ## Workspace
 
-`aura.workspace` commits only accepted Verification results and emits typed,
-GUI-independent events. Current event consumers can subscribe and unsubscribe
-without loading QML. A future web workspace can consume the same boundary.
-
-## Infrastructure
-
-`aura.infrastructure` defines narrow boundaries for model providers, graph
-persistence, voice interaction, registered tool execution, and desktop actions.
-Existing implementations are being adapted incrementally to avoid rewriting
-working functionality.
-
-## Compatibility runtime
-
-The current Windows application still runs through `AuraSupervisor`. It owns
-voice, conversation, safe tools, memory, project templates, and UI callbacks.
-This is transitional compatibility architecture and will be thinned gradually.
-
-Normal supervisor construction no longer imports Unreal. Unreal registration is
-explicitly opt-in through the legacy boundary.
+`aura.workspace` commits only accepted Verification output. Its FastAPI server
+exposes project, graph, revision, modification, and replayable WebSocket event
+APIs. The reusable browser frontend projects graph state; it does not invent a
+second project model.
 
 ## Dependency rules
 
-- Engineering Graph imports no Planner, Verification, Workspace, UI, or infrastructure backend.
-- Planner proposes but does not commit or verify.
-- Verification may inspect and transform proposals but does not present them.
-- Workspace commits verified patches and publishes state changes.
-- Voice may provide input and narrate committed events; it does not mutate graph state.
-- Arbitrary shell execution is not a supported tool boundary.
+- Planner proposes but does not verify or commit.
+- Verification transforms or rejects proposals but does not present them.
+- Workspace commits verified patches and publishes semantic state changes.
+- Voice may provide input or narration but cannot mutate graph state.
+- Arbitrary shell execution is not supported.
+- Server imports must not load QML, Torch, XTTS, or Unreal.
+
+## Compatibility systems
+
+The QML assistant, `AuraSupervisor`, desktop workflows, voice integrations,
+Unreal domain, and historical specialist code remain optional compatibility
+systems. Normal workspace startup does not import them.

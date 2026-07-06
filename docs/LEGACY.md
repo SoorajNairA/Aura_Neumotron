@@ -24,3 +24,10 @@ longer imports the subsystem.
 
 The historical Jarvis, TITAN, OMEGA, ORACLE, CORTEX, ASCENSION, and specialist
 terminology does not describe supported core architecture.
+
+Earlier local-host reports established that the compatibility assistant could
+launch known applications, use local speech backends, create starter projects,
+and reject unregistered destructive tools. Those generated certification and
+release reports were removed because their machine-specific results were stale.
+The maintained compatibility tests are the source of truth for preserved
+behavior.

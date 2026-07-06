@@ -66,7 +66,6 @@ Install and start Ollama, then install at least one supported local model:
 
 ```powershell
 ollama pull qwen3:8b
-ollama pull qwen2.5:3b
 ollama serve
 ```
 
@@ -140,9 +139,10 @@ Settings are loaded from `.env` with `.env.example` as a fallback. Important
 options include:
 
 ```env
-AURA_OLLAMA_MODEL=auto
-AURA_OLLAMA_PRIMARY_MODEL=qwen3:8b
-AURA_OLLAMA_FALLBACK_MODEL=qwen2.5:3b
+AURA_PLANNER_PROVIDER=ollama
+AURA_PLANNER_MODEL=qwen3:8b
+AURA_PLANNER_TIMEOUT=15
+AURA_DETERMINISTIC_FALLBACK=true
 AURA_HARDWARE_PROFILE=auto
 AURA_STT_MODEL=small
 AURA_TTS_BACKEND=auto
@@ -154,9 +154,10 @@ memory are excluded from Git.
 
 ## Architecture and status
 
-- [Current architecture](docs/architecture.md)
+- [Current architecture](docs/ARCHITECTURE.md)
 - [Legacy systems](docs/LEGACY.md)
 - [Validation status](docs/VALIDATION.md)
+- [Development](docs/DEVELOPMENT.md)
 
 Known migration limitations include the still-large compatibility supervisor,
 fragmented historical test scripts, host-dependent voice/desktop behavior, and

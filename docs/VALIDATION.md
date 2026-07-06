@@ -33,10 +33,10 @@ They must not be interpreted as portable automated proof.
 
 ## Historical reports
 
-`RELEASE_REPORT.md`, `JARVIS_CERTIFICATION.md`, `XTTS_ACTIVATION_REPORT.md`, and
-TITAN result files record earlier host runs. They are retained as historical
-evidence. Their pass counts are not current test results unless rerun on the
-current checkout and environment.
+Old host-specific release, Jarvis certification, repository audit, security,
+and XTTS activation reports were removed. Their fixed-machine pass counts were
+not reproducible validation of the current workspace. Supported legacy systems
+and the useful historical context are summarized in `LEGACY.md`.
 
 ## Unsupported claims
 
