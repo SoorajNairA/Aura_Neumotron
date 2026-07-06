@@ -29,6 +29,11 @@ desktop = [
     "beautifulsoup4==4.12.3",
     "lxml==5.3.0",
 ]
+xtts = [
+    "spacy==3.7.5",
+    "coqui-tts==0.25.3",
+]
+legacy-unreal = []
 dev = [
     "pytest>=8,<9",
     "pytest-timeout>=2.3,<3",
