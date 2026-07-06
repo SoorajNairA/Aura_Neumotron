@@ -88,17 +88,19 @@ The current assistant supports text/voice conversation, safe file and folder
 creation, known application and URL opening, project templates, memory, and
 result reveal.
 
-Build the interactive irrigation vertical-slice prototype without Ollama or a
-GUI framework:
+Run the primary browser engineering workspace server:
 
 ```powershell
 $env:PYTHONPATH = "src"
-python -m aura.workspace.prototype --open
+pip install -e ".[server]"
+python -m aura.workspace.server --open
 ```
 
-This writes `workspace/irrigation-workspace.html` and opens it in the default
-browser. Component cards use stable graph IDs for hover, click selection,
-information display, verification warnings, and AURA focus highlighting.
+The reusable frontend consumes project, graph, revision, modification, and
+WebSocket event APIs. Component cards use stable graph IDs for hover, click
+selection, information display, verification warnings, representation states,
+and AURA focus highlighting. The existing QML interface remains a legacy
+assistant fallback and is not imported by the workspace server.
 
 ## Testing
 
