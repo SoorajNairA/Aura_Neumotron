@@ -14,7 +14,8 @@ dependencies = [
 ]
 
 [project.scripts]
-aura = "aura.main:main"
+aura = "aura.workspace.server:main"
+aura-assistant = "aura.main:main"
 
 [project.optional-dependencies]
 voice = [

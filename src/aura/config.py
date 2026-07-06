@@ -18,6 +18,16 @@ class Settings:
 
     creator_name: str = os.getenv("AURA_CREATOR_NAME", "Sooraj").strip() or "Sooraj"
 
+    # Primary Engineering Workspace server and structured Planner.
+    workspace_host: str = os.getenv("AURA_WORKSPACE_HOST", "127.0.0.1").strip()
+    workspace_port: int = int(os.getenv("AURA_WORKSPACE_PORT", "8765"))
+    planner_provider: str = os.getenv("AURA_PLANNER_PROVIDER", "ollama").strip().lower()
+    planner_model: str = os.getenv("AURA_PLANNER_MODEL", "qwen3:8b").strip()
+    planner_timeout: float = float(os.getenv("AURA_PLANNER_TIMEOUT", "15"))
+    deterministic_fallback: bool = os.getenv(
+        "AURA_DETERMINISTIC_FALLBACK", "true"
+    ).strip().lower() in {"1", "true", "yes", "on"}
+
     # Local TTS (XTTS-v2 with pyttsx3 and Windows Speech fallbacks)
     voice_persona: str = os.getenv(
         "AURA_VOICE_PERSONA",

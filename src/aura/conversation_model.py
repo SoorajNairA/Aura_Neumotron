@@ -173,8 +173,8 @@ Be useful. Be honest. Be competent. Be human in conversation, even if you are no
 class OllamaConversationModel(ConversationModel):
     """Ollama /api/chat backend.
 
-    Works with any model available in Ollama: qwen2.5:14b, qwen2.5:8b,
-    llama3.2, mistral, phi4, etc.  Set model in config/env.
+    The Engineering Workspace configures qwen3:8b. The compatibility assistant
+    may use qwen2.5:3b on lower-memory hardware. Set the model in config/env.
     """
 
     backend_name = "ollama"
@@ -182,7 +182,7 @@ class OllamaConversationModel(ConversationModel):
 
     def __init__(
         self,
-        model: str = "qwen2.5:14b",
+        model: str = "qwen3:8b",
         base_url: str = "http://localhost:11434",
         timeout: int = 120,
         context_length: int = 32768,
@@ -353,7 +353,7 @@ class OllamaConversationModel(ConversationModel):
             if not resp.ok:
                 return False
             models = [m.get("name", "") for m in resp.json().get("models", [])]
-            # Accept exact match or name-prefix match (e.g. "qwen2.5:14b" matches "qwen2.5:14b")
+            # Accept exact match or a normalized name-prefix match.
             available = any(
                 m == self.model_name or m.startswith(self.model_name.split(":")[0])
                 for m in models

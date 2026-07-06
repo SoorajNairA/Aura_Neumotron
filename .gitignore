@@ -7,6 +7,10 @@
 *.so
 *.egg-info/
 .pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
 .mypy_cache/
 .ruff_cache/
 .venv/
@@ -73,6 +77,7 @@ voices/*.flac
 dist/
 build/
 generated/
+site/
 
 # Diagnostics
 

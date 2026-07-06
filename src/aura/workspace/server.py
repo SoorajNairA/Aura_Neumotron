@@ -80,8 +80,11 @@ class EventBroker:
 
 
 class WorkspaceApplication:
-    def __init__(self, provider: Any | None = None, planner_timeout: float = 15.0) -> None:
+    def __init__(self, provider: Any | None = None, planner_timeout: float | None = None) -> None:
         self.provider = provider
+        if planner_timeout is None:
+            from aura.config import Settings
+            planner_timeout = Settings().planner_timeout
         self.planner_timeout = planner_timeout
         self.projects: dict[str, ProjectRecord] = {}
         self.broker = EventBroker()
@@ -92,33 +95,42 @@ class WorkspaceApplication:
             assumptions=("Use a capacitive moisture sensor", "Use a splash-resistant electronics enclosure"))
 
     def plan(self, body: CreateProjectBody) -> PlanningOutcome:
+        from aura.config import Settings
+        fallback_enabled = Settings().deterministic_fallback
         request = self._request(body.objective)
         if body.planningMode == "live_model":
             provider = self.provider or self._default_provider()
             if provider is not None:
-                return LivePlanner(provider, self.planner_timeout).plan(request)
+                outcome = LivePlanner(provider, self.planner_timeout).plan(request)
+                if outcome.mode == "deterministic_fallback" and not fallback_enabled:
+                    raise RuntimeError(outcome.fallback_reason or "live planning failed")
+                return outcome
+            if not fallback_enabled:
+                raise RuntimeError("live model is unavailable and deterministic fallback is disabled")
         mode = "deterministic_test" if body.planningMode == "deterministic_test" else "deterministic_fallback"
         reason = None if mode == "deterministic_test" else "live model was not configured"
         return PlanningOutcome(PlannerService().plan(request), mode, reason)
 
-    @staticmethod
-    def _default_provider() -> Any | None:
+    def _default_provider(self) -> Any | None:
         try:
             from aura.config import Settings
             from aura.conversation_model import OllamaConversationModel
             from aura.infrastructure.model_provider import ConversationModelAdapter
             settings = Settings()
-            model = settings.ollama_conversation_model
-            if model == "auto":
-                model = settings.ollama_primary_model
+            if settings.planner_provider != "ollama":
+                return None
+            model = settings.planner_model
             return ConversationModelAdapter(OllamaConversationModel(
-                model, settings.ollama_base_url, settings.ollama_request_timeout,
+                model, settings.ollama_base_url, max(2, int(self.planner_timeout) - 1),
                 settings.ollama_context_length))
         except Exception:
             return None
 
     async def create(self, body: CreateProjectBody) -> ProjectRecord:
-        outcome = await run_in_threadpool(self.plan, body)
+        try:
+            outcome = await run_in_threadpool(self.plan, body)
+        except RuntimeError as exc:
+            raise HTTPException(503, detail=str(exc)) from exc
         plan = outcome.plan
         project_id = plan.entities[0].id
         self.broker.reset(project_id)
@@ -175,7 +187,7 @@ class WorkspaceApplication:
                 "summary": patch.summary, "rerunChecks": [finding.check for finding in result.findings]}
 
 
-def create_app(provider: Any | None = None, planner_timeout: float = 15.0) -> FastAPI:
+def create_app(provider: Any | None = None, planner_timeout: float | None = None) -> FastAPI:
     application = WorkspaceApplication(provider, planner_timeout)
     app = FastAPI(title="AURA Engineering Workspace", version="0.2.0")
     app.state.workspace = application
@@ -246,9 +258,11 @@ app = create_app()
 
 
 def main() -> None:
+    from aura.config import Settings
+    settings = Settings()
     parser = argparse.ArgumentParser(description="Run the AURA browser workspace")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", default=8765, type=int)
+    parser.add_argument("--host", default=settings.workspace_host)
+    parser.add_argument("--port", default=settings.workspace_port, type=int)
     parser.add_argument("--open", action="store_true", dest="open_browser")
     args = parser.parse_args()
     if args.open_browser:
