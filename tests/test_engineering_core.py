@@ -8,6 +8,7 @@ import pytest
 from aura.engineering_graph.model import EngineeringGraph, EntityKind
 from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation, apply_patch
 from aura.engineering_graph.serialization import dumps, loads
+from aura.infrastructure.persistence import JsonGraphRepository
 from aura.planner.schemas import ProjectRequest
 from aura.planner.service import PlannerService
 from aura.verification.results import VerificationDecision, VerificationState
@@ -73,6 +74,24 @@ def test_graph_serialization_patch_and_revision_round_trip() -> None:
 
 
 @pytest.mark.unit
+def test_graph_repository_round_trip(tmp_path) -> None:
+    plan = PlannerService().plan(ProjectRequest(
+        "Repository Test", "Persist the project graph", ("Survive reload",)
+    ))
+    graph = WorkspaceBridge().commit(
+        EngineeringGraph(plan.entities[0].id), VerificationService().verify(plan)
+    )
+    repository = JsonGraphRepository(tmp_path)
+    repository.save(graph)
+
+    restored = repository.load(graph.project_id)
+    assert restored is not None
+    assert restored.current_revision_id == graph.current_revision_id
+    with pytest.raises(ValueError, match="not safe"):
+        repository.load("../outside")
+
+
+@pytest.mark.unit
 def test_planner_rejects_invalid_structured_request() -> None:
     with pytest.raises(ValueError, match="requirement"):
         PlannerService().plan(ProjectRequest("Empty", "An objective", ()))
@@ -86,6 +105,7 @@ import aura.engineering_graph.model
 import aura.planner.service
 import aura.verification.service
 import aura.workspace.bridge
+import aura.infrastructure
 blocked = ['aura.unreal_domain', 'torch', 'PySide6', 'TTS']
 loaded = [name for name in blocked if name in sys.modules]
 raise SystemExit('unexpected imports: ' + repr(loaded) if loaded else 0)

@@ -376,10 +376,10 @@ class DomainManager:
         if self.include_legacy_unreal:
             # Unreal is a large legacy experiment. Import it only when a caller
             # explicitly opts in so normal AURA startup stays lightweight.
-            from .unreal_domain import UnrealProfessionalDomain
+            from .legacy.unreal import create_unreal_domain
 
             builtins.append(
-                UnrealProfessionalDomain(
+                create_unreal_domain(
                     memory_dir=self.memory.memory_dir / "domains" / "unreal",
                     operator_executor=self.operator_executor,
                 )

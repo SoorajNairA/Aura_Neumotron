@@ -24,7 +24,7 @@ logs/
 *.log
 *.jsonl
 memory/
-workspace/
+/workspace/
 DemoWorkspace/
 Code/
 notes.txt
