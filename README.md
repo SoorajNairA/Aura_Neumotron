@@ -88,6 +88,18 @@ The current assistant supports text/voice conversation, safe file and folder
 creation, known application and URL opening, project templates, memory, and
 result reveal.
 
+Build the interactive irrigation vertical-slice prototype without Ollama or a
+GUI framework:
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m aura.workspace.prototype --open
+```
+
+This writes `workspace/irrigation-workspace.html` and opens it in the default
+browser. Component cards use stable graph IDs for hover, click selection,
+information display, verification warnings, and AURA focus highlighting.
+
 ## Testing
 
 Install development dependencies:
