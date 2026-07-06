@@ -43,7 +43,8 @@ def test_request_to_verified_graph_revision_and_workspace_events() -> None:
     assert len(graph.find(kind=EntityKind.COMPONENT)) == 3
     assert all(entity.verification_status == "tool_verified" for entity in graph.entities.values())
     event_types = [event.type for event in observed]
-    assert event_types[:3] == ["project.started", "verification.started", "verification.completed"]
+    assert event_types[0] == "project.started"
+    assert event_types.index("verification.started") < event_types.index("verification.completed")
     assert event_types[-3:] == ["revision.committed", "project.created", "project.ready"]
 
 

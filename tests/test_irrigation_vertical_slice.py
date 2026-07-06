@@ -100,7 +100,9 @@ def test_complete_flow_graph_events_projection_and_ui() -> None:
     assert len(graph.find(kind=EntityKind.COMPONENT)) == 8
     assert len(graph.revisions) == 1
     types = [event.type for event in bridge.events]
-    assert types[0:3] == ["project.started", "verification.started", "verification.completed"]
+    assert types[0] == "project.started"
+    assert types.index("requirements.created") < types.index("verification.started")
+    assert types.index("warning.created") < types.index("verification.completed")
     assert "subsystem.added" in types and "component.added" in types and "connection.added" in types
     assert "warning.created" in types
     assert types[-3:] == ["revision.committed", "project.created", "project.ready"]

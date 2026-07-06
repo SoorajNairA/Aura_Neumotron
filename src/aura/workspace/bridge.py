@@ -44,11 +44,10 @@ class WorkspaceBridge:
             return graph
         if not graph.revisions:
             self.emit(WorkspaceEvent("project.started", graph.project_id))
-        self.emit(WorkspaceEvent("verification.started", graph.project_id))
-        self.emit(WorkspaceEvent("verification.completed", graph.project_id, payload={"state": result.state.value}))
         updated = apply_patch(graph, result.patch)
         kind_events = {
             EntityKind.REQUIREMENT: "requirements.created",
+            EntityKind.ASSUMPTION: "assumptions.created",
             EntityKind.SUBSYSTEM: "subsystem.added",
             EntityKind.COMPONENT: "component.added",
             EntityKind.CONNECTION: "connection.added",
@@ -68,11 +67,13 @@ class WorkspaceBridge:
                 self.emit(WorkspaceEvent("connection.updated", updated.project_id,
                     revision_id=updated.current_revision_id, entity_id=relationship.id,
                     payload={"source_id": relationship.source_id, "target_id": relationship.target_id}))
+        self.emit(WorkspaceEvent("verification.started", graph.project_id))
         for finding in result.findings:
             if finding.severity in {"warning", "critical"}:
                 self.emit(WorkspaceEvent("warning.created", updated.project_id,
                     revision_id=updated.current_revision_id, entity_id=finding.entity_ids[0] if finding.entity_ids else None,
                     payload={"finding_id": finding.id, "message": finding.message}))
+        self.emit(WorkspaceEvent("verification.completed", graph.project_id, payload={"state": result.state.value}))
         self.emit(WorkspaceEvent(
             "revision.committed", updated.project_id,
             revision_id=updated.current_revision_id,
