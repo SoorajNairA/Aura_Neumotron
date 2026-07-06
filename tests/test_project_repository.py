@@ -138,4 +138,7 @@ def test_unknown_project_returns_404(tmp_path: Path) -> None:
     with TestClient(app) as client:
         assert client.get("/api/projects/missing").status_code == 404
         assert client.get("/api/projects/missing/graph").status_code == 404
+        missing = client.get("/api/artifacts/artifact-missing")
+        assert missing.status_code == 404
+        assert missing.json()["detail"]["code"] == "artifact_not_found"
     app.state.workspace.repository.close()

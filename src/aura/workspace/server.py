@@ -246,6 +246,19 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     async def modify_project(project_id: str, body: ModificationBody) -> dict[str, Any]:
         return await application.modify(project_id, body)
 
+    @app.get("/api/artifacts/{artifact_id}")
+    def get_artifact(artifact_id: str) -> dict[str, Any]:
+        artifact = application.repository.get_artifact(artifact_id)
+        if artifact is None:
+            raise HTTPException(404, detail={"code": "artifact_not_found", "artifactId": artifact_id})
+        return {"artifactId": artifact.artifact_id, "projectId": artifact.project_id,
+                "revision": artifact.revision, "componentIds": artifact.component_ids,
+                "representationType": artifact.representation_type, "format": artifact.format,
+                "status": artifact.status, "contentHash": artifact.content_hash,
+                "relativePath": artifact.relative_path, "generator": artifact.generator,
+                "generatorVersion": artifact.generator_version, "createdAt": artifact.created_at,
+                "error": artifact.error}
+
     @app.websocket("/api/projects/{project_id}/events")
     async def events(websocket: WebSocket, project_id: str,
                      after_event_id: int = Query(0, alias="afterEventId", ge=0)) -> None:
