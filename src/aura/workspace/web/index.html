@@ -4,7 +4,7 @@
 <header><strong>AURA</strong><input id="objective" value="Build a temperature-controlled desk fan."><select id="mode"><option value="live_model">Live model</option><option value="deterministic_test">Deterministic test</option></select><button id="create">Create project</button><select id="projects"><option value="">Existing projects</option></select><button id="open-project">Open</button><span id="status">Ready for an objective</span></header>
 <aside><h2>Project hierarchy</h2><div id="tree"></div><h2>Revisions</h2><ol id="revisions"></ol></aside>
 <main><h1 id="title">Engineering representation</h1><div id="canvas"></div><div id="representation"></div><iframe id="representation-view" title="Generated engineering representations"></iframe></main>
-<section class="details"><h2>Component information</h2><div id="component-info">Select a semantic component.</div><h2>Modify selection</h2><textarea id="modification">Replace the relay with a logic-level MOSFET driver.</textarea><button id="modify">Apply verified patch</button><pre id="change"></pre></section>
-<section class="verification"><h2>Verification and warnings</h2><ul id="warnings"></ul></section>
+<section class="details"><h2>Component information</h2><div id="component-info">Select a semantic component.</div><div id="component-verification"></div><h2>Modify selection</h2><textarea id="modification">Replace the relay with a logic-level MOSFET driver.</textarea><button id="modify">Apply verified patch</button><pre id="change"></pre></section>
+<section class="verification"><h2>Verification</h2><div id="verification-summary"></div><ul id="warnings"></ul><dialog id="evidence-dialog"><button id="close-evidence">Close</button><pre id="evidence-detail"></pre></dialog></section>
 <footer><h2>Progress timeline</h2><div id="timeline"></div></footer>
 <script src="/assets/app.js"></script></body></html>

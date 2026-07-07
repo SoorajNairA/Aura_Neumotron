@@ -44,7 +44,20 @@ def propose(graph:EngineeringGraph,base:int,ids:list[str],request:str,mode:str="
     if len(ids)!=1 or ids[0] not in graph.entities: raise ValueError("unsupported_target")
     target=graph.get(ids[0]);meta=dict(target.metadata);lower=request.lower();ops=[]
     family=meta.get("family",meta.get("role",""))
-    if family=="temperature_sensor" and any(x in lower for x in ("lower","threshold","temperature","earlier")):
+    from aura.verification.catalogue import CATALOGUE
+    exact=next((item for item in CATALOGUE if item.component_definition_id.lower() in lower),None)
+    if exact:
+        if family not in {exact.family,"controller" if exact.family=="microcontroller_board" else exact.family,
+                          "water delivery" if exact.family=="small_dc_pump" else exact.family,
+                          "soil sensing" if exact.family=="soil_moisture_sensor" else exact.family}: raise ValueError("incompatible_component_definition")
+        old=meta.get("component_definition_id");meta["component_definition_id"]=exact.component_definition_id
+        params=dict(meta.get("parameters",{}));params["component_definition_id"]=exact.component_definition_id;meta["parameters"]=params
+        dims=exact.properties.get("dimensions")
+        if dims:
+            values=dims.value;meta["dimensions"]={key:{"value":value,"unit":dims.unit} for key,value in zip(("width","length","height"),values)}
+        summary=f"Upgrade {target.name} to curated {exact.manufacturer} {exact.part_number}";affected=(target.id,);regen=(f"repr-{target.id.removeprefix('component-')}-3d",)
+        ops=[{"operation":"replace_component_definition","path":"component_definition_id","oldValue":old,"newValue":exact.component_definition_id}]
+    elif family=="temperature_sensor" and any(x in lower for x in ("lower","threshold","temperature","earlier")):
         params=dict(meta["parameters"]);old=params.get("threshold_c",26);params["threshold_c"]=old-2;meta["parameters"]=params;summary="Lower the temperature activation threshold";affected=(target.id,);regen=();ops=[{"operation":"replace_parameter","path":"parameters.threshold_c","oldValue":old,"newValue":params["threshold_c"]}]
     elif family in {"container","reservoir"} and any(x in lower for x in ("larger","capacity","size","width","depth")) and target.id!="component-reservoir":
         dims={k:dict(v) for k,v in meta["dimensions"].items()};ops=[]

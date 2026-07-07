@@ -112,8 +112,10 @@ class PlannerService:
         }
         subsystems=tuple(SubsystemSpec(f"subsystem-{role}",role.title(),role,"Deterministic semantic subsystem.") for role in dict.fromkeys(specs[f][2] for f in families))
         components=[]
+        curated={"controller":"esp32-devkit-v1","temperature-sensor":"bme280-i2c-module","environmental-sensor":"bme280-breakout","distance-sensor":"vl53l0x-module","fan":"dc-fan-5v","servo":"sg90-servo","driver":"logic-mosfet-module","power":"supply-usb-5v-2a"}
         for family in families:
-            name,kind,role,params,dims=specs[family];cid=f"component-{family}"
+            name,kind,role,params,dims=specs[family];cid=f"component-{family}";params=dict(params)
+            if family in curated: params["component_definition_id"]=curated[family]
             components.append(ComponentSpec(cid,name,kind,f"subsystem-{role}",f"{name} for the requested low-voltage system.",params,("power","ground","signal"),{key:{"value":value,"unit":"mm"} for key,value in zip(("width","length","height"),dims)},assumption_refs=(f"assumption-{family}",)))
         ids={c.id for c in components};connections=[]
         def connect(a,b,kind):

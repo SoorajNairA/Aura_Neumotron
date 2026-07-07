@@ -6,6 +6,7 @@ const state = {
   hoverId: null,
   focusIds: new Set(),
   criticalIds: new Set(),
+  verification: null,
   events: [],
   socket: null,
   lastEventId: 0,
@@ -51,6 +52,19 @@ function render() {
   $("component-info").textContent = selected
     ? `${selected.name} — ${selected.metadata.role || ""} — ${selected.verification_status} — ${selected.metadata.description || ""}`
     : "Select a semantic component.";
+  const related = selected ? entities("verification_result").filter((v) =>
+    (v.metadata.semanticIds || v.metadata.entity_ids || []).includes(selected.id)) : [];
+  $("component-verification").innerHTML = related.length
+    ? `<h3>Verified properties, warnings, and assumptions</h3>${related.map((v) =>
+      `<article class="finding ${v.verification_status}"><b>${v.metadata.check}</b><span>${v.verification_status}</span><p>${v.name}</p>${(v.metadata.evidenceIds || []).map((id) => `<button class="evidence-link" data-evidence="${id}">Inspect source</button>`).join("")}${(v.verification_status === "failed" || v.metadata.check === "flyback") ? `<button class="repair-link" data-finding="${v.id}">Ask AURA to fix</button>` : ""}</article>`).join("")}`
+    : "";
+  document.querySelectorAll(".evidence-link").forEach((button) =>
+    button.onclick = () => inspectEvidence(button.dataset.evidence));
+  document.querySelectorAll(".repair-link").forEach((button) =>
+    button.onclick = () => requestRepair(button.dataset.finding));
+  const summary = state.verification?.summary || {};
+  $("verification-summary").innerHTML = Object.entries(summary).map(([status, count]) =>
+    `<span class="status-chip ${status}"><b>${count}</b> ${status.replaceAll("_", " ")}</span>`).join("");
   $("warnings").innerHTML = entities("verification_result")
     .map(
       (v) =>
@@ -107,9 +121,10 @@ async function loadProject() {
   const frame = $("representation-view");
   frame.src = `/assets/representation/index.html?projectId=${encodeURIComponent(state.projectId)}`;
   frame.style.display = "block";
-  state.graph = await (
-    await fetch(`/api/projects/${state.projectId}/graph`)
-  ).json();
+  [state.graph, state.verification] = await Promise.all([
+    fetch(`/api/projects/${state.projectId}/graph`).then((response) => response.json()),
+    fetch(`/api/projects/${state.projectId}/verification`).then((response) => response.json()),
+  ]);
   const revisions = await (
     await fetch(`/api/projects/${state.projectId}/revisions`)
   ).json();
@@ -122,6 +137,24 @@ async function loadProject() {
       .flatMap((v) => v.metadata.entity_ids || []),
   );
   render();
+}
+function inspectEvidence(id) {
+  const evidence = entities("evidence").find((item) => item.id === id)?.metadata;
+  if (!evidence) return;
+  $("evidence-detail").textContent = JSON.stringify({
+    title: evidence.title, publisher: evidence.publisher, kind: evidence.kind,
+    retrievedAt: evidence.retrievedAt, properties: evidence.properties,
+    source: evidence.source, contentHash: evidence.contentHash,
+  }, null, 2);
+  $("evidence-dialog").showModal();
+}
+$("close-evidence").onclick = () => $("evidence-dialog").close();
+async function requestRepair(findingId) {
+  const response = await fetch(`/api/projects/${state.projectId}/verification/${findingId}/repair-proposal`, {method:"POST"});
+  const proposal = await response.json();
+  $("change").textContent = response.ok
+    ? `Repair preview (not applied): ${proposal.summary}\nAffected: ${proposal.affectedSemanticIds.join(", ")}\nVerification: ${proposal.verification.checks.map((x) => `${x.state}: ${x.message}`).join("; ")}`
+    : JSON.stringify(proposal);
 }
 function connect(after = 0) {
   if (state.socket) state.socket.close();

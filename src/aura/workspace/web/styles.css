@@ -109,6 +109,13 @@ footer {
 .failed {
   color: #ff7282;
 }
+.status-chip { display:inline-block; margin:3px; padding:6px 8px; border:1px solid #25728e; border-radius:4px; }
+.status-chip b { font-size:18px; margin-right:4px; }
+.finding { margin:8px 0; padding:8px; border-left:3px solid #25728e; background:#0c2636; }
+.finding span { float:right; text-transform:uppercase; font-size:11px; }
+.finding.failed { border-color:#ff5266; }
+.finding.estimated,.finding.conceptual { border-color:#ffd26b; }
+dialog { max-width:620px; background:#091d2b; color:#d8f7ff; border:1px solid #63e7ff; }
 pre {
   white-space: pre-wrap;
 }

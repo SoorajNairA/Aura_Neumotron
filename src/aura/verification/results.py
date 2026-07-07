@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any
 from enum import Enum
 
 from aura.engineering_graph.patches import GraphPatch
@@ -31,6 +33,23 @@ class VerificationFinding:
     severity: str
     message: str
     entity_ids: tuple[str, ...]
+    expected: dict[str, Any] | None = None
+    actual: dict[str, Any] | None = None
+    evidence_ids: tuple[str, ...] = ()
+    verified_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    source_versions: dict[str, str] = field(default_factory=dict)
+    dependency_ids: tuple[str, ...] = ()
+    revision: int = 1
+    machine_result: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"findingId": self.id, "semanticId": self.entity_ids[0] if self.entity_ids else None,
+                "check": self.check, "status": self.state.value, "severity": self.severity,
+                "summary": self.message, "expected": self.expected, "actual": self.actual,
+                "evidenceIds": list(self.evidence_ids), "verifiedAt": self.verified_at,
+                "sourceVersions": self.source_versions, "dependencyIds": list(self.dependency_ids),
+                "revision": self.revision, "machineResult": self.machine_result,
+                "semanticIds": list(self.entity_ids), "entity_ids": list(self.entity_ids)}
 
 
 @dataclass(frozen=True)

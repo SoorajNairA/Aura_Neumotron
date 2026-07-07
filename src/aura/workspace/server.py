@@ -27,6 +27,8 @@ from aura.planner.live import LivePlanner, PlanningOutcome
 from aura.planner.schemas import ProjectRequest
 from aura.planner.service import PlannerService
 from aura.verification.service import VerificationService
+from aura.verification.catalogue import CATALOGUE, search as search_catalogue
+from aura.verification.results import VerificationState
 from .bridge import WorkspaceBridge
 from .assembly import irrigation_assembly
 from .events import WorkspaceEvent
@@ -322,6 +324,18 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     @app.get("/api/capabilities")
     def get_capabilities()->dict[str,Any]: return CAPABILITY_MANIFEST
 
+    @app.get("/api/catalogue")
+    def get_catalogue(family: Optional[str] = None, voltage: Optional[float] = None,
+                      minimumCurrentMa: Optional[float] = None, interface: Optional[str] = None) -> list[dict[str, Any]]:
+        return [item.to_dict() for item in search_catalogue(family=family, voltage=voltage,
+            minimum_current_ma=minimumCurrentMa, interface=interface)]
+
+    @app.get("/api/catalogue/{component_definition_id}")
+    def get_catalogue_item(component_definition_id: str) -> dict[str, Any]:
+        item=next((x for x in CATALOGUE if x.component_definition_id==component_definition_id),None)
+        if item is None: raise HTTPException(404,detail={"code":"unknown_component_definition"})
+        return item.to_dict()
+
     @app.post("/api/capabilities/classify")
     def classify(body:CreateProjectBody)->dict[str,Any]: return classify_objective(body.objective)
 
@@ -333,6 +347,22 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     @app.get("/api/projects/{project_id}/graph")
     def get_graph(project_id: str) -> dict[str, Any]:
         return graph_to_dict(_record(application, project_id).graph)
+
+    @app.get("/api/projects/{project_id}/verification")
+    def get_verification(project_id: str) -> dict[str, Any]:
+        graph=_record(application,project_id).graph
+        findings=graph.find(kind=EntityKind.VERIFICATION_RESULT); evidence=graph.find(kind=EntityKind.EVIDENCE)
+        statuses=[x.value for x in VerificationState]
+        return {"projectId":project_id,"revision":len(graph.revisions),
+                "summary":{status:sum(x.verification_status==status for x in findings) for status in statuses},
+                "findings":[x.metadata for x in findings],"evidence":[x.metadata for x in evidence]}
+
+    @app.get("/api/projects/{project_id}/evidence/{evidence_id}")
+    def get_evidence(project_id: str,evidence_id: str) -> dict[str, Any]:
+        graph=_record(application,project_id).graph
+        item=graph.entities.get(evidence_id)
+        if item is None or item.kind is not EntityKind.EVIDENCE: raise HTTPException(404,"Evidence not found")
+        return item.metadata
 
     @app.get("/api/projects/{project_id}/revisions")
     def get_revisions(project_id: str) -> list[dict[str, Any]]:
@@ -408,6 +438,18 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         for event in application.repository.append_events(project_id,len(record.graph.revisions),[
             {"type":"modification.requested","semantic_ids":body.selectedSemanticIds,"payload":{"request":body.request}},
             {"type":"modification.preview_ready","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal.proposal_id}}]): await application.broker.publish_committed(event)
+        return proposal.to_dict()
+
+    @app.post("/api/projects/{project_id}/verification/{finding_id}/repair-proposal",status_code=201)
+    async def repair_verification_finding(project_id:str,finding_id:str)->dict[str,Any]:
+        record=_record(application,project_id); finding=record.graph.entities.get(finding_id)
+        if finding is None or finding.kind is not EntityKind.VERIFICATION_RESULT: raise HTTPException(404,"Finding not found")
+        if finding.verification_status!="failed" and finding.metadata.get("check")!="flyback": raise HTTPException(422,detail={"code":"finding_not_repairable"})
+        check=finding.metadata.get("check"); targets=finding.metadata.get("semanticIds",finding.metadata.get("entity_ids",[]))
+        driver="component-driver" if "component-driver" in record.graph.entities else next((x for x in targets if x in record.graph.entities),None)
+        if check not in {"flyback","missing-driver","direct-pump-gpio"} or not driver: raise HTTPException(422,detail={"code":"no_bounded_repair"})
+        proposal=propose(record.graph,len(record.graph.revisions),[driver],"Replace with a logic-level MOSFET and flyback protection","verification_repair")
+        application.modification_proposals[proposal.proposal_id]=proposal
         return proposal.to_dict()
 
     @app.delete("/api/projects/{project_id}/modification-proposals/{proposal_id}")
