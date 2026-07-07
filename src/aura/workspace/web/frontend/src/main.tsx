@@ -30,6 +30,7 @@ type Assembly = {
 	relationships: { from: string; to: string; type: string }[];
 	connectors: any[];
 };
+type Proposal = { proposalId:string; summary:string; operations:any[]; affectedSemanticIds:string[]; unaffectedAreas:string[]; artifactsToRegenerate:string[]; verification:{checks:any[]}; };
 const projectId = new URLSearchParams(location.search).get("projectId"),
 	CAD_TIMEOUT = 10000;
 const timeout = <T,>(p: Promise<T>) =>
@@ -83,6 +84,7 @@ class SceneView {
 	subsystem = "all";
 	xray = false;
 	connections = new THREE.Group();
+	preview?: THREE.Object3D;
 	constructor(
 		host: HTMLElement,
 		select: (id: string) => void,
@@ -192,6 +194,8 @@ class SceneView {
 		}
 	}
 	load(a: Assembly) {
+		for (const node of this.nodes.values()) this.scene.remove(node);
+		this.nodes.clear();this.parts.clear();this.clearPreview();
 		for (const p of a.parts) {
 			this.parts.set(p.semanticId, p);
 			const g = new THREE.Group();
@@ -236,6 +240,17 @@ class SceneView {
 		}
 		this.style();
 	}
+	showPreview(proposal: Proposal) {
+		this.clearPreview();
+		if (!proposal.affectedSemanticIds.includes("component-reservoir")) return;
+		const part=this.parts.get("component-reservoir");if(!part)return;
+		const width=proposal.operations.find(x=>x.path==="dimensions.width.value")?.newValue||part.dimensions[0];
+		const length=proposal.operations.find(x=>x.path==="dimensions.length.value")?.newValue||part.dimensions[1];
+		const mesh=new THREE.Mesh(new THREE.CylinderGeometry(width/2,width/2,length,32),new THREE.MeshBasicMaterial({color:0x63f5df,transparent:true,opacity:.28,wireframe:true,depthWrite:false}));
+		mesh.rotation.x=Math.PI/2;mesh.position.fromArray(part.assembledTransform.position);mesh.userData.semanticId=part.semanticId;
+		this.preview=mesh;this.scene.add(mesh);
+	}
+	clearPreview(){if(this.preview){this.scene.remove(this.preview);this.preview=undefined;}}
 	addCad(id: string, faces: any[]) {
 		const group = this.nodes.get(id);
 		if (!group) return null;
@@ -386,7 +401,12 @@ function App() {
 		[explode, setExplode] = useState(0),
 		[subsystem, setSubsystem] = useState("all"),
 		[xray, setXray] = useState(false),
+		[request,setRequest]=useState(""),
+		[proposal,setProposal]=useState<Proposal>(),
+		[busy,setBusy]=useState(false),
+		[revision,setRevision]=useState(0),
 		[metrics, setMetrics] = useState<Record<string, number>>({});
+	const refresh=async()=>{const [project,a]=await Promise.all([fetch(`/api/projects/${projectId}`).then(r=>r.json()),fetch(`/api/projects/${projectId}/assembly`).then(r=>r.json())]);setRevision(project.revision);setRecords(project.representations);setAssembly(a);view.current?.load(a);return project;};
 	const choose = (id: string) => {
 		setSelected(id);
 		view.current?.select(id);
@@ -403,6 +423,7 @@ function App() {
 				project = await (await fetch(`/api/projects/${projectId}`)).json(),
 				a = await (await fetch(`/api/projects/${projectId}/assembly`)).json();
 			setAssembly(a);
+			setRevision(project.revision);
 			setRecords(project.representations);
 			view.current!.load(a);
 			const schematic = project.representations.find(
@@ -507,6 +528,10 @@ function App() {
 		view.current?.isolate(s);
 		view.current?.setExplode(explode / 100, s);
 	};
+	const previewChange=async()=>{if(!selected||!request.trim())return;setBusy(true);try{const response=await fetch(`/api/projects/${projectId}/modification-proposals`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId,baseRevision:revision,selectedSemanticIds:[selected],request,mode:"automatic"})});const body=await response.json();if(!response.ok)throw Error(body.detail?.code||"Proposal failed");setProposal(body);view.current?.showPreview(body);setMessage("Verified change ready to preview");}catch(e){setMessage(String(e));}finally{setBusy(false);}};
+	const cancelChange=async()=>{if(proposal)await fetch(`/api/projects/${projectId}/modification-proposals/${proposal.proposalId}`,{method:"DELETE"});setProposal(undefined);view.current?.clearPreview();setMessage("Preview cancelled");};
+	const applyChange=async()=>{if(!proposal)return;setBusy(true);try{const response=await fetch(`/api/projects/${projectId}/modification-proposals/${proposal.proposalId}/commit`,{method:"POST"});if(!response.ok)throw Error("Commit failed");await refresh();setProposal(undefined);setMessage("Verified change applied");}catch(e){setMessage(String(e));}finally{setBusy(false);}};
+	const undo=async()=>{setBusy(true);try{const response=await fetch(`/api/projects/${projectId}/revisions/undo`,{method:"POST"});if(!response.ok)throw Error("Nothing to undo");await refresh();setMessage("Previous revision restored as a new revision");}catch(e){setMessage(String(e));}finally{setBusy(false);}};
 	return (
 		<main>
 			<header>
@@ -559,6 +584,10 @@ function App() {
 			<section className="grid">
 				<div className="three" ref={host} />
 				<aside>
+					<h3>Verified modification <small>Revision {revision}</small></h3>
+					<textarea data-testid="modification-request" aria-label="Requested change" value={request} onChange={e=>setRequest(e.target.value)} placeholder="Describe a change to the selected component" />
+					<div className="change-actions"><button data-testid="preview-change" disabled={busy||!selected||!request.trim()} onClick={previewChange}>Preview verified change</button><button data-testid="undo-change" disabled={busy||revision<2} onClick={undo}>Undo</button></div>
+					{proposal&&<div className="proposal" data-testid="proposal-preview"><h4>{proposal.summary}</h4><b>Requested change</b><p>{request}</p><b>Operations</b><ul>{proposal.operations.map((x,i)=><li key={i}>{x.path}: {String(x.oldValue)} → {String(x.newValue)}</li>)}</ul><b>Affected components</b><p>{proposal.affectedSemanticIds.join(", ")}</p><b>Regenerated artifacts</b><p>{proposal.artifactsToRegenerate.join(", ")}</p><b>Verification</b><ul>{proposal.verification.checks.map((x,i)=><li key={i} className={x.state.toLowerCase()}>{x.state}: {x.message}</li>)}</ul><b>Unchanged areas</b><p>{proposal.unaffectedAreas.join(", ")}</p><div className="change-actions"><button data-testid="apply-change" disabled={busy} onClick={applyChange}>Apply Change</button><button data-testid="cancel-change" disabled={busy} onClick={cancelChange}>Cancel</button></div></div>}
 					<h3>Part inspection</h3>
 					<strong data-testid="selected">
 						{selected || "Select a physical part"}

@@ -158,3 +158,5 @@ small {
 		flex-wrap: wrap;
 	}
 }
+
+textarea{width:100%;min-height:72px;box-sizing:border-box;background:#081b29;color:#dbeafe;border:1px solid #31516a;border-radius:6px;padding:8px;resize:vertical}.change-actions{display:flex;gap:8px;margin:8px 0}.proposal{background:#0b2633;border:1px solid #2c7a7b;border-radius:8px;padding:10px;margin:10px 0}.proposal h4{margin:0 0 8px;color:#68f0d0}.proposal p,.proposal ul{font-size:12px;margin:4px 0 9px;padding-left:18px}.proposal .passed{color:#72e6a1}.proposal .warning{color:#ffd166}
