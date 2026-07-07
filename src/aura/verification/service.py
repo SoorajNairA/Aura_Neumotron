@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from uuid import uuid4
 
 from aura.engineering_graph.model import EngineeringEntity, EntityKind
 from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation
@@ -144,12 +145,13 @@ class VerificationService:
             result_entities = set(result.metadata.get("entity_ids", []))
             if result_entities & affected:
                 operations.append(GraphOperation(PatchOperation.UPDATE_ENTITY, target_id=result.id, changes={"verification_status": VerificationState.STALE.value}))
+        verification_id="verification-mosfet-update" if "verification-mosfet-update" not in graph.entities else f"verification-modification-{uuid4().hex}"
         operations.append(GraphOperation(PatchOperation.ADD_ENTITY, entity=EngineeringEntity(
-            "verification-mosfet-update", EntityKind.VERIFICATION_RESULT,
+            verification_id, EntityKind.VERIFICATION_RESULT,
             "MOSFET driver logic level and flyback protection require implementation confirmation.", graph.project_id,
             {"check": "driver-update", "severity": "warning", "entity_ids": ["component-driver"]},
             verification_status=VerificationState.ESTIMATED.value,
         )))
         return VerificationResult(VerificationDecision.MODIFY, VerificationState.ESTIMATED,
             ("Only driver-dependent checks were rerun.",), replace(patch, operations=tuple(operations)),
-            (VerificationFinding("verification-mosfet-update", "driver-update", VerificationState.ESTIMATED, "warning", "MOSFET selection requires implementation confirmation.", ("component-driver",)),))
+            (VerificationFinding(verification_id, "driver-update", VerificationState.ESTIMATED, "warning", "Modified values require implementation confirmation.", tuple(affected)),))

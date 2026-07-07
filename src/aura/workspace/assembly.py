@@ -52,13 +52,18 @@ RELATIONSHIPS = [
 
 def irrigation_assembly(graph: EngineeringGraph) -> dict[str, Any]:
     graph_ids={entity.id for entity in graph.find(kind=EntityKind.COMPONENT)}
+    reservoir_meta=graph.get("component-reservoir").metadata
+    dimensions=reservoir_meta.get("dimensions", {})
+    reservoir_dimensions=tuple(float(dimensions.get(key, {}).get("value", fallback)) for key,fallback in (("width",70),("length",70),("height",150)))
+    pump_offset=tuple(float(value) for value in graph.get("component-pump").metadata.get("assembly_offset_mm",[0,0,0]))
+    pump_position=tuple(value+offset for value,offset in zip((-25,15,12),pump_offset))
     parts=[
         PhysicalPart("component-enclosure","Electronics enclosure","electronics","electronics-subsystem","parametric CAD",(120,100,60),(75,55,0),(145,105,45),"conceptual"),
         PhysicalPart("component-esp32","ESP32 controller","electronics","component-enclosure","conceptual proxy",(52,28,8),(50,50,34),(30,50,115)),
         PhysicalPart("component-driver","MOSFET driver","electronics","component-enclosure","conceptual proxy",(32,24,8),(95,25,34),(115,0,105)),
         PhysicalPart("component-power","Low-voltage power","electronics","component-enclosure","conceptual proxy",(48,30,18),(95,80,30),(145,125,90)),
-        PhysicalPart("component-reservoir","Reservoir","water","water-subsystem","parametric CAD",(70,70,150),(-105,15,0),(-210,40,20),"conceptual"),
-        PhysicalPart("component-pump","DC pump","water","water-subsystem","conceptual proxy",(55,35,35),(-25,15,12),(-35,-70,55)),
+        PhysicalPart("component-reservoir","Reservoir","water","water-subsystem","parametric CAD",reservoir_dimensions,(-105,15,0),(-210,40,20),"conceptual"),
+        PhysicalPart("component-pump","DC pump","water","water-subsystem","conceptual proxy",(55,35,35),pump_position,tuple(value+offset for value,offset in zip((-35,-70,55),pump_offset))),
         PhysicalPart("component-tubing","Inlet and outlet tubing","water","water-subsystem","parametric CAD",(95,40,85),(-70,35,22),(-95,105,75),"conceptual"),
         PhysicalPart("component-sensor","Soil-moisture sensor","sensor","sensor-subsystem","conceptual proxy",(22,8,95),(175,-35,0),(235,-85,35)),
     ]

@@ -30,7 +30,7 @@ from .assembly import irrigation_assembly
 from .events import WorkspaceEvent
 from .representation_service import RepresentationService, initial_records, irrigation_specs
 from .representations import RepresentationRecord, RepresentationStatus
-from .modifications import ModificationProposal,propose
+from .modifications import ModificationProposal,inverse_proposal,propose
 
 
 class CreateProjectBody(BaseModel):
@@ -370,21 +370,42 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             record=_record(application,project_id)
             if len(record.graph.revisions)!=proposal.base_revision: raise HTTPException(409,detail={"code":"stale_revision","currentRevision":len(record.graph.revisions)})
             result=VerificationService().verify_modification(record.graph,proposal.patch)
+            if not result.accepted or result.patch is None: raise HTTPException(422,detail={"code":"verification_rejected","reasons":list(result.reasons)})
             updated=WorkspaceBridge().commit(record.graph,result)
-            reps=[]
+            reps=[]; lifecycle=[]
             for item in record.representations:
-                copy=dict(item)
-                if copy["representationId"] in proposal.regenerate: copy["status"]="stale"
-                reps.append(copy)
+                current=RepresentationRecord.from_dict(item)
+                if current.representation_id not in proposal.regenerate:
+                    reps.append(current.to_dict());continue
+                regenerated=await run_in_threadpool(application.representation_service.regenerate,updated,current)
+                reps.append(regenerated.to_dict())
+                lifecycle.extend([
+                    {"type":"representation.stale","semantic_ids":list(current.semantic_ids),"payload":{"representationId":current.representation_id}},
+                    {"type":"representation.generating","semantic_ids":list(current.semantic_ids),"payload":{"representationId":current.representation_id}},
+                ])
+                if regenerated.status is RepresentationStatus.FALLBACK:
+                    lifecycle.append({"type":"representation.failed","semantic_ids":list(current.semantic_ids),"payload":{"representationId":current.representation_id,"error":regenerated.error}})
+                lifecycle.append({"type":f"representation.{regenerated.status.value}","semantic_ids":list(current.semantic_ids),"payload":{"representationId":current.representation_id,"artifactId":regenerated.artifact_id,"error":regenerated.error}})
             updated_record=StoredProject(record.project_id,record.objective,record.planning_mode,record.fallback_reason,"ready",updated,reps,record.created_at,datetime.now(timezone.utc).isoformat())
             diff={"changed":list(proposal.operations),"regenerated":list(proposal.regenerate),"affected":list(proposal.affected_ids),"unchanged":list(proposal.unaffected)}
-            drafts=[{"type":"modification.committed","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal_id,"diff":diff}},{"type":"revision.committed","semantic_ids":list(proposal.affected_ids),"payload":{"diff":diff}}]
-            for rid in proposal.regenerate:drafts.append({"type":"representation.stale","semantic_ids":list(proposal.affected_ids),"payload":{"representationId":rid}})
-            committed=application.repository.save_commit(updated_record,proposal.patch,{"outcome":proposal.verification},drafts)
+            drafts=[{"type":"modification.committed","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal_id,"diff":diff}},{"type":"revision.committed","semantic_ids":list(proposal.affected_ids),"payload":{"diff":diff}},*lifecycle]
+            verification={"outcome":proposal.verification,"diff":diff,"kind":"undo" if proposal.mode=="undo" else "modification"}
+            committed=application.repository.save_commit(updated_record,result.patch,verification,drafts)
             for event in committed:await application.broker.publish_committed(event)
             application.modification_proposals.pop(proposal_id,None)
             return {"projectId":project_id,"revision":len(updated.revisions),"summary":proposal.summary,"diff":diff,"representations":reps}
         finally:lock.release()
+
+    @app.post("/api/projects/{project_id}/revisions/undo")
+    async def undo_revision(project_id:str)->dict[str,Any]:
+        record=_record(application,project_id)
+        revisions=application.repository.list_revisions(project_id)
+        source=revisions[-1] if revisions and revisions[-1].get("verification",{}).get("kind")=="modification" else None
+        if source is None: raise HTTPException(409,detail={"code":"nothing_to_undo"})
+        try: proposal=inverse_proposal(record.graph,source)
+        except ValueError as exc: raise HTTPException(409,detail={"code":str(exc)}) from exc
+        application.modification_proposals[proposal.proposal_id]=proposal
+        return await commit_modification(project_id,proposal.proposal_id)
 
     @app.websocket("/api/projects/{project_id}/events")
     async def events(websocket: WebSocket, project_id: str,

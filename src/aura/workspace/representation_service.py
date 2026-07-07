@@ -19,11 +19,17 @@ TSCIRCUIT_VERSION = "0.0.1609"
 
 def irrigation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
     coordinate = {"forward": "+X", "left": "+Y", "up": "+Z"}
+    reservoir = graph.get("component-reservoir").metadata.get("dimensions", {})
+    width = float(reservoir.get("width", {}).get("value", 70))
+    length = float(reservoir.get("length", {}).get("value", 70))
+    height = float(reservoir.get("height", {}).get("value", 150))
+    pump_offset = graph.get("component-pump").metadata.get("assembly_offset_mm", [0, 0, 0])
+    route_end = [85 + float(pump_offset[0]), 25 + float(pump_offset[1]), 80 + float(pump_offset[2])]
     mechanical = [
         RepresentationSpec(RepresentationType.MECHANICAL_3D, ("component-reservoir",), {"units":"mm","coordinateSystem":coordinate,
-            "geometry":{"operation":"loft","sections":[{"z":0,"radius":22},{"z":45,"radius":35},{"z":110,"radius":28},{"z":150,"radius":14}]}}),
+            "geometry":{"operation":"loft","sections":[{"z":0,"radius":width*.31},{"z":height*.3,"radius":max(width,length)/2},{"z":height*.73,"radius":width*.4},{"z":height,"radius":width*.2}]}}),
         RepresentationSpec(RepresentationType.MECHANICAL_3D, ("component-tubing",), {"units":"mm","coordinateSystem":coordinate,
-            "geometry":{"operation":"pipe","radius":5,"path":[[0,0,0],[30,0,15],[55,20,45],[85,25,80]]}}),
+            "geometry":{"operation":"pipe","radius":5,"path":[[0,0,0],[30,0,15],[55,20,45],route_end]}}),
         RepresentationSpec(RepresentationType.MECHANICAL_3D, ("component-enclosure",), {"units":"mm","coordinateSystem":coordinate,
             "geometry":{"operation":"filleted_enclosure","width":100,"depth":120,"height":60,"radius":6}}),
     ]
@@ -112,4 +118,18 @@ class RepresentationService:
         spec=next(spec for spec in irrigation_specs(graph) if spec.kind is RepresentationType.CIRCUIT_SCHEMATIC)
         stale=record.transition(RepresentationStatus.STALE) if record.status is RepresentationStatus.READY else replace(record,status=RepresentationStatus.STALE)
         artifact=self.repository.create_artifact(record.project_id,len(graph.revisions),list(spec.semantic_ids),spec.kind.value,"circuit-json")  # type: ignore[attr-defined]
-        return self._generate_circuit(stale, spec, artifact.artifact_id)
+        return replace(self._generate_circuit(stale, spec, artifact.artifact_id),revision=len(graph.revisions))
+
+    def regenerate(self, graph: EngineeringGraph, record: RepresentationRecord) -> RepresentationRecord:
+        """Regenerate one graph-derived representation, retaining a usable fallback on failure."""
+        if record.type is RepresentationType.CIRCUIT_SCHEMATIC:
+            return self.regenerate_circuit(graph, record)
+        spec = next(spec for spec in irrigation_specs(graph) if spec.kind is record.type and spec.semantic_ids == record.semantic_ids)
+        stale = record.transition(RepresentationStatus.STALE) if record.status is RepresentationStatus.READY else replace(record,status=RepresentationStatus.STALE)
+        generating = stale.transition(RepresentationStatus.GENERATING)
+        artifact = self.repository.create_artifact(record.project_id,len(graph.revisions),list(spec.semantic_ids),spec.kind.value,"representation-spec")  # type: ignore[attr-defined]
+        try:
+            self.repository.write_artifact(artifact.artifact_id,json.dumps(spec.to_dict(),separators=(",", ":")).encode(),"aura-spec","1")  # type: ignore[attr-defined]
+            return generating.transition(RepresentationStatus.READY,artifact_id=artifact.artifact_id,revision=len(graph.revisions),error=None)
+        except Exception as exc:
+            return generating.transition(RepresentationStatus.FAILED,error=str(exc)).transition(RepresentationStatus.FALLBACK,revision=len(graph.revisions))

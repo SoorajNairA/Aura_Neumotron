@@ -26,3 +26,17 @@ def propose(graph:EngineeringGraph,base:int,ids:list[str],request:str,mode:str="
     patch=GraphPatch(f"patch-{uuid4().hex}",(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=target.id,changes={"metadata":meta}),),summary,graph.current_revision_id)
     verification={"outcome":"accepted_with_warnings","checks":[{"state":"PASSED","message":"Target and dimensions valid"},{"state":"WARNING","message":"Conceptual geometry remains estimated"}]}
     return ModificationProposal(f"proposal-{uuid4().hex}",base,tuple(ids),summary,mode,tuple(ops),affected,("unrelated subsystems",),regen,verification,patch)
+
+def inverse_proposal(graph:EngineeringGraph, revision:dict[str,Any])->ModificationProposal:
+    diff=revision.get("verification",{}).get("diff")
+    if not diff or not diff.get("changed"): raise ValueError("nothing_to_undo")
+    patch=revision["patch"]; target_id=next((op.target_id for op in patch.operations if op.target_id),None)
+    if not target_id or target_id not in graph.entities: raise ValueError("nothing_to_undo")
+    target=graph.get(target_id);meta=dict(target.metadata);inverse=[]
+    for change in diff["changed"]:
+        path=change["path"].split("."); cursor=meta
+        for key in path[:-1]: cursor=cursor.setdefault(key,{})
+        current=cursor.get(path[-1]);cursor[path[-1]]=change["oldValue"]
+        inverse.append({**change,"oldValue":current,"newValue":change["oldValue"]})
+    graph_patch=GraphPatch(f"patch-{uuid4().hex}",(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=target_id,changes={"metadata":meta}),),f"Undo: {patch.summary}",graph.current_revision_id)
+    return ModificationProposal(f"undo-{uuid4().hex}",len(graph.revisions),(target_id,),f"Undo: {patch.summary}","undo",tuple(inverse),tuple(diff.get("affected",[target_id])),tuple(diff.get("unchanged",[])),tuple(diff.get("regenerated",[])),{"outcome":"accepted_with_warnings","checks":[{"state":"PASSED","message":"Prior structured values restored"}]},graph_patch)
