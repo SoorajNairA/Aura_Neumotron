@@ -25,6 +25,7 @@ from aura.planner.schemas import ProjectRequest
 from aura.planner.service import PlannerService
 from aura.verification.service import VerificationService
 from .bridge import WorkspaceBridge
+from .assembly import irrigation_assembly
 from .events import WorkspaceEvent
 from .representation_service import RepresentationService, initial_records, irrigation_specs
 from .representations import RepresentationRecord, RepresentationStatus
@@ -310,6 +311,10 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         content = application.repository.resolve_artifact_path(artifact.relative_path).read_bytes()  # type: ignore[attr-defined]
         media = "application/json" if artifact.format in {"circuit-json","representation-spec"} else "application/octet-stream"
         return Response(content, media_type=media)
+
+    @app.get("/api/projects/{project_id}/assembly")
+    def get_assembly(project_id: str) -> dict[str, Any]:
+        return irrigation_assembly(_record(application, project_id).graph)
 
     @app.post("/api/projects/{project_id}/representations/{representation_id}/status")
     async def update_representation(project_id: str, representation_id: str, body: RepresentationUpdateBody) -> dict[str, Any]:
