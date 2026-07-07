@@ -5,10 +5,10 @@ import asyncio
 import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
@@ -26,7 +26,8 @@ from aura.planner.service import PlannerService
 from aura.verification.service import VerificationService
 from .bridge import WorkspaceBridge
 from .events import WorkspaceEvent
-from .representations import RepresentationRequest, RepresentationStatus, RepresentationType
+from .representation_service import RepresentationService, initial_records, irrigation_specs
+from .representations import RepresentationRecord, RepresentationStatus
 
 
 class CreateProjectBody(BaseModel):
@@ -49,6 +50,13 @@ class EventEnvelope(BaseModel):
     semanticIds: list[str]
     payload: dict[str, Any]
     timestamp: str
+
+
+class RepresentationUpdateBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: str
+    error: Optional[str] = None
+    metrics: dict[str, float] = Field(default_factory=dict)
 
 
 class EventBroker:
@@ -90,6 +98,7 @@ class WorkspaceApplication:
         database = ":memory:" if mode == "memory" else str(db_path or settings.workspace_db_path)
         self.repository = repository or SQLiteProjectRepository(database, artifact_dir or settings.workspace_artifact_dir)
         self.broker = EventBroker(self.repository)
+        self.representation_service = RepresentationService(self.repository)
 
     def _request(self, objective: str) -> ProjectRequest:
         return ProjectRequest("Automatic Irrigation System", objective,
@@ -146,9 +155,10 @@ class WorkspaceApplication:
         bridge = WorkspaceBridge()
         graph = bridge.commit(EngineeringGraph(project_id), verified)
         now = datetime.now(timezone.utc).isoformat()
+        specs = irrigation_specs(graph)
+        representations = initial_records(project_id, len(graph.revisions), specs)
         record = StoredProject(project_id, body.objective, outcome.mode, outcome.fallback_reason, "ready", graph,
-            [RepresentationRequest(component.id, RepresentationType.PLACEHOLDER,
-                RepresentationStatus.CONCEPTUAL).to_dict() for component in graph.find(kind=EntityKind.COMPONENT)], now, now)
+            [item.to_dict() for item in representations], now, now)
         for event in bridge.events:
             if event.type == "project.started":
                 continue
@@ -161,6 +171,21 @@ class WorkspaceApplication:
             raise HTTPException(503, detail={"code": "persistence_failure", "message": str(exc)}) from exc
         self.broker.reset(project_id)
         for event in committed: await self.broker.publish_committed(event)
+        completed = await run_in_threadpool(self.representation_service.persist_specs, project_id,
+            len(graph.revisions), representations, specs)
+        record.representations = [item.to_dict() for item in completed]
+        self.repository.update_representations(project_id, record.representations)
+        representation_events=[]
+        for item in completed:
+            representation_events.append({"type":"representation.requested","semantic_ids":list(item.semantic_ids),
+                "payload":{"representationId":item.representation_id,"type":item.type.value}})
+            if item.type.value == "circuit_schematic":
+                representation_events.extend([
+                    {"type":"representation.generating","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id}},
+                    {"type":f"representation.{item.status.value}","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id,"artifactId":item.artifact_id,"error":item.error}},
+                ])
+        for event in self.repository.append_events(project_id,len(graph.revisions),representation_events):
+            await self.broker.publish_committed(event)
         return record
 
     def _event_draft(self, event: WorkspaceEvent, graph: EngineeringGraph) -> dict[str, Any]:
@@ -186,10 +211,19 @@ class WorkspaceApplication:
         result = VerificationService().verify_modification(record.graph, patch)
         bridge = WorkspaceBridge()
         updated = bridge.commit(record.graph, result)
+        previous = [RepresentationRecord.from_dict(item) for item in record.representations]
+        circuit_before = next(item for item in previous if item.type.value == "circuit_schematic")
+        circuit_after = await run_in_threadpool(self.representation_service.regenerate_circuit, updated, circuit_before)
+        representations = [circuit_after.to_dict() if item.representation_id == circuit_before.representation_id else item.to_dict() for item in previous]
         updated_record = StoredProject(record.project_id, record.objective, record.planning_mode,
-            record.fallback_reason, "ready", updated, record.representations, record.created_at,
+            record.fallback_reason, "ready", updated, representations, record.created_at,
             datetime.now(timezone.utc).isoformat())
         event_drafts = [self._event_draft(event, updated) for event in bridge.events]
+        event_drafts.extend([
+            {"type":"representation.stale","semantic_ids":["component-driver"],"payload":{"representationId":circuit_before.representation_id}},
+            {"type":"representation.generating","semantic_ids":list(circuit_after.semantic_ids),"payload":{"representationId":circuit_after.representation_id}},
+            {"type":f"representation.{circuit_after.status.value}","semantic_ids":list(circuit_after.semantic_ids),"payload":{"representationId":circuit_after.representation_id,"artifactId":circuit_after.artifact_id,"error":circuit_after.error}},
+        ])
         verification = {"state": result.state.value, "decision": result.decision.value,
             "reasons": list(result.reasons), "findings": [finding.__dict__ | {"state": finding.state.value} for finding in result.findings]}
         try:
@@ -258,6 +292,31 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
                 "relativePath": artifact.relative_path, "generator": artifact.generator,
                 "generatorVersion": artifact.generator_version, "createdAt": artifact.created_at,
                 "error": artifact.error}
+
+    @app.get("/api/artifacts/{artifact_id}/content")
+    def get_artifact_content(artifact_id: str) -> Response:
+        artifact = application.repository.get_artifact(artifact_id)
+        if artifact is None or artifact.status != "ready" or not artifact.relative_path:
+            raise HTTPException(404, detail={"code":"artifact_content_not_found","artifactId":artifact_id})
+        content = application.repository.resolve_artifact_path(artifact.relative_path).read_bytes()  # type: ignore[attr-defined]
+        media = "application/json" if artifact.format in {"circuit-json","representation-spec"} else "application/octet-stream"
+        return Response(content, media_type=media)
+
+    @app.post("/api/projects/{project_id}/representations/{representation_id}/status")
+    async def update_representation(project_id: str, representation_id: str, body: RepresentationUpdateBody) -> dict[str, Any]:
+        record = _record(application, project_id)
+        items = [RepresentationRecord.from_dict(item) for item in record.representations]
+        try: current = next(item for item in items if item.representation_id == representation_id)
+        except StopIteration as exc: raise HTTPException(404, "Representation not found") from exc
+        try: updated = current.transition(RepresentationStatus(body.status), error=body.error)
+        except ValueError as exc: raise HTTPException(409, str(exc)) from exc
+        record.representations = [updated.to_dict() if item.representation_id == representation_id else item.to_dict() for item in items]
+        application.repository.update_representations(project_id,record.representations)
+        event_type=f"representation.{updated.status.value}"
+        events=application.repository.append_events(project_id,updated.revision,[{"type":event_type,"semantic_ids":list(updated.semantic_ids),
+            "payload":{"representationId":representation_id,"metrics":body.metrics,"error":body.error}}])
+        for event in events: await application.broker.publish_committed(event)
+        return updated.to_dict()
 
     @app.websocket("/api/projects/{project_id}/events")
     async def events(websocket: WebSocket, project_id: str,

@@ -72,6 +72,8 @@ class ProjectRepository(Protocol):
     def list_revisions(self, project_id: str) -> list[dict[str, Any]]: ...
     def get_events_after(self, project_id: str, event_id: int) -> list[StoredEvent]: ...
     def get_artifact(self, artifact_id: str) -> ArtifactMetadata | None: ...
+    def update_representations(self, project_id: str, representations: list[dict[str, Any]]) -> None: ...
+    def append_events(self, project_id: str, revision: int, events: list[dict[str, Any]]) -> list[StoredEvent]: ...
 
 
 class SQLiteProjectRepository:
@@ -180,6 +182,27 @@ class SQLiteProjectRepository:
             rows = self._connection.execute("SELECT * FROM events WHERE project_id=? AND event_id>? ORDER BY event_id", (project_id, event_id)).fetchall()
         return [StoredEvent(row["event_id"], row["project_id"], row["revision"], row["type"],
             json.loads(row["semantic_ids_json"]), json.loads(row["payload_json"]), row["timestamp"]) for row in rows]
+
+    def update_representations(self, project_id: str, representations: list[dict[str, Any]]) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._lock, self._connection:
+            cursor = self._connection.execute("UPDATE projects SET representations_json=?,updated_at=? WHERE project_id=?",
+                (json.dumps(representations), now, project_id))
+            if cursor.rowcount != 1: raise KeyError(f"Unknown project: {project_id}")
+
+    def append_events(self, project_id: str, revision: int, events: list[dict[str, Any]]) -> list[StoredEvent]:
+        now = datetime.now(timezone.utc).isoformat(); stored: list[StoredEvent] = []
+        with self._lock, self._connection:
+            if self._connection.execute("SELECT 1 FROM projects WHERE project_id=?", (project_id,)).fetchone() is None:
+                raise KeyError(f"Unknown project: {project_id}")
+            next_id = self._connection.execute("SELECT COALESCE(MAX(event_id),0)+1 FROM events WHERE project_id=?", (project_id,)).fetchone()[0]
+            for offset, event in enumerate(events):
+                item = StoredEvent(next_id + offset, project_id, revision, event["type"], list(event.get("semantic_ids", [])),
+                    dict(event.get("payload", {})), event.get("timestamp") or now)
+                self._connection.execute("INSERT INTO events VALUES(?,?,?,?,?,?,?)", (item.project_id, item.event_id,
+                    item.revision, item.type, json.dumps(item.semantic_ids), json.dumps(item.payload), item.timestamp))
+                stored.append(item)
+        return stored
 
     def create_artifact(self, project_id: str, revision: int, component_ids: list[str],
                         representation_type: str, format: str) -> ArtifactMetadata:
