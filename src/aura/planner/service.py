@@ -5,6 +5,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from aura.engineering_graph.model import EngineeringEntity, EntityKind, Relationship
 from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation
+from aura.capabilities import CapabilityStatus, classify_objective
 
 from .schemas import (
     ComponentSpec, ConnectionSpec, PlannedEntity, PlannedRelationship, ProjectPlan, ProjectRequest, SubsystemSpec,
@@ -17,8 +18,13 @@ class PlannerService:
 
     def plan(self, request: ProjectRequest) -> ProjectPlan:
         request.validate()
-        if "esp32" in request.objective.lower() and "irrigation" in request.objective.lower():
+        capability=classify_objective(request.objective)
+        if capability["status"] in {CapabilityStatus.UNSUPPORTED.value,CapabilityStatus.NEEDS_CLARIFICATION.value}:
+            raise ValueError(capability)
+        if "irrigation" in request.objective.lower() or ("soil" in request.objective.lower() and "pump" in request.objective.lower()):
             return self._irrigation_plan(request)
+        if not request.components and any(word in request.objective.lower() for word in ("fan","feeder","weather","tank","servo","lid")):
+            return self._mechatronic_plan(request,capability["status"])
         project_id = self._id(request.project_name, "project")
         assembly_id = self._id(request.project_name, "assembly")
         planned = [
@@ -78,6 +84,56 @@ class PlannerService:
         )
         plan.validate()
         return plan
+
+    def _mechatronic_plan(self,request:ProjectRequest,capability_status:str)->ProjectPlan:
+        text=request.objective.lower();project_id=self._id(request.objective,"project")
+        families=["controller","power","enclosure"]
+        if "fan" in text: families += ["temperature-sensor","driver","fan"]
+        elif "feeder" in text: families += ["servo","container","dispensing-mechanism"]
+        elif "weather" in text: families += ["environmental-sensor"]
+        elif "tank" in text: families += ["distance-sensor","indicator","container"]
+        elif "servo" in text or "lid" in text: families += ["servo","lid","hinge","mounting-plate"]
+        specs={
+          "controller":("Controller board","microcontroller_board","electronics",{"logic_voltage_v":3.3,"gpio_max_current_ma":12},(52,28,8)),
+          "power":("Low-voltage power source","low_voltage_power_source","power",{"voltage_v":5.0,"available_current_a":3.0,"mains_exposed":False},(48,30,18)),
+          "enclosure":("Protective enclosure","enclosure","structure",{"contains":["component-controller"],"waterproofing":"splash-resistant" if "tank" in text else "basic"},(120,90,55)),
+          "temperature-sensor":("Temperature sensor","temperature_sensor","sensor",{"supply_voltage_v":3.3,"signal_voltage_v":3.3,"threshold_c":26},(22,16,6)),
+          "environmental-sensor":("Temperature humidity pressure sensor","environmental_sensor","sensor",{"supply_voltage_v":3.3,"measurements":["temperature","humidity","pressure"]},(24,18,6)),
+          "distance-sensor":("Tank level distance sensor","distance_sensor","sensor",{"supply_voltage_v":5.0,"wet_environment":True},(45,22,18)),
+          "driver":("Logic-level MOSFET driver","mosfet_driver","electronics",{"logic_voltage_v":3.3,"load_voltage_v":5.0,"max_current_a":3.0,"flyback_protection":True},(32,24,8)),
+          "fan":("Desk fan","fan","actuator",{"voltage_v":5.0,"current_a":0.5,"inductive_load":True},(90,30,90)),
+          "servo":("Small servo","servo","actuator",{"voltage_v":5.0,"current_a":0.8,"inductive_load":False},(40,20,38)),
+          "container":("Container","container","mechanical",{"capacity_l":1.5,"wet_environment":"tank" in text},(110,100,150)),
+          "dispensing-mechanism":("Conceptual dispensing wheel","generic_mechanical_part","mechanical",{"validation":"conceptual"},(55,55,25)),
+          "indicator":("Low-voltage indicator","indicator","electronics",{"voltage_v":3.3},(18,12,8)),
+          "lid":("Lightweight lid","lid","mechanical",{"mass_g":120},(120,90,6)),
+          "hinge":("Lid hinge","hinge","mechanical",{"relationship":"revolute_proxy"},(80,10,10)),
+          "mounting-plate":("Mounting plate","mounting_plate","structure",{},(150,100,6)),
+        }
+        subsystems=tuple(SubsystemSpec(f"subsystem-{role}",role.title(),role,"Deterministic semantic subsystem.") for role in dict.fromkeys(specs[f][2] for f in families))
+        components=[]
+        for family in families:
+            name,kind,role,params,dims=specs[family];cid=f"component-{family}"
+            components.append(ComponentSpec(cid,name,kind,f"subsystem-{role}",f"{name} for the requested low-voltage system.",params,("power","ground","signal"),{key:{"value":value,"unit":"mm"} for key,value in zip(("width","length","height"),dims)},assumption_refs=(f"assumption-{family}",)))
+        ids={c.id for c in components};connections=[]
+        def connect(a,b,kind):
+            if a in ids and b in ids: connections.append(ConnectionSpec(f"connection-{a[10:]}-{b[10:]}-{kind}",a,b,"signal","signal",kind,f"{kind.title()} connection."))
+        for sensor in ("component-temperature-sensor","component-environmental-sensor","component-distance-sensor"):connect(sensor,"component-controller","signal")
+        for load in ("component-fan","component-servo"): connect("component-driver" if "component-driver" in ids else "component-controller",load,"switched-power" if "component-driver" in ids else "control")
+        connect("component-controller","component-driver","control")
+        for target in sorted(ids-{"component-power","component-enclosure","component-container","component-lid","component-hinge","component-mounting-plate","component-dispensing-mechanism"}):connect("component-power",target,"power");connect("component-power",target,"ground")
+        connect("component-servo","component-dispensing-mechanism","mechanical");connect("component-servo","component-lid","mechanical");connect("component-hinge","component-lid","mechanical")
+        entities=[PlannedEntity(project_id,EntityKind.PROJECT,request.project_name,metadata=(("objective",request.objective),("capability_status",capability_status)))]
+        entities += [PlannedEntity(s.id,EntityKind.SUBSYSTEM,s.name,project_id,(("role",s.role),)) for s in subsystems]
+        entities += [PlannedEntity(c.id,EntityKind.COMPONENT,c.name,c.subsystem_id,tuple({"role":c.role,"family":c.role,"parameters":c.parameters,"interfaces":list(c.interfaces),"dimensions":c.dimensions,"representation_status":"placeholder","assumption_refs":list(c.assumption_refs)}.items())) for c in components]
+        entities += [PlannedEntity(f"assumption-{i}",EntityKind.ASSUMPTION,value,project_id) for i,value in enumerate(("Use 5 V isolated low-voltage power","Exact mechanical fit remains conceptual"),1)]
+        entities += [PlannedEntity(c.id,EntityKind.CONNECTION,c.description,project_id,tuple({"source_id":c.source_id,"target_id":c.target_id,"connection_type":c.connection_type}.items())) for c in connections]
+        operations=[GraphOperation(PatchOperation.ADD_ENTITY,entity=EngineeringEntity(e.id,e.kind,e.name,e.parent_id,dict(e.metadata))) for e in entities]
+        relationships=tuple(PlannedRelationship(c.id+"-edge",c.source_id,c.target_id,c.connection_type) for c in connections)
+        operations += [GraphOperation(PatchOperation.ADD_RELATIONSHIP,relationship=Relationship(r.id,r.source_id,r.target_id,r.type,{"connection_id":r.id.removesuffix("-edge")})) for r in relationships]
+        patch=GraphPatch(self._id(request.objective,"initial-patch"),tuple(operations),f"Create {request.project_name}")
+        plan=ProjectPlan(request,tuple(entities),relationships,patch,(RepresentationRequest(project_id,"system_diagram"),),VerificationRequest(patch.id,("structure","electrical","physical","safety")),(WorkspaceEventProposal("project.started",project_id),),subsystems,tuple(components),tuple(connections),("Use low-voltage DC only","Unsupported certification remains explicit"))
+        plan.validate();return plan
 
     def _irrigation_plan(self, request: ProjectRequest) -> ProjectPlan:
         project_id = "project-auto-irrigation-v1"

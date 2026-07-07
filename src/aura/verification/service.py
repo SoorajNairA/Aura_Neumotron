@@ -68,22 +68,27 @@ class VerificationService:
                 f"verification-{check}-{len(findings)+1}", check, state, severity, message, tuple(ids)
             ))
 
-        direct = [c for c in connections if {c.source_id, c.target_id} == {"component-esp32", "component-pump"}]
+        family=lambda c:c.role
+        controllers=[c for c in components.values() if family(c)=="microcontroller_board" or c.id=="component-esp32"]
+        loads=[c for c in components.values() if family(c) in {"fan","small_dc_motor","small_dc_pump","servo"} or c.id=="component-pump"]
+        drivers=[c for c in components.values() if family(c) in {"mosfet_driver","relay_module","motor_driver"} or c.id=="component-driver"]
+        powers=[c for c in components.values() if family(c)=="low_voltage_power_source" or c.id=="component-power"]
+        direct = [c for c in connections if any({c.source_id,c.target_id}=={controller.id,load.id} and c.connection_type in ({"power","switched-power"} if load.role=="servo" else {"control","power","switched-power"}) for controller in controllers for load in loads if load.parameters.get("current_a",0)>.05)]
         if direct:
-            add("direct-pump-gpio", VerificationState.FAILED, "critical", "Pump must not be driven directly from an ESP32 GPIO.", "component-esp32", "component-pump")
-        driver = components.get("component-driver")
-        if driver is None:
-            add("missing-driver", VerificationState.FAILED, "warning", "A relay, MOSFET, or motor driver is required for the pump.", "component-pump")
-        elif driver.parameters.get("driver_type") not in {"relay", "logic-level-mosfet", "motor-driver"}:
+            add("direct-pump-gpio", VerificationState.FAILED, "critical", "A high-current load must not be driven directly from a controller GPIO.",direct[0].source_id,direct[0].target_id)
+        driver = drivers[0] if drivers else None
+        inductive=[load for load in loads if load.parameters.get("inductive_load")]
+        if inductive and driver is None:
+            add("missing-driver", VerificationState.FAILED, "warning", "A driver is required for the high-current load.",inductive[0].id)
+        if driver and driver.parameters.get("driver_type") and driver.parameters.get("driver_type") not in {"relay", "logic-level-mosfet", "logic-level MOSFET", "motor-driver"}:
             add("invalid-driver", VerificationState.FAILED, "critical", "The declared pump driver type is unsupported.", driver.id)
 
-        power = components.get("component-power")
-        pump = components.get("component-pump")
-        if power and pump:
-            if float(power.parameters.get("voltage_v", 0)) != float(pump.parameters.get("voltage_v", -1)):
-                add("voltage", VerificationState.FAILED, "critical", "Pump voltage does not match the selected power source.", power.id, pump.id)
-            if float(power.parameters.get("available_current_a", 0)) < float(pump.parameters.get("current_a", 0)):
-                add("current", VerificationState.FAILED, "critical", "Power source current is below the pump requirement.", power.id, pump.id)
+        power = powers[0] if powers else None
+        pump = loads[0] if loads else None
+        if power:
+          for load in loads:
+            if float(power.parameters.get("voltage_v", 0)) != float(load.parameters.get("voltage_v",power.parameters.get("voltage_v",0))): add("voltage",VerificationState.FAILED,"critical","Load voltage does not match the selected power source.",power.id,load.id)
+            if float(power.parameters.get("available_current_a", 0)) < float(load.parameters.get("current_a", 0)): add("current",VerificationState.FAILED,"critical","Power source current is below the load requirement.",power.id,load.id)
         types = {c.connection_type for c in connections}
         if "power" not in types and "switched-power" not in types:
             add("power-connection", VerificationState.FAILED, "critical", "Required power connections are missing.", "component-power")
@@ -91,8 +96,8 @@ class VerificationService:
             add("ground", VerificationState.FAILED, "critical", "A common logic ground connection is missing.", "component-esp32", "component-power")
         if driver and float(driver.parameters.get("logic_voltage_v", 0)) != 3.3:
             add("logic-level", VerificationState.FAILED, "critical", "Driver logic input is not compatible with ESP32 3.3 V logic.", driver.id, "component-esp32")
-        if driver and pump and pump.parameters.get("inductive_load") and not driver.parameters.get("flyback_protection"):
-            add("flyback", VerificationState.ESTIMATED, "warning", "Inductive pump load needs verified flyback protection.", driver.id, pump.id)
+        if driver and inductive and not driver.parameters.get("flyback_protection"):
+            add("flyback", VerificationState.ESTIMATED, "warning", "Inductive load needs verified flyback protection.", driver.id, inductive[0].id)
 
         for component in components.values():
             for dimension, value in component.dimensions.items():
@@ -101,10 +106,11 @@ class VerificationService:
             if not component.dimensions:
                 add("dimensions", VerificationState.CONCEPTUAL, "warning", f"Exact dimensions are missing for {component.name}.", component.id)
         fluid_pairs = [{c.source_id, c.target_id} for c in connections if c.connection_type == "fluid"]
-        if {"component-reservoir", "component-tubing"} not in fluid_pairs or {"component-tubing", "component-pump"} not in fluid_pairs:
+        if "component-reservoir" in components and ({"component-reservoir", "component-tubing"} not in fluid_pairs or {"component-tubing", "component-pump"} not in fluid_pairs):
             add("water-path", VerificationState.FAILED, "critical", "Tubing must connect the reservoir to the pump inlet.", "component-reservoir", "component-tubing", "component-pump")
-        enclosure = components.get("component-enclosure")
-        if not enclosure or not enclosure.parameters.get("waterproofing"):
+        enclosure = next((c for c in components.values() if c.role=="enclosure" or c.id=="component-enclosure"),None)
+        wet=any(c.parameters.get("wet_environment") for c in components.values()) or "component-reservoir" in components
+        if wet and (not enclosure or not enclosure.parameters.get("waterproofing")):
             add("water-separation", VerificationState.FAILED, "warning", "Water and exposed electronics need an enclosure or waterproofing assumption.", "component-esp32")
         elif enclosure.dimensions:
             enclosure_width = enclosure.dimensions.get("width", {}).get("value", 0)

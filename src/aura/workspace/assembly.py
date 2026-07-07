@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from aura.engineering_graph.model import EngineeringGraph, EntityKind
+from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
 
 
 @dataclass(frozen=True)
@@ -51,6 +51,27 @@ RELATIONSHIPS = [
 
 
 def irrigation_assembly(graph: EngineeringGraph) -> dict[str, Any]:
+    if "component-reservoir" not in graph.entities or "component-pump" not in graph.entities:
+        return engineering_assembly(graph)
+    return _irrigation_assembly(graph)
+
+def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
+    components=graph.find(kind=EntityKind.COMPONENT);groups:dict[str,list[EngineeringEntity]]={}
+    for entity in components:groups.setdefault(entity.parent_id or "conceptual",[]).append(entity)
+    parts=[];hierarchy={};columns={"electronics":70,"sensor":-40,"actuator":-130,"mechanical":-210,"power":130,"structure":0}
+    for group_index,(parent,items) in enumerate(sorted(groups.items())):
+        hierarchy[parent]=[item.id for item in items]
+        for index,entity in enumerate(items):
+            meta=entity.metadata;family=meta.get("family",meta.get("role","generic_mechanical_part"));dims=meta.get("dimensions",{})
+            dimensions=tuple(float(dims.get(key,{}).get("value",fallback)) for key,fallback in (("width",45),("length",30),("height",18)))
+            role=next((name for name in columns if name in (entity.parent_id or "") or name in str(meta.get("subsystem",""))),"mechanical")
+            assembled=(columns[role],index*55-group_index*8,6.0);exploded=(assembled[0]*1.45,assembled[1]*1.5,assembled[2]+45+index*8)
+            source="parametric CAD" if family in {"enclosure","container","reservoir","tube","mounting_plate","lid","generic_mechanical_part"} else "conceptual proxy"
+            parts.append(PhysicalPart(entity.id,entity.name,role,parent,source,dimensions,assembled,exploded,"conceptual"))
+    relationships=[{"from":r.source_id,"to":r.target_id,"type":r.type} for r in graph.relationships.values()]
+    return {"assemblyId":f"assembly-{graph.project_id}","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"hierarchy":hierarchy,"parts":[p.to_dict() for p in _resolve_exploded_collisions(parts)],"connectors":[],"relationships":relationships,"revision":len(graph.revisions),"layoutStatus":"conceptual"}
+
+def _irrigation_assembly(graph: EngineeringGraph) -> dict[str, Any]:
     graph_ids={entity.id for entity in graph.find(kind=EntityKind.COMPONENT)}
     reservoir_meta=graph.get("component-reservoir").metadata
     dimensions=reservoir_meta.get("dimensions", {})

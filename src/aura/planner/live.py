@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from aura.infrastructure.llm.provider import ModelProvider
+from aura.capabilities import compact_capability_context
 from .schemas import ProjectPlan, ProjectRequest
 from .service import PlannerService
 
@@ -19,7 +20,7 @@ class StructuredPlannerResponse(BaseModel):
     objective: str = Field(min_length=1)
     requirements: list[str] = Field(min_length=1)
     assumptions: list[str]
-    components: list[str] = Field(min_length=6)
+    components: list[str] = Field(min_length=3)
 
 
 @dataclass(frozen=True)
@@ -46,8 +47,6 @@ class LivePlanner:
             try:
                 raw = self._generate(prompt)
                 structured = StructuredPlannerResponse.model_validate(json.loads(raw))
-                if "esp32" not in " ".join(structured.components).lower():
-                    raise ValueError("components must include ESP32")
                 planned_request = ProjectRequest(
                     structured.projectName, structured.objective,
                     tuple(structured.requirements), assumptions=tuple(structured.assumptions),
@@ -79,8 +78,9 @@ class LivePlanner:
     @staticmethod
     def _prompt(request: ProjectRequest, errors: str) -> str:
         repair = f" Previous validation errors: {errors}. Correct every error." if errors else ""
-        return ("Return JSON with exactly projectName, objective, requirements, assumptions, components. "
-                "Components must include ESP32, soil-moisture sensor, pump, driver, power source, tubing, reservoir, enclosure. "
+        return ("Plan only a bounded project within this capability manifest. " + compact_capability_context() +
+                " Return JSON with exactly projectName, objective, requirements, assumptions, components. "
+                "Use semantic component roles, record necessary assumptions, and do not claim unsupported verification. "
                 f"Objective: {request.objective}.{repair}")
 
     @staticmethod

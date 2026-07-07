@@ -17,44 +17,46 @@ CAD_VERSION = "2.0.6"
 TSCIRCUIT_VERSION = "0.0.1609"
 
 
-def irrigation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
+def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
     coordinate = {"forward": "+X", "left": "+Y", "up": "+Z"}
-    reservoir = graph.get("component-reservoir").metadata.get("dimensions", {})
-    width = float(reservoir.get("width", {}).get("value", 70))
-    length = float(reservoir.get("length", {}).get("value", 70))
-    height = float(reservoir.get("height", {}).get("value", 150))
-    pump_offset = graph.get("component-pump").metadata.get("assembly_offset_mm", [0, 0, 0])
-    route_end = [85 + float(pump_offset[0]), 25 + float(pump_offset[1]), 80 + float(pump_offset[2])]
-    mechanical = [
-        RepresentationSpec(RepresentationType.MECHANICAL_3D, ("component-reservoir",), {"units":"mm","coordinateSystem":coordinate,
-            "geometry":{"operation":"loft","sections":[{"z":0,"radius":width*.31},{"z":height*.3,"radius":max(width,length)/2},{"z":height*.73,"radius":width*.4},{"z":height,"radius":width*.2}]}}),
-        RepresentationSpec(RepresentationType.MECHANICAL_3D, ("component-tubing",), {"units":"mm","coordinateSystem":coordinate,
-            "geometry":{"operation":"pipe","radius":5,"path":[[0,0,0],[30,0,15],[55,20,45],route_end]}}),
-        RepresentationSpec(RepresentationType.MECHANICAL_3D, ("component-enclosure",), {"units":"mm","coordinateSystem":coordinate,
-            "geometry":{"operation":"filleted_enclosure","width":100,"depth":120,"height":60,"radius":6}}),
-    ]
-    circuit_components = [
-        {"reference":"U1","semanticId":"component-esp32","kind":"controller","pins":["VCC","GND","GPIO"]},
-        {"reference":"S1","semanticId":"component-sensor","kind":"soil_sensor","pins":["VCC","GND","OUT"]},
-        {"reference":"Q1","semanticId":"component-driver","kind":"mosfet","pins":["G","D","S"]},
-        {"reference":"D1","semanticId":"component-driver","kind":"diode","pins":["A","K"]},
-        {"reference":"M1","semanticId":"component-pump","kind":"motor","pins":["+","-"]},
-        {"reference":"BT1","semanticId":"component-power","kind":"power_source","pins":["+","-"]},
-    ]
-    connections = [{"from":a,"to":b} for a,b in (("BT1.+","U1.VCC"),("BT1.-","U1.GND"),("S1.OUT","U1.GPIO"),
-        ("U1.GPIO","Q1.G"),("Q1.D","M1.-"),("M1.+","BT1.+"),("D1.A","Q1.D"),("D1.K","BT1.+"),("Q1.S","BT1.-"))]
+    components=graph.find(kind=EntityKind.COMPONENT);mechanical=[]
+    for entity in components:
+        family=entity.metadata.get("family",entity.metadata.get("role",""));dims=entity.metadata.get("dimensions",{})
+        value=lambda key,default:float(dims.get(key,{}).get("value",default))
+        geometry=None
+        if family in {"enclosure","mounting_plate"} or entity.id=="component-enclosure": geometry={"operation":"filleted_enclosure","width":value("width",100),"depth":value("length",80),"height":value("height",40),"radius":4}
+        elif family in {"container","reservoir"} or entity.id=="component-reservoir":
+            w,h=value("width",80),value("height",120);geometry={"operation":"loft","sections":[{"z":0,"radius":w*.4},{"z":h*.5,"radius":w*.5},{"z":h,"radius":w*.42}]}
+        elif family in {"tube"} or entity.id=="component-tubing": geometry={"operation":"pipe","radius":5,"path":[[0,0,0],[30,0,15],[55,20,45],[85,25,80]]}
+        elif family in {"lid","generic_mechanical_part"}: geometry={"operation":"box","width":value("width",60),"depth":value("length",40),"height":value("height",8)}
+        if geometry: mechanical.append(RepresentationSpec(RepresentationType.MECHANICAL_3D,(entity.id,),{"units":"mm","coordinateSystem":coordinate,"geometry":geometry}))
+    categories={"microcontroller_board":("U","controller",["VCC","GND","GPIO"]),"controller":("U","controller",["VCC","GND","GPIO"]),"temperature_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"environmental_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"distance_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"moisture_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"mosfet_driver":("Q","mosfet",["G","D","S"]),"pump switching":("Q","mosfet",["G","D","S"]),"fan":("M","motor",["+","-"]),"servo":("M","motor",["+","-"]),"small_dc_pump":("M","motor",["+","-"]),"water delivery":("M","motor",["+","-"]),"low_voltage_power_source":("BT","power_source",["+","-"]),"system power":("BT","power_source",["+","-"]),"indicator":("R","soil_sensor",["VCC","GND","OUT"]),"soil sensing":("S","soil_sensor",["VCC","GND","OUT"])}
+    counts={};circuit_components=[];references={}
+    for entity in components:
+        family=entity.metadata.get("family",entity.metadata.get("role",""));category=categories.get(family)
+        if not category: continue
+        prefix,kind,pins=category;counts[prefix]=counts.get(prefix,0)+1;ref=f"{prefix}{counts[prefix]}";references[entity.id]=ref
+        circuit_components.append({"reference":ref,"semanticId":entity.id,"kind":kind,"pins":pins})
+    connections=[]
+    for relationship in graph.relationships.values():
+        a,b=references.get(relationship.source_id),references.get(relationship.target_id)
+        if a and b: connections.append({"from":f"{a}.{next(x['pins'][-1] for x in circuit_components if x['reference']==a)}","to":f"{b}.{next(x['pins'][0] for x in circuit_components if x['reference']==b)}"})
+    graph_ids = {entity.id for entity in graph.find(kind=EntityKind.COMPONENT)}
+    if "component-reservoir" in graph_ids:
+        order={"component-reservoir":0,"component-tubing":1,"component-enclosure":2};mechanical.sort(key=lambda spec:order.get(spec.semantic_ids[0],9))
     circuit = RepresentationSpec(RepresentationType.CIRCUIT_SCHEMATIC,
         tuple(dict.fromkeys(item["semanticId"] for item in circuit_components)),
         {"components": circuit_components, "connections": connections})
-    graph_ids = {entity.id for entity in graph.find(kind=EntityKind.COMPONENT)}
     validator = RepresentationSpecValidator()
-    return [validator.validate(spec, graph_ids) for spec in [*mechanical, circuit]]
+    return [validator.validate(spec, graph_ids) for spec in [*mechanical, circuit] if spec.semantic_ids]
+
+irrigation_specs=representation_specs
 
 
 def initial_records(project_id: str, revision: int, specs: list[RepresentationSpec]) -> list[RepresentationRecord]:
     records=[]
     for spec in specs:
-        suffix = spec.semantic_ids[0].removeprefix("component-") if len(spec.semantic_ids)==1 else "irrigation"
+        suffix = spec.semantic_ids[0].removeprefix("component-") if len(spec.semantic_ids)==1 else ("irrigation" if {"component-esp32","component-pump"}.issubset(spec.semantic_ids) else "system")
         generator, version = ("cascade-core", CAD_VERSION) if spec.kind is RepresentationType.MECHANICAL_3D else ("tscircuit", TSCIRCUIT_VERSION)
         records.append(RepresentationRecord(f"repr-{suffix}-{'3d' if spec.kind is RepresentationType.MECHANICAL_3D else 'schematic'}",
             project_id, revision, spec.semantic_ids, spec.kind, generator=generator, generator_version=version,

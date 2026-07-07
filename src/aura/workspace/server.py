@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
 from aura.engineering_graph.model import EngineeringGraph, EntityKind
+from aura.capabilities import CAPABILITY_MANIFEST, classify_objective
 from aura.engineering_graph.serialization import graph_to_dict
 from aura.engineering_graph.serialization import patch_to_dict
 from aura.infrastructure.persistence.project_repository import (
@@ -111,9 +112,10 @@ class WorkspaceApplication:
         self.modification_locks:dict[str,threading.Lock]={}
 
     def _request(self, objective: str) -> ProjectRequest:
-        return ProjectRequest("Automatic Irrigation System", objective,
-            ("Water automatically when soil is dry", "Use low-voltage DC power", "Keep water separated from electronics"),
-            assumptions=("Use a capacitive moisture sensor", "Use a splash-resistant electronics enclosure"))
+        words=[word.capitalize() for word in objective.strip().rstrip(".").split() if word.lower() not in {"design","build","make","a","an","the","small"}]
+        name=" ".join(words[:7]) or "Low-voltage Mechatronic Project"
+        if "irrigation" in objective.lower(): name="Automatic Irrigation System"
+        return ProjectRequest(name,objective,("Use isolated low-voltage DC power","Provide the requested sensing or actuation behavior"),assumptions=("Exact component selection and mechanical fit require implementation validation",))
 
     def plan(self, body: CreateProjectBody) -> PlanningOutcome:
         from aura.app.config import Settings
@@ -150,6 +152,9 @@ class WorkspaceApplication:
     async def create(self, body: CreateProjectBody) -> StoredProject:
         try:
             outcome = await run_in_threadpool(self.plan, body)
+        except ValueError as exc:
+            detail=exc.args[0] if exc.args and isinstance(exc.args[0],dict) else {"status":"UNSUPPORTED","reasons":[str(exc)]}
+            raise HTTPException(422,detail=detail) from exc
         except RuntimeError as exc:
             raise HTTPException(503, detail=str(exc)) from exc
         plan = outcome.plan
@@ -275,6 +280,12 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     @app.get("/api/projects")
     def list_projects() -> list[dict[str, Any]]:
         return [_project_payload(record, concise=True) for record in application.repository.list_projects()]
+
+    @app.get("/api/capabilities")
+    def get_capabilities()->dict[str,Any]: return CAPABILITY_MANIFEST
+
+    @app.post("/api/capabilities/classify")
+    def classify(body:CreateProjectBody)->dict[str,Any]: return classify_objective(body.objective)
 
     @app.get("/api/projects/{project_id}")
     def get_project(project_id: str) -> dict[str, Any]:
@@ -438,6 +449,7 @@ def _record(application: WorkspaceApplication, project_id: str) -> StoredProject
 def _project_payload(record: StoredProject, concise: bool = False) -> dict[str, Any]:
     graph = record.graph
     return {"projectId": graph.project_id, "objective": record.objective,
+            "capability": classify_objective(record.objective),
             "planningMode": record.planning_mode, "fallbackReason": record.fallback_reason,
             "revision": len(graph.revisions), "status": record.status,
             "createdAt": record.created_at, "updatedAt": record.updated_at,

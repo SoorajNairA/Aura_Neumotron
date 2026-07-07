@@ -16,7 +16,15 @@ def propose(graph:EngineeringGraph,base:int,ids:list[str],request:str,mode:str="
     if base!=len(graph.revisions): raise ValueError("stale_revision")
     if len(ids)!=1 or ids[0] not in graph.entities: raise ValueError("unsupported_target")
     target=graph.get(ids[0]);meta=dict(target.metadata);lower=request.lower();ops=[]
-    if target.id=="component-reservoir" and any(x in lower for x in ("capacity","40%","width","depth")):
+    family=meta.get("family",meta.get("role",""))
+    if family=="temperature_sensor" and any(x in lower for x in ("lower","threshold","temperature","earlier")):
+        params=dict(meta["parameters"]);old=params.get("threshold_c",26);params["threshold_c"]=old-2;meta["parameters"]=params;summary="Lower the temperature activation threshold";affected=(target.id,);regen=();ops=[{"operation":"replace_parameter","path":"parameters.threshold_c","oldValue":old,"newValue":params["threshold_c"]}]
+    elif family in {"container","reservoir"} and any(x in lower for x in ("larger","capacity","size","width","depth")) and target.id!="component-reservoir":
+        dims={k:dict(v) for k,v in meta["dimensions"].items()};ops=[]
+        for key in ("width","length"):
+            old=dims[key]["value"];dims[key]["value"]=round(old*1.2);ops.append({"operation":"replace_parameter","path":f"dimensions.{key}.value","oldValue":old,"newValue":dims[key]["value"]})
+        meta["dimensions"]=dims;summary="Increase container capacity while preserving height";affected=(target.id,);regen=(f"repr-{target.id.removeprefix('component-')}-3d",)
+    elif target.id=="component-reservoir" and any(x in lower for x in ("capacity","40%","width","depth")):
         dims={k:dict(v) for k,v in meta["dimensions"].items()};oldw=dims["width"]["value"];oldd=dims["length"]["value"];dims["width"]["value"]=round(oldw*1.18);dims["length"]["value"]=round(oldd*1.18);meta["dimensions"]=dims;summary="Increase reservoir capacity approximately 40% while preserving height";affected=(target.id,"component-tubing");regen=("repr-reservoir-3d","repr-tubing-3d");ops=[{"operation":"replace_parameter","path":"dimensions.width.value","oldValue":oldw,"newValue":dims["width"]["value"]},{"operation":"replace_parameter","path":"dimensions.length.value","oldValue":oldd,"newValue":dims["length"]["value"]}]
     elif target.id=="component-driver" and "mosfet" in lower:
         params=dict(meta["parameters"]);old=params.get("driver_type");params.update(driver_type="logic-level MOSFET",flyback_protection=True);meta["parameters"]=params;summary="Replace driver with a logic-level MOSFET suitable for the pump";affected=(target.id,);regen=("repr-irrigation-schematic",);ops=[{"operation":"replace_parameter","path":"parameters.driver_type","oldValue":old,"newValue":params["driver_type"]}]
