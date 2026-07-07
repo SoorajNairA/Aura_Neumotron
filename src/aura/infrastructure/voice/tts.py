@@ -18,6 +18,7 @@ import sounddevice as sd
 import numpy as np
 
 from aura.infrastructure.voice.xtts_backend import XTTSBackend
+from aura.app.config import aura_data_dir
 
 _logger = logging.getLogger("aura")
 
@@ -49,7 +50,7 @@ class TTSService:
         voice_reference: str = "",
         device: str = "cuda",
         auto_warmup: bool = True,
-        cache_dir: str = "models/xtts",
+        cache_dir: str = str(aura_data_dir() / "models" / "xtts"),
     ) -> None:
         self.elevenlabs_api_key = elevenlabs_api_key
         self.voice_id = voice_id

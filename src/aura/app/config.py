@@ -1,15 +1,37 @@
 from __future__ import annotations
 
 import os
+import hashlib
+import logging
+import shutil
+import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 
-# Load .env first (production/default), then .env.example as a fallback for local setup.
+LOGGER = logging.getLogger(__name__)
+
+
+def aura_data_dir() -> Path:
+    override = os.getenv("AURA_DATA_DIR")
+    if override:
+        return Path(override).expanduser()
+    if os.name == "nt" and os.getenv("LOCALAPPDATA"):
+        return Path(os.environ["LOCALAPPDATA"]) / "AURA"
+    if os.getenv("XDG_DATA_HOME"):
+        return Path(os.environ["XDG_DATA_HOME"]).expanduser() / "aura"
+    return Path.home() / ".local" / "share" / "aura"
+
+
+def _repository_root() -> Path | None:
+    candidate = Path(__file__).resolve().parents[3]
+    return candidate if (candidate / "pyproject.toml").is_file() else None
+
+
+# The example file is documentation, not runtime configuration.
 load_dotenv(dotenv_path=".env", override=False)
-load_dotenv(dotenv_path=".env.example", override=False)
 
 
 @dataclass(frozen=True)
@@ -22,8 +44,8 @@ class Settings:
     workspace_host: str = os.getenv("AURA_WORKSPACE_HOST", "127.0.0.1").strip()
     workspace_port: int = int(os.getenv("AURA_WORKSPACE_PORT", "8765"))
     workspace_storage_mode: str = os.getenv("AURA_WORKSPACE_STORAGE_MODE", "sqlite").strip().lower()
-    workspace_db_path: Path = Path(os.getenv("AURA_WORKSPACE_DB_PATH", "runtime/workspace/aura.db"))
-    workspace_artifact_dir: Path = Path(os.getenv("AURA_WORKSPACE_ARTIFACT_DIR", "runtime/workspace/artifacts"))
+    workspace_db_path: Path = Path(os.getenv("AURA_WORKSPACE_DB_PATH", str(aura_data_dir() / "workspace" / "aura.db")))
+    workspace_artifact_dir: Path = Path(os.getenv("AURA_WORKSPACE_ARTIFACT_DIR", str(aura_data_dir() / "workspace" / "artifacts")))
     planner_provider: str = os.getenv("AURA_PLANNER_PROVIDER", "ollama").strip().lower()
     planner_model: str = os.getenv("AURA_PLANNER_MODEL", "qwen3:8b").strip()
     planner_timeout: float = float(os.getenv("AURA_PLANNER_TIMEOUT", "15"))
@@ -38,10 +60,10 @@ class Settings:
     )
     tts_backend: str = os.getenv("AURA_TTS_BACKEND", "auto").strip().lower()
     voice_reference: Path = Path(
-        os.getenv("AURA_VOICE_REFERENCE", "voices/aura_voice.wav")
+        os.getenv("AURA_VOICE_REFERENCE", str(aura_data_dir() / "voices" / "aura_voice.wav"))
     )
     tts_device: str = os.getenv("AURA_TTS_DEVICE", "cuda").strip().lower()
-    tts_cache_dir: Path = Path(os.getenv("AURA_TTS_CACHE_DIR", "models/xtts"))
+    tts_cache_dir: Path = Path(os.getenv("AURA_TTS_CACHE_DIR", str(aura_data_dir() / "models" / "xtts")))
     auto_warmup: bool = os.getenv("AURA_AUTO_WARMUP", "true").strip().lower() in {
         "1",
         "true",
@@ -132,8 +154,8 @@ class Settings:
     silence_threshold: float = float(os.getenv("AURA_SILENCE_THRESHOLD", "0.01"))
     silence_hold_seconds: float = float(os.getenv("AURA_SILENCE_HOLD_SECONDS", "1.2"))
 
-    memory_dir: Path = Path(os.getenv("AURA_MEMORY_DIR", "memory"))
-    log_dir: Path = Path(os.getenv("AURA_LOG_DIR", "logs"))
+    memory_dir: Path = Path(os.getenv("AURA_MEMORY_DIR", str(aura_data_dir() / "memory")))
+    log_dir: Path = Path(os.getenv("AURA_LOG_DIR", str(aura_data_dir() / "logs")))
 
     confirm_words: tuple[str, ...] = tuple(
         w.strip().lower()
@@ -154,7 +176,7 @@ class Settings:
         "yes",
         "on",
     }
-    demo_workspace: Path = Path(os.getenv("AURA_DEMO_WORKSPACE", "DemoWorkspace"))
+    demo_workspace: Path = Path(os.getenv("AURA_DEMO_WORKSPACE", str(aura_data_dir() / "DemoWorkspace")))
 
 
 def ensure_runtime_dirs(settings: Settings) -> None:
@@ -162,3 +184,53 @@ def ensure_runtime_dirs(settings: Settings) -> None:
     settings.log_dir.mkdir(parents=True, exist_ok=True)
     if settings.demo_mode:
         settings.demo_workspace.mkdir(parents=True, exist_ok=True)
+
+
+def migrate_legacy_workspace_data(settings: Settings) -> str:
+    """Safely migrate the old repository-local Workspace store once."""
+    root = _repository_root()
+    if root is None or os.getenv("AURA_WORKSPACE_DB_PATH") or os.getenv("AURA_WORKSPACE_ARTIFACT_DIR"):
+        return "not-applicable"
+    legacy = root / "runtime" / "workspace"
+    legacy_db = legacy / "aura.db"
+    if not legacy_db.is_file():
+        return "not-found"
+    target_db = settings.workspace_db_path.resolve()
+    target_artifacts = settings.workspace_artifact_dir.resolve()
+    target_root = target_db.parent
+    if target_artifacts.parent != target_root:
+        LOGGER.warning("Legacy Workspace data retained because default targets do not share a directory")
+        return "target-conflict"
+    staging = target_root.with_name(f"{target_root.name}.migration")
+    if target_root.exists() or staging.exists():
+        LOGGER.warning("Legacy Workspace data retained because target storage already exists: %s", target_db.parent)
+        return "target-conflict"
+    staging.mkdir(parents=True)
+    staged_db = staging / target_db.name
+    staged_artifacts = staging / target_artifacts.name
+    legacy_artifacts = legacy / "artifacts"
+    try:
+        shutil.copy2(legacy_db, staged_db)
+        if legacy_artifacts.is_dir():
+            shutil.copytree(legacy_artifacts, staged_artifacts)
+        connection = sqlite3.connect(staged_db)
+        try:
+            if connection.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                raise RuntimeError("Migrated Workspace database failed SQLite integrity verification")
+        finally:
+            connection.close()
+        for source in legacy_artifacts.rglob("*") if legacy_artifacts.is_dir() else ():
+            if source.is_file():
+                destination = staged_artifacts / source.relative_to(legacy_artifacts)
+                if not destination.is_file() or hashlib.sha256(source.read_bytes()).digest() != hashlib.sha256(destination.read_bytes()).digest():
+                    raise RuntimeError(f"Migrated artifact verification failed: {source}")
+        staging.rename(target_root)
+    except Exception:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+    shutil.rmtree(legacy)
+    runtime_root = root / "runtime"
+    if runtime_root.is_dir() and not any(runtime_root.iterdir()):
+        runtime_root.rmdir()
+    LOGGER.info("Migrated Workspace data from %s to %s", legacy, target_db.parent)
+    return "migrated"

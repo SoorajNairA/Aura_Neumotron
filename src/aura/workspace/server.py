@@ -87,7 +87,7 @@ class WorkspaceApplication:
     def __init__(self, provider: Any | None = None, planner_timeout: float | None = None,
                  repository: ProjectRepository | None = None, storage_mode: str | None = None,
                  db_path: str | Path | None = None, artifact_dir: Path | None = None) -> None:
-        from aura.app.config import Settings
+        from aura.app.config import Settings, migrate_legacy_workspace_data
         settings = Settings()
         self.provider = provider
         if planner_timeout is None:
@@ -96,6 +96,8 @@ class WorkspaceApplication:
         mode = storage_mode or settings.workspace_storage_mode
         if mode not in {"sqlite", "memory"}: raise ValueError(f"Unsupported workspace storage mode: {mode}")
         database = ":memory:" if mode == "memory" else str(db_path or settings.workspace_db_path)
+        if mode != "memory" and db_path is None and artifact_dir is None:
+            migrate_legacy_workspace_data(settings)
         self.repository = repository or SQLiteProjectRepository(database, artifact_dir or settings.workspace_artifact_dir)
         self.broker = EventBroker(self.repository)
         self.representation_service = RepresentationService(self.repository)

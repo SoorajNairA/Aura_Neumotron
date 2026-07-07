@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Generic, Iterator, TypeVar
 
+from aura.app.config import aura_data_dir
+
 _logger = logging.getLogger("aura")
 
 _T = TypeVar("_T")
@@ -105,7 +107,7 @@ class XTTSBackend:
         voice_reference: str | Path | None = None,
         language: str = "en",
         use_fp16: bool = True,
-        cache_dir: str | Path = "models/xtts",
+        cache_dir: str | Path = aura_data_dir() / "models" / "xtts",
     ) -> None:
         self.requested_device = device.strip().lower() or "cuda"
         self.device = "cpu"
