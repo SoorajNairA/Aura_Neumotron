@@ -61,6 +61,7 @@ def test_invalid_variants_fail_deterministically():
     wet=replace(enclosure,parameters=dict(enclosure.parameters)|{"waterproofing":""})
     wet_result=service.verify(replace(plan,components=tuple(wet if x.id==enclosure.id else x for x in plan.components)))
     assert any(x.check=="water-separation" and x.state is VerificationState.FAILED for x in wet_result.findings)
+    assert not wet_result.accepted
     tiny=replace(enclosure,dimensions={"width":{"value":10,"unit":"mm"},"length":{"value":10,"unit":"mm"}})
     assert not service.verify(replace(plan,components=tuple(tiny if x.id==enclosure.id else x for x in plan.components))).accepted
 

@@ -116,7 +116,7 @@ class VerificationService:
                     add("enclosure-fit",VerificationState.TOOL_VERIFIED if ok else VerificationState.FAILED,"info" if ok else "critical",f"{c.name} {'fits' if ok else 'does not fit'} the enclosure bounding box.",(enclosure.id,c.id),machine_result={"fits":ok})
         wet="component-reservoir" in components or any(c.parameters.get("wet_environment") for c in components.values())
         protected=bool(enclosure and enclosure.parameters.get("waterproofing"))
-        if wet: add("water-separation",VerificationState.TOOL_VERIFIED if protected else VerificationState.FAILED,"info" if protected else "warning","Electronics have declared wet-zone separation." if protected else "Wet-zone electronics separation is missing.",tuple(x.id for x in ([enclosure] if enclosure else controllers)),machine_result={"declaredSeparation":protected})
+        if wet: add("water-separation",VerificationState.TOOL_VERIFIED if protected else VerificationState.FAILED,"info" if protected else "critical","Electronics have declared wet-zone separation." if protected else "Wet-zone electronics separation is missing.",tuple(x.id for x in ([enclosure] if enclosure else controllers)),machine_result={"declaredSeparation":protected})
         evidence_by_id={x.evidence_id:x for x in evidence_records()}
         for c,definition in ((components[k],v) for k,v in resolved.items() if v and k in exact_ids):
             authoritative=all(evidence_by_id[eid].kind is not EvidenceKind.ENGINEERING_ASSUMPTION for eid in definition.evidence_ids)
