@@ -76,6 +76,8 @@ voices/*.flac
 # Build Artifacts
 
 node_modules/
+src/aura/workspace/web/frontend/out/
+src/aura/workspace/web/frontend/out-stale-goal11/
 dist/
 build/
 generated/
