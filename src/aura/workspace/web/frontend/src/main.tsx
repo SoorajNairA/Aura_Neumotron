@@ -4,6 +4,8 @@ import { SchematicViewer } from "@tscircuit/schematic-viewer";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import "./styles.css";
+import "./compatibility.css";
+import { WorkspaceApp } from "./WorkspaceApp";
 
 type RecordData = {
 	representationId: string;
@@ -690,4 +692,4 @@ function App() {
 		</main>
 	);
 }
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(<WorkspaceApp />);
