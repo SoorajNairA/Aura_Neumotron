@@ -53,6 +53,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "aura.legacy.ui" = ["qml/*.qml"]
+"aura.workspace" = ["web/*", "web/representation/*", "web/representation/assets/*", "representation_runtime/*.mjs", "representation_runtime/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,30 @@
+{
+  "name": "aura-representation-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run --passWithNoTests",
+    "test:browser": "npm run build && playwright test"
+  },
+  "dependencies": {
+    "@tscircuit/core": "0.0.1609",
+    "@tscircuit/schematic-viewer": "2.0.76",
+    "cascade-core": "2.0.6",
+    "circuit-json": "0.0.464",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/react": "18.3.24",
+    "@types/react-dom": "18.3.7",
+    "@types/three": "0.185.0",
+    "@vitejs/plugin-react": "5.1.4",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vitest": "3.2.7"
+  }
+}
