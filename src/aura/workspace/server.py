@@ -180,10 +180,13 @@ class WorkspaceApplication:
             representation_events.append({"type":"representation.requested","semantic_ids":list(item.semantic_ids),
                 "payload":{"representationId":item.representation_id,"type":item.type.value}})
             if item.type.value == "circuit_schematic":
-                representation_events.extend([
-                    {"type":"representation.generating","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id}},
-                    {"type":f"representation.{item.status.value}","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id,"artifactId":item.artifact_id,"error":item.error}},
-                ])
+                representation_events.append(
+                    {"type":"representation.generating","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id}})
+                if item.status is RepresentationStatus.FALLBACK:
+                    representation_events.append(
+                        {"type":"representation.failed","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id,"error":item.error}})
+                representation_events.append(
+                    {"type":f"representation.{item.status.value}","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id,"artifactId":item.artifact_id,"error":item.error}})
         for event in self.repository.append_events(project_id,len(graph.revisions),representation_events):
             await self.broker.publish_committed(event)
         return record
@@ -222,8 +225,12 @@ class WorkspaceApplication:
         event_drafts.extend([
             {"type":"representation.stale","semantic_ids":["component-driver"],"payload":{"representationId":circuit_before.representation_id}},
             {"type":"representation.generating","semantic_ids":list(circuit_after.semantic_ids),"payload":{"representationId":circuit_after.representation_id}},
-            {"type":f"representation.{circuit_after.status.value}","semantic_ids":list(circuit_after.semantic_ids),"payload":{"representationId":circuit_after.representation_id,"artifactId":circuit_after.artifact_id,"error":circuit_after.error}},
         ])
+        if circuit_after.status is RepresentationStatus.FALLBACK:
+            event_drafts.append({"type":"representation.failed","semantic_ids":list(circuit_after.semantic_ids),
+                "payload":{"representationId":circuit_after.representation_id,"error":circuit_after.error}})
+        event_drafts.append({"type":f"representation.{circuit_after.status.value}","semantic_ids":list(circuit_after.semantic_ids),
+            "payload":{"representationId":circuit_after.representation_id,"artifactId":circuit_after.artifact_id,"error":circuit_after.error}})
         verification = {"state": result.state.value, "decision": result.decision.value,
             "reasons": list(result.reasons), "findings": [finding.__dict__ | {"state": finding.state.value} for finding in result.findings]}
         try:

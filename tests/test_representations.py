@@ -75,3 +75,20 @@ def test_representation_metadata_survives_restart(tmp_path: Path):
     app.state.workspace.repository.close();restarted=create_app(storage_mode="sqlite",db_path=database,artifact_dir=artifacts)
     with TestClient(restarted) as client: assert client.get(f'/api/projects/{project["projectId"]}').json()["representations"] == project["representations"]
     restarted.state.workspace.repository.close()
+
+
+@pytest.mark.integration
+def test_circuit_generation_failure_persists_visible_fallback_events(tmp_path: Path):
+    class FailingGenerator:
+        generator_name="tscircuit";generator_version="0.0.1609"
+        def generate(self, spec): raise RuntimeError("controlled generator failure")
+
+    app=create_app(storage_mode="sqlite",db_path=tmp_path/"workspace.db",artifact_dir=tmp_path/"artifacts")
+    app.state.workspace.representation_service.circuit_generator=FailingGenerator()
+    with TestClient(app) as client:
+        project=client.post("/api/projects",json={"objective":OBJECTIVE,"planningMode":"deterministic_test"}).json()
+        circuit=next(item for item in project["representations"] if item["type"] == "circuit_schematic")
+        assert circuit["status"] == "fallback" and circuit["fallbackType"] == "placeholder"
+        types=[event.type for event in app.state.workspace.repository.get_events_after(project["projectId"],0)]
+        assert types[-2:] == ["representation.failed","representation.fallback"]
+    app.state.workspace.repository.close()
