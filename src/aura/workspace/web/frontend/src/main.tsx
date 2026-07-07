@@ -13,6 +13,10 @@ type RecordData = {
 	artifactId?: string;
 	generator?: string;
 	generatorVersion?: string;
+	projectId?: string;
+	revision?: number;
+	operationId?: string;
+	generation?: number;
 };
 type Part = {
 	semanticId: string;
@@ -54,7 +58,7 @@ const postStatus = (
 		{
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ status, error, metrics }),
+			body: JSON.stringify({ status, error, metrics, projectId:r.projectId||projectId,revision:r.revision,operationId:r.operationId,generation:r.generation }),
 		},
 	);
 const cadCode = (s: any) => {
@@ -86,6 +90,7 @@ class SceneView {
 	xray = false;
 	connections = new THREE.Group();
 	preview?: THREE.Object3D;
+	animationFrame = 0;
 	constructor(
 		host: HTMLElement,
 		select: (id: string) => void,
@@ -156,7 +161,7 @@ class SceneView {
 			}
 		};
 		const loop = () => {
-			requestAnimationFrame(loop);
+			this.animationFrame = requestAnimationFrame(loop);
 			this.controls.update();
 			this.renderer.render(this.scene, this.camera);
 		};
@@ -202,7 +207,7 @@ class SceneView {
 		}
 	}
 	load(a: Assembly) {
-		for (const node of this.nodes.values()) this.scene.remove(node);
+		for (const node of this.nodes.values()) {this.scene.remove(node);this.disposeNode(node);}
 		this.nodes.clear();this.parts.clear();this.clearPreview();
 		for (const p of a.parts) {
 			this.parts.set(p.semanticId, p);
@@ -258,10 +263,13 @@ class SceneView {
 		mesh.rotation.x=Math.PI/2;mesh.position.fromArray(part.assembledTransform.position);mesh.userData.semanticId=part.semanticId;
 		this.preview=mesh;this.scene.add(mesh);
 	}
-	clearPreview(){if(this.preview){this.scene.remove(this.preview);this.preview=undefined;}}
+	clearPreview(){if(this.preview){this.scene.remove(this.preview);this.disposeNode(this.preview);this.preview=undefined;}}
+	disposeNode(node:THREE.Object3D){node.traverse((o:any)=>{o.geometry?.dispose?.();if(Array.isArray(o.material))o.material.forEach((m:any)=>m.dispose?.());else o.material?.dispose?.();});}
+	dispose(){cancelAnimationFrame(this.animationFrame);this.clearPreview();for(const node of this.nodes.values())this.disposeNode(node);this.nodes.clear();this.disposeNode(this.connections);this.controls.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
 	addCad(id: string, faces: any[]) {
 		const group = this.nodes.get(id);
 		if (!group) return null;
+		for (const child of [...group.children]) this.disposeNode(child);
 		group.clear();
 		const geo = new THREE.BufferGeometry(),
 			pos: number[] = [],
@@ -510,6 +518,7 @@ function App() {
 			}
 		})();
 	}, []);
+	useEffect(()=>()=>view.current?.dispose(),[]);
 	useEffect(() => {
 		const h = (e: MessageEvent) => {
 			if (
@@ -536,10 +545,10 @@ function App() {
 		view.current?.isolate(s);
 		view.current?.setExplode(explode / 100, s);
 	};
-	const previewChange=async()=>{if(!selected||!request.trim())return;setBusy(true);try{const response=await fetch(`/api/projects/${projectId}/modification-proposals`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId,baseRevision:revision,selectedSemanticIds:[selected],request,mode:"automatic"})});const body=await response.json();if(!response.ok)throw Error(body.detail?.code||"Proposal failed");setProposal(body);view.current?.showPreview(body);setMessage("Verified change ready to preview");}catch(e){setMessage(String(e));}finally{setBusy(false);}};
+	const previewChange=async()=>{if(!selected||!request.trim())return;setBusy(true);try{const operationId=crypto.randomUUID();const response=await fetch(`/api/projects/${projectId}/modification-proposals`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId,baseRevision:revision,selectedSemanticIds:[selected],request,mode:"automatic",operationId})});const body=await response.json();if(!response.ok)throw Error(body.detail?.code||"Proposal failed");setProposal({...body,operationId} as any);view.current?.showPreview(body);setMessage("Verified change ready to preview");}catch(e){setMessage(`Change planning failed. The committed project remains valid. ${String(e)}`);}finally{setBusy(false);}};
 	const cancelChange=async()=>{if(proposal)await fetch(`/api/projects/${projectId}/modification-proposals/${proposal.proposalId}`,{method:"DELETE"});setProposal(undefined);view.current?.clearPreview();setMessage("Preview cancelled");};
-	const applyChange=async()=>{if(!proposal)return;setBusy(true);try{const response=await fetch(`/api/projects/${projectId}/modification-proposals/${proposal.proposalId}/commit`,{method:"POST"});if(!response.ok)throw Error("Commit failed");await refresh();setProposal(undefined);setMessage("Verified change applied");}catch(e){setMessage(String(e));}finally{setBusy(false);}};
-	const undo=async()=>{setBusy(true);try{const response=await fetch(`/api/projects/${projectId}/revisions/undo`,{method:"POST"});if(!response.ok)throw Error("Nothing to undo");await refresh();setMessage("Previous revision restored as a new revision");}catch(e){setMessage(String(e));}finally{setBusy(false);}};
+	const applyChange=async()=>{if(!proposal)return;setBusy(true);try{const response=await fetch(`/api/projects/${projectId}/modification-proposals/${proposal.proposalId}/commit`,{method:"POST",headers:{"Idempotency-Key":(proposal as any).operationId||proposal.proposalId}});if(!response.ok)throw Error("Commit failed");await refresh();setProposal(undefined);setMessage("Verified change applied");}catch(e){setMessage(`Commit failed. The previous revision remains authoritative. ${String(e)}`);}finally{setBusy(false);}};
+	const undo=async()=>{setBusy(true);try{const response=await fetch(`/api/projects/${projectId}/revisions/undo`,{method:"POST",headers:{"Idempotency-Key":crypto.randomUUID()}});if(!response.ok)throw Error("Nothing to undo");await refresh();setMessage("Previous revision restored as a new revision");}catch(e){setMessage(`Undo failed. The current revision remains valid. ${String(e)}`);}finally{setBusy(false);}};
 	return (
 		<main>
 			<header>

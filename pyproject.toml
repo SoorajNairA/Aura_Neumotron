@@ -18,6 +18,7 @@ dependencies = [
 aura = "aura.workspace.server:main"
 aura-assistant = "aura.legacy.assistant.main:main"
 aura-migrate-storage = "aura.infrastructure.persistence.storage_migration:main"
+aura-demo = "aura.workspace.demo:main"
 
 [project.optional-dependencies]
 voice = [

@@ -58,12 +58,13 @@ class LocalFilesystemArtifactStore:
 
 
 class GcsArtifactStore:
-    def __init__(self, bucket_name: str, prefix: str = "") -> None:
+    def __init__(self, bucket_name: str, prefix: str = "", timeout: float = 10) -> None:
         if not bucket_name:
             raise ValueError("AURA_GCS_BUCKET is required for GCS artifact storage")
         from google.cloud import storage
         self.bucket_name = bucket_name
         self.prefix = prefix.strip("/")
+        self.timeout = timeout
         self._client = storage.Client()
         self._bucket = self._client.bucket(bucket_name)
 
@@ -76,17 +77,17 @@ class GcsArtifactStore:
             raise ValueError("Artifact hash does not match content")
         blob = self._bucket.blob(self._name(key))
         blob.metadata = {"sha256": content_hash}
-        blob.upload_from_string(content, if_generation_match=0)
-        blob.reload()
+        blob.upload_from_string(content, if_generation_match=0, timeout=self.timeout, retry=None)
+        blob.reload(timeout=self.timeout, retry=None)
         if (blob.metadata or {}).get("sha256") != content_hash:
             raise RuntimeError("GCS artifact metadata verification failed")
 
     def get(self, key: str) -> bytes:
-        return self._bucket.blob(self._name(key)).download_as_bytes()
+        return self._bucket.blob(self._name(key)).download_as_bytes(timeout=self.timeout, retry=None)
 
     def delete(self, key: str) -> None:
         try:
-            self._bucket.blob(self._name(key)).delete()
+            self._bucket.blob(self._name(key)).delete(timeout=self.timeout, retry=None)
         except Exception as exc:
             if exc.__class__.__name__ != "NotFound":
                 raise

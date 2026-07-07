@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
+import logging
+import time
 import webbrowser
 import threading
 import os
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
@@ -37,11 +42,14 @@ from .representations import RepresentationRecord, RepresentationStatus
 from .modifications import LiveModificationPlanner,ModificationProposal,inverse_proposal,propose
 from .narration import NarrationService
 
+LOGGER = logging.getLogger("aura.workspace")
+
 
 class CreateProjectBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     objective: str = Field(min_length=8)
     planningMode: str = "deterministic_test"
+    operationId: Optional[str] = None
 
 
 class ModificationBody(BaseModel):
@@ -66,9 +74,13 @@ class RepresentationUpdateBody(BaseModel):
     status: str
     error: Optional[str] = None
     metrics: dict[str, float] = Field(default_factory=dict)
+    projectId: Optional[str] = None
+    revision: Optional[int] = None
+    operationId: Optional[str] = None
+    generation: Optional[int] = None
 
 class ProposalBody(BaseModel):
-    projectId:str;baseRevision:int;selectedSemanticIds:list[str];request:str=Field(min_length=5);mode:str="automatic"
+    projectId:str;baseRevision:int;selectedSemanticIds:list[str];request:str=Field(min_length=5);mode:str="automatic";operationId:Optional[str]=None
 
 
 class EventBroker:
@@ -115,7 +127,7 @@ class WorkspaceApplication:
         else:
             from aura.infrastructure.artifacts import GcsArtifactStore, LocalFilesystemArtifactStore
             if settings.artifact_storage_mode == "gcs":
-                artifact_store = GcsArtifactStore(settings.gcs_bucket)
+                artifact_store = GcsArtifactStore(settings.gcs_bucket, timeout=settings.artifact_timeout)
             elif settings.artifact_storage_mode == "local":
                 artifact_store = LocalFilesystemArtifactStore(artifact_dir or settings.workspace_artifact_dir)
             else:
@@ -132,10 +144,13 @@ class WorkspaceApplication:
             else:
                 self.repository = SQLiteProjectRepository(database, artifact_dir or settings.workspace_artifact_dir, artifact_store)
         self.broker = EventBroker(self.repository)
-        self.representation_service = RepresentationService(self.repository)
+        from .representation_service import CircuitGeneratorAdapter
+        self.representation_service = RepresentationService(self.repository, CircuitGeneratorAdapter(timeout=settings.circuit_timeout))
         self.narration_service = NarrationService()
         self.modification_proposals:dict[str,ModificationProposal]={}
+        self.modification_operations:dict[str,ModificationProposal]={}
         self.modification_locks:dict[str,threading.Lock]={}
+        self.active_representation_operations:set[str]=set()
 
     def _request(self, objective: str) -> ProjectRequest:
         words=[word.capitalize() for word in objective.strip().rstrip(".").split() if word.lower() not in {"design","build","make","a","an","the","small"}]
@@ -183,6 +198,11 @@ class WorkspaceApplication:
         except Exception as exc:raise RuntimeError(f"Could not initialize Planner provider: {exc}") from exc
 
     async def create(self, body: CreateProjectBody) -> StoredProject:
+        if body.operationId:
+            completed=self.find_operation("project.operation_completed",body.operationId)
+            if completed:
+                existing=self.repository.get_project(completed.payload["projectId"])
+                if existing:return existing
         try:
             outcome = await run_in_threadpool(self.plan, body)
         except ValueError as exc:
@@ -195,7 +215,7 @@ class WorkspaceApplication:
         existing=self.repository.get_project(project_id)
         if body.planningMode=="deterministic_test" and existing is not None:
             return existing
-        event_drafts = [{"type": "project.started", "payload": {"planningMode": outcome.mode}, "semantic_ids": []}]
+        event_drafts = [{"type": "project.started", "payload": {"planningMode": outcome.mode,"operationId":body.operationId}, "semantic_ids": []}]
         if outcome.mode == "live_model":
             event_drafts.append({"type": "planning.live_model", "payload": {"message": "Planning with live model"}, "semantic_ids": []})
         elif outcome.mode == "deterministic_fallback":
@@ -214,6 +234,7 @@ class WorkspaceApplication:
             if event.type == "project.started":
                 continue
             event_drafts.append(self._event_draft(event, graph))
+        if body.operationId:event_drafts.append({"type":"project.operation_completed","semantic_ids":[project_id],"payload":{"operationId":body.operationId,"projectId":project_id,"revision":len(graph.revisions)}})
         verification = {"state": verified.state.value, "decision": verified.decision.value,
             "reasons": list(verified.reasons), "findings": [finding.__dict__ | {"state": finding.state.value} for finding in verified.findings]}
         try:
@@ -251,6 +272,23 @@ class WorkspaceApplication:
                  "timestamp":item.created_at} for item in narrations]
         for event in self.repository.append_events(graph.project_id,len(graph.revisions),drafts):
             await self.broker.publish_committed(event)
+
+    def find_operation(self,event_type:str,operation_id:str,project_id:str|None=None)->StoredEvent|None:
+        projects=[self.repository.get_project(project_id)] if project_id else self.repository.list_projects()
+        for project in (x for x in projects if x is not None):
+            for event in reversed(self.repository.get_events_after(project.project_id,0)):
+                if event.type==event_type and event.payload.get("operationId")==operation_id:return event
+        return None
+
+    def recover_interrupted(self,record:StoredProject)->StoredProject:
+        changed=False;items=[]
+        for value in record.representations:
+            item=RepresentationRecord.from_dict(value)
+            if item.status is RepresentationStatus.GENERATING and item.operation_id not in self.active_representation_operations:
+                item=replace(item,status=RepresentationStatus.FALLBACK,error="Generation was interrupted; retry this representation.",generation=item.generation+1,operation_id=None);changed=True
+            items.append(item.to_dict())
+        if changed:self.repository.update_representations(record.project_id,items);record.representations=items
+        return record
 
     def _event_draft(self, event: WorkspaceEvent, graph: EngineeringGraph) -> dict[str, Any]:
         semantic_ids = []
@@ -314,13 +352,26 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     web_root = Path(__file__).with_name("web")
     app.mount("/assets", StaticFiles(directory=web_root), name="workspace-assets")
 
+    @app.middleware("http")
+    async def correlate_request(request, call_next):
+        request_id=request.headers.get("X-Request-ID") or uuid4().hex
+        started=time.perf_counter()
+        try:
+            response=await call_next(request); outcome=str(response.status_code)
+        except Exception:
+            LOGGER.exception(json.dumps({"requestId":request_id,"method":request.method,"path":request.url.path,"outcome":"exception"},separators=(",",":")))
+            raise
+        response.headers["X-Request-ID"]=request_id
+        LOGGER.info(json.dumps({"requestId":request_id,"method":request.method,"path":request.url.path,"durationMs":round((time.perf_counter()-started)*1000,1),"outcome":outcome},separators=(",",":")))
+        return response
+
     @app.get("/")
     def index() -> FileResponse:
         return FileResponse(web_root / "index.html")
 
     @app.get("/health/live")
     def health_live() -> dict[str, str]:
-        return {"status": "ok"}
+        return {"status":"ok","version":os.getenv("AURA_VERSION","0.1.0"),"commit":os.getenv("AURA_BUILD_COMMIT","development"),"environment":"cloud" if os.getenv("AURA_CLOUD_MODE","false").lower()=="true" else "development"}
 
     @app.get("/health/ready")
     def health_ready() -> dict[str, str]:
@@ -357,7 +408,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.get("/api/projects/{project_id}")
     def get_project(project_id: str) -> dict[str, Any]:
-        record = _record(application, project_id)
+        record = application.recover_interrupted(_record(application, project_id))
         return _project_payload(record)
 
     @app.get("/api/projects/{project_id}/graph")
@@ -432,20 +483,45 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         items = [RepresentationRecord.from_dict(item) for item in record.representations]
         try: current = next(item for item in items if item.representation_id == representation_id)
         except StopIteration as exc: raise HTTPException(404, "Representation not found") from exc
+        if ((body.projectId is not None and body.projectId!=project_id) or
+            (body.revision is not None and body.revision!=current.revision) or
+            (body.operationId is not None and body.operationId!=current.operation_id) or
+            (body.generation is not None and body.generation!=current.generation)):
+            return {**current.to_dict(),"ignored":True,"reason":"stale_representation_result"}
         try: updated = current.transition(RepresentationStatus(body.status), error=body.error)
         except ValueError as exc: raise HTTPException(409, str(exc)) from exc
         record.representations = [updated.to_dict() if item.representation_id == representation_id else item.to_dict() for item in items]
         application.repository.update_representations(project_id,record.representations)
+        if updated.status is RepresentationStatus.GENERATING and updated.operation_id:application.active_representation_operations.add(updated.operation_id)
+        elif current.operation_id:application.active_representation_operations.discard(current.operation_id)
         event_type=f"representation.{updated.status.value}"
         events=application.repository.append_events(project_id,updated.revision,[{"type":event_type,"semantic_ids":list(updated.semantic_ids),
             "payload":{"representationId":representation_id,"metrics":body.metrics,"error":body.error}}])
         await application.publish_with_narration(events,record.graph,record.representations)
         return updated.to_dict()
 
+    @app.post("/api/projects/{project_id}/representations/{representation_id}/retry")
+    async def retry_representation(project_id:str,representation_id:str,idempotency_key:Optional[str]=Header(None,alias="Idempotency-Key"))->dict[str,Any]:
+        record=_record(application,project_id)
+        if idempotency_key:
+            prior=application.find_operation("representation.operation_completed",idempotency_key,project_id)
+            if prior:return prior.payload["result"]
+        try: current=next(RepresentationRecord.from_dict(x) for x in record.representations if x["representationId"]==representation_id)
+        except StopIteration as exc:raise HTTPException(404,"Representation not found") from exc
+        if current.revision!=len(record.graph.revisions):raise HTTPException(409,detail={"code":"stale_representation_revision"})
+        updated=await run_in_threadpool(application.representation_service.regenerate,record.graph,current)
+        record.representations=[updated.to_dict() if x["representationId"]==representation_id else x for x in record.representations]
+        application.repository.update_representations(project_id,record.representations)
+        result=updated.to_dict();drafts=[{"type":f"representation.{updated.status.value}","semantic_ids":list(updated.semantic_ids),"payload":{"representationId":representation_id,"operationId":updated.operation_id}}]
+        if idempotency_key:drafts.append({"type":"representation.operation_completed","semantic_ids":list(updated.semantic_ids),"payload":{"operationId":idempotency_key,"result":result}})
+        events=application.repository.append_events(project_id,len(record.graph.revisions),drafts);await application.publish_with_narration(events,record.graph,record.representations)
+        return result
+
     @app.post("/api/projects/{project_id}/modification-proposals",status_code=201)
     async def create_modification_proposal(project_id:str,body:ProposalBody)->dict[str,Any]:
         record=_record(application,project_id)
         if body.projectId!=project_id: raise HTTPException(422,"Project ID mismatch")
+        if body.operationId and body.operationId in application.modification_operations:return application.modification_operations[body.operationId].to_dict()
         try:
             if record.planning_mode=="live_model" and application.provider is not None and hasattr(application.provider,"generate_structured"):
                 try:proposal=await run_in_threadpool(LiveModificationPlanner(application.provider).propose,record.graph,body.baseRevision,body.selectedSemanticIds,body.request,body.mode)
@@ -457,6 +533,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             code=str(exc);status=409 if code=="stale_revision" else 422
             raise HTTPException(status,detail={"code":code,"currentRevision":len(record.graph.revisions)}) from exc
         application.modification_proposals[proposal.proposal_id]=proposal
+        if body.operationId:application.modification_operations[body.operationId]=proposal
         events=application.repository.append_events(project_id,len(record.graph.revisions),[
             {"type":"modification.requested","semantic_ids":body.selectedSemanticIds,"payload":{"request":body.request}},
             {"type":"modification.preview_ready","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal.proposal_id,"affected":list(proposal.affected_ids),"regenerated":list(proposal.regenerate),"unchanged":list(proposal.unaffected)}}])
@@ -487,7 +564,10 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         return {"cancelled":bool(proposal)}
 
     @app.post("/api/projects/{project_id}/modification-proposals/{proposal_id}/commit")
-    async def commit_modification(project_id:str,proposal_id:str)->dict[str,Any]:
+    async def commit_modification(project_id:str,proposal_id:str,idempotency_key:Optional[str]=Header(None,alias="Idempotency-Key"))->dict[str,Any]:
+        operation_id=idempotency_key or proposal_id
+        previous=application.find_operation("modification.operation_completed",operation_id,project_id)
+        if previous:return previous.payload["result"]
         proposal=application.modification_proposals.get(proposal_id)
         if not proposal: raise HTTPException(404,"Proposal not found")
         lock=application.modification_locks.setdefault(project_id,threading.Lock())
@@ -514,16 +594,20 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
                 lifecycle.append({"type":f"representation.{regenerated.status.value}","semantic_ids":list(current.semantic_ids),"payload":{"representationId":current.representation_id,"artifactId":regenerated.artifact_id,"error":regenerated.error}})
             updated_record=StoredProject(record.project_id,record.objective,record.planning_mode,record.fallback_reason,"ready",updated,reps,record.created_at,datetime.now(timezone.utc).isoformat())
             diff={"changed":list(proposal.operations),"regenerated":list(proposal.regenerate),"affected":list(proposal.affected_ids),"unchanged":list(proposal.unaffected)}
-            drafts=[{"type":"modification.committed","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal_id,"diff":diff}},{"type":"revision.committed","semantic_ids":list(proposal.affected_ids),"payload":{"diff":diff}},*lifecycle]
+            response={"projectId":project_id,"revision":len(updated.revisions),"summary":proposal.summary,"diff":diff,"representations":reps}
+            drafts=[{"type":"modification.committed","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal_id,"diff":diff}},{"type":"revision.committed","semantic_ids":list(proposal.affected_ids),"payload":{"diff":diff}},*lifecycle,{"type":"modification.operation_completed","semantic_ids":list(proposal.affected_ids),"payload":{"operationId":operation_id,"result":response}}]
             verification={"outcome":proposal.verification,"diff":diff,"kind":"undo" if proposal.mode=="undo" else "modification"}
             committed=application.repository.save_commit(updated_record,result.patch,verification,drafts)
             await application.publish_with_narration(committed,updated,reps)
             application.modification_proposals.pop(proposal_id,None)
-            return {"projectId":project_id,"revision":len(updated.revisions),"summary":proposal.summary,"diff":diff,"representations":reps}
+            return response
         finally:lock.release()
 
     @app.post("/api/projects/{project_id}/revisions/undo")
-    async def undo_revision(project_id:str)->dict[str,Any]:
+    async def undo_revision(project_id:str,idempotency_key:Optional[str]=Header(None,alias="Idempotency-Key"))->dict[str,Any]:
+        operation_id=idempotency_key or f"undo-{project_id}-{len(_record(application,project_id).graph.revisions)}"
+        previous=application.find_operation("undo.operation_completed",operation_id,project_id)
+        if previous:return previous.payload["result"]
         record=_record(application,project_id)
         revisions=application.repository.list_revisions(project_id)
         source=revisions[-1] if revisions and revisions[-1].get("verification",{}).get("kind")=="modification" else None
@@ -531,7 +615,10 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         try: proposal=inverse_proposal(record.graph,source)
         except ValueError as exc: raise HTTPException(409,detail={"code":str(exc)}) from exc
         application.modification_proposals[proposal.proposal_id]=proposal
-        return await commit_modification(project_id,proposal.proposal_id)
+        result=await commit_modification(project_id,proposal.proposal_id,operation_id)
+        events=application.repository.append_events(project_id,result["revision"],[{"type":"undo.operation_completed","semantic_ids":list(proposal.affected_ids),"payload":{"operationId":operation_id,"result":result}}])
+        await application.publish_with_narration(events,_record(application,project_id).graph,result["representations"])
+        return result
 
     @app.websocket("/api/projects/{project_id}/events")
     async def events(websocket: WebSocket, project_id: str,

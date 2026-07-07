@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+from hashlib import sha256
+from uuid import uuid4
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -60,7 +62,7 @@ def initial_records(project_id: str, revision: int, specs: list[RepresentationSp
         generator, version = ("cascade-core", CAD_VERSION) if spec.kind is RepresentationType.MECHANICAL_3D else ("tscircuit", TSCIRCUIT_VERSION)
         records.append(RepresentationRecord(f"repr-{suffix}-{'3d' if spec.kind is RepresentationType.MECHANICAL_3D else 'schematic'}",
             project_id, revision, spec.semantic_ids, spec.kind, generator=generator, generator_version=version,
-            verification_status="accepted"))
+            verification_status="accepted",operation_id=f"representation-{sha256(f'{project_id}|{revision}|{suffix}|{spec.kind.value}'.encode()).hexdigest()[:20]}",generation=1))
     return records
 
 
@@ -120,7 +122,7 @@ class RepresentationService:
         spec=next(spec for spec in irrigation_specs(graph) if spec.kind is RepresentationType.CIRCUIT_SCHEMATIC)
         stale=record.transition(RepresentationStatus.STALE) if record.status is RepresentationStatus.READY else replace(record,status=RepresentationStatus.STALE)
         artifact=self.repository.create_artifact(record.project_id,len(graph.revisions),list(spec.semantic_ids),spec.kind.value,"circuit-json")  # type: ignore[attr-defined]
-        return replace(self._generate_circuit(stale, spec, artifact.artifact_id),revision=len(graph.revisions))
+        return replace(self._generate_circuit(replace(stale,operation_id=f"representation-{uuid4().hex}",generation=record.generation+1), spec, artifact.artifact_id),revision=len(graph.revisions))
 
     def regenerate(self, graph: EngineeringGraph, record: RepresentationRecord) -> RepresentationRecord:
         """Regenerate one graph-derived representation, retaining a usable fallback on failure."""
@@ -128,7 +130,7 @@ class RepresentationService:
             return self.regenerate_circuit(graph, record)
         spec = next(spec for spec in irrigation_specs(graph) if spec.kind is record.type and spec.semantic_ids == record.semantic_ids)
         stale = record.transition(RepresentationStatus.STALE) if record.status is RepresentationStatus.READY else replace(record,status=RepresentationStatus.STALE)
-        generating = stale.transition(RepresentationStatus.GENERATING)
+        generating = replace(stale.transition(RepresentationStatus.GENERATING),operation_id=f"representation-{uuid4().hex}",generation=record.generation+1)
         artifact = self.repository.create_artifact(record.project_id,len(graph.revisions),list(spec.semantic_ids),spec.kind.value,"representation-spec")  # type: ignore[attr-defined]
         try:
             self.repository.write_artifact(artifact.artifact_id,json.dumps(spec.to_dict(),separators=(",", ":")).encode(),"aura-spec","1")  # type: ignore[attr-defined]

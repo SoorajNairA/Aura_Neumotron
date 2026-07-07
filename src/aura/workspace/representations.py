@@ -49,6 +49,8 @@ class RepresentationRecord:
     fallback_type: RepresentationType = RepresentationType.PLACEHOLDER
     verification_status: str | None = None
     error: str | None = None
+    operation_id: str | None = None
+    generation: int = 1
 
     def transition(self, status: RepresentationStatus, **changes: Any) -> "RepresentationRecord":
         if status not in _TRANSITIONS[self.status]:
@@ -61,7 +63,7 @@ class RepresentationRecord:
                 "status": self.status.value, "generator": self.generator,
                 "generatorVersion": self.generator_version, "artifactId": self.artifact_id,
                 "fallbackType": self.fallback_type.value, "verificationStatus": self.verification_status,
-                "error": self.error}
+                "error": self.error, "operationId": self.operation_id, "generation": self.generation}
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "RepresentationRecord":
@@ -70,7 +72,7 @@ class RepresentationRecord:
                    RepresentationStatus(value["status"]), value.get("generator"),
                    value.get("generatorVersion"), value.get("artifactId"),
                    RepresentationType(value.get("fallbackType", "placeholder")),
-                   value.get("verificationStatus"), value.get("error"))
+                   value.get("verificationStatus"), value.get("error"),value.get("operationId"),int(value.get("generation",1)))
 
 
 @dataclass(frozen=True)

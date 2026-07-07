@@ -27,7 +27,9 @@ def test_health_endpoints_use_repository_readiness() -> None:
     from aura.workspace.server import create_app
     app = create_app(storage_mode="memory")
     with TestClient(app) as client:
-        assert client.get("/health/live").json() == {"status": "ok"}
+        live=client.get("/health/live").json()
+        assert live["status"] == "ok"
+        assert set(live) == {"status","version","commit","environment"}
         assert client.get("/health/ready").json() == {"status": "ready"}
     app.state.workspace.repository.close()
 

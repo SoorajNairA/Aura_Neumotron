@@ -14,7 +14,9 @@ const state = {
   socket: null,
   lastEventId: 0,
   reconnectAttempt: 0,
+  reconnectTimer: null,
 };
+const MAX_RECONNECT_ATTEMPTS = 6;
 const $ = (id) => document.getElementById(id);
 function entities(kind) {
   return state.graph ? state.graph.entities.filter((x) => x.kind === kind) : [];
@@ -87,6 +89,15 @@ function render() {
   $("representation").textContent = representation
     ? `Representation: ${representation.type} — ${representation.status}; fallback: ${representation.fallbackType}`
     : "Select a component to inspect its representation state.";
+  const failed = state.representations.filter((x) => x.status === "fallback" || x.status === "failed");
+  if (failed.length) $("representation").insertAdjacentHTML("beforeend", `<p><b>REPRESENTATION UNAVAILABLE</b><br>The project, verification, and semantic assembly remain valid.</p>${failed.map((x) => `<button class="retry-representation" data-representation="${x.representationId}">Retry ${x.type}</button>`).join(" ")}`);
+  document.querySelectorAll(".retry-representation").forEach((button) => button.onclick = () => retryRepresentation(button.dataset.representation));
+}
+async function retryRepresentation(id) {
+  $("status").textContent = "Retrying representation; project truth remains available.";
+  const response = await fetch(`/api/projects/${state.projectId}/representations/${id}/retry`, {method:"POST", headers:{"Idempotency-Key":crypto.randomUUID()}});
+  if (!response.ok) { $("status").textContent = "Representation retry failed. The saved project remains valid; retry when the generator is available."; return; }
+  await loadProject(); $("status").textContent = "Representation recovered.";
 }
 function renderProgress(){const types=new Set(state.events.map((x)=>x.type));const warnings=state.events.filter((x)=>x.type==="warning.created").length;const stages=[
   ["project.started","Understanding request"],["revision.committed","Project structure planned"],
@@ -136,6 +147,7 @@ async function loadProject() {
     await fetch(`/api/projects/${state.projectId}`)
   ).json();
   state.representations = project.representations || [];
+  localStorage.setItem("aura.lastProjectId", state.projectId);
   const frame = $("representation-view");
   frame.src = `/assets/representation/index.html?projectId=${encodeURIComponent(state.projectId)}`;
   frame.style.display = "block";
@@ -202,6 +214,7 @@ async function requestRepair(findingId) {
     : JSON.stringify(proposal);
 }
 function connect(after = 0) {
+  clearTimeout(state.reconnectTimer);
   if (state.socket) state.socket.close();
   const scheme = location.protocol === "https:" ? "wss" : "ws";
   state.socket = new WebSocket(
@@ -212,6 +225,7 @@ function connect(after = 0) {
     if (event.eventId <= state.lastEventId) return;
     state.lastEventId = event.eventId;
     state.reconnectAttempt = 0;
+    $("reconnect").hidden = true;
     state.events.push(event);
     renderProgress();
     $("timeline").insertAdjacentHTML(
@@ -230,10 +244,17 @@ function connect(after = 0) {
     if (event.type === "revision.committed") await loadProject();
   };
   state.socket.onclose = () => {
-    if (state.projectId)
-      setTimeout(() => connect(state.lastEventId), Math.min(1000 * 2 ** state.reconnectAttempt++, 15000));
+    if (!state.projectId) return;
+    if (state.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
+      $("status").textContent = "Live updates disconnected. The loaded project remains available.";
+      $("reconnect").hidden = false;
+      return;
+    }
+    const delay = Math.min(1000 * 2 ** state.reconnectAttempt++, 15000);
+    state.reconnectTimer = setTimeout(() => connect(state.lastEventId), delay);
   };
 }
+$("reconnect").onclick = () => { state.reconnectAttempt = 0; $("reconnect").hidden = true; connect(state.lastEventId); };
 $("create").onclick = async () => {
   state.events = [];
   state.lastEventId = 0;
@@ -246,6 +267,7 @@ $("create").onclick = async () => {
     body: JSON.stringify({
       objective: $("objective").value,
       planningMode: $("mode").value,
+      operationId: crypto.randomUUID(),
     }),
   });
   if (!response.ok) {
@@ -311,6 +333,8 @@ $("open-project").onclick = async () => {
   $("status").textContent = "Recovered persisted project";
 };
 listProjects();
+const lastProjectId=localStorage.getItem("aura.lastProjectId");
+if(lastProjectId){state.projectId=lastProjectId;loadProject().then(()=>connect(0)).catch(()=>localStorage.removeItem("aura.lastProjectId"));}
 window.addEventListener("message", (event) => {
   if (
     event.origin === location.origin &&
