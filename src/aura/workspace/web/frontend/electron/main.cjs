@@ -10,7 +10,9 @@ function createWindow(){
  mainWindow.webContents.on("will-navigate",(event,url)=>{if(!url.startsWith(apiUrl))event.preventDefault()});
  mainWindow.once("ready-to-show",()=>mainWindow.show());
  mainWindow.webContents.once("did-finish-load",()=>{if(process.argv.includes("--smoke")){console.log("AURA_ELECTRON_SMOKE_PASS");setTimeout(()=>app.quit(),250)}});
- mainWindow.loadURL(apiUrl).catch(()=>mainWindow.loadFile(path.join(__dirname,"offline.html")));
+ const projectId=process.env.AURA_PROJECT_ID;
+ const startUrl=projectId?`${apiUrl}/?projectId=${encodeURIComponent(projectId)}`:apiUrl;
+ mainWindow.loadURL(startUrl).catch(()=>mainWindow.loadFile(path.join(__dirname,"offline.html")));
 }
 ipcMain.handle("aura:window",(_event,action)=>{if(!mainWindow)return false;if(action==="minimize")mainWindow.minimize();else if(action==="maximize")mainWindow.isMaximized()?mainWindow.unmaximize():mainWindow.maximize();else if(action==="close")mainWindow.close();else return false;return true});
 app.whenReady().then(createWindow);app.on("window-all-closed",()=>app.quit());
