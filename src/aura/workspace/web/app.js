@@ -92,6 +92,10 @@ window.auraFocus = (ids, explanation) => {
   state.focusIds = new Set(ids.filter(entity));
   $("status").textContent = explanation;
   render();
+  $("representation-view").contentWindow?.postMessage(
+    { type: "aura.workspace.focus", semanticIds: [...state.focusIds] },
+    location.origin,
+  );
 };
 async function loadProject() {
   const project = await (
