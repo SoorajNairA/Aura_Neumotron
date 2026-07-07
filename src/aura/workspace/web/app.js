@@ -7,6 +7,9 @@ const state = {
   focusIds: new Set(),
   criticalIds: new Set(),
   verification: null,
+  narrations: [],
+  narrationTimer: null,
+  narrationSuppressedUntil: 0,
   events: [],
   socket: null,
   lastEventId: 0,
@@ -71,6 +74,13 @@ function render() {
         `<li class="${v.metadata.severity || ""}">${v.name} [${v.verification_status}]</li>`,
     )
     .join("");
+  $("narration-feed").innerHTML = state.narrations.slice(-8).reverse().map((n) =>
+    `<button class="narration-item ${n.priority}" data-narration="${n.narrationId}">${n.text}<small>${n.kind.replaceAll("_", " ")}${n.evidenceIds.length ? ` · <span class="narration-evidence" data-evidence="${n.evidenceIds[0]}">${n.evidenceIds.length} evidence</span>` : ""}</small></button>`).join("");
+  document.querySelectorAll(".narration-item").forEach((button) => button.onclick = () => {
+    const item=state.narrations.find((n) => n.narrationId === button.dataset.narration);
+    if(item) applyNarrationFocus(item);
+  });
+  document.querySelectorAll(".narration-evidence").forEach((link) => link.onclick = (event) => {event.stopPropagation();inspectEvidence(link.dataset.evidence)});
   const representation = state.representations.find(
     (x) => x.componentId === state.selectedId,
   );
@@ -78,6 +88,11 @@ function render() {
     ? `Representation: ${representation.type} — ${representation.status}; fallback: ${representation.fallbackType}`
     : "Select a component to inspect its representation state.";
 }
+function renderProgress(){const types=new Set(state.events.map((x)=>x.type));const warnings=state.events.filter((x)=>x.type==="warning.created").length;const stages=[
+  ["project.started","Understanding request"],["revision.committed","Project structure planned"],
+  ["verification.completed",`Design checked${warnings?` · ${warnings} warning${warnings===1?"":"s"}`:""}`],
+  ["representation.ready","Engineering representation ready"],["project.ready","Project ready"]];
+  $("progress").innerHTML=stages.map(([type,label])=>`<span class="event">${types.has(type)?"✓":"○"} ${label}</span>`).join("")}
 function tree(id) {
   const item = entity(id);
   const children = state.graph.entities.filter(
@@ -96,6 +111,9 @@ function tree(id) {
 }
 function select(id) {
   if (!entity(id)) return;
+  state.narrationSuppressedUntil=Date.now()+3000;
+  clearTimeout(state.narrationTimer);
+  state.focusIds=new Set();
   state.selectedId = id;
   render();
   const frame = $("representation-view");
@@ -121,9 +139,10 @@ async function loadProject() {
   const frame = $("representation-view");
   frame.src = `/assets/representation/index.html?projectId=${encodeURIComponent(state.projectId)}`;
   frame.style.display = "block";
-  [state.graph, state.verification] = await Promise.all([
+  [state.graph, state.verification, state.narrations] = await Promise.all([
     fetch(`/api/projects/${state.projectId}/graph`).then((response) => response.json()),
     fetch(`/api/projects/${state.projectId}/verification`).then((response) => response.json()),
+    fetch(`/api/projects/${state.projectId}/narrations`).then((response) => response.json()),
   ]);
   const revisions = await (
     await fetch(`/api/projects/${state.projectId}/revisions`)
@@ -138,6 +157,32 @@ async function loadProject() {
   );
   render();
 }
+
+class NoSpeechProvider { available(){return false} speak(_text,_done){_done?.()} stop(){} }
+class BrowserSpeechProvider {
+  available(){return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window}
+  speak(text,done){const utterance=new SpeechSynthesisUtterance(text);utterance.rate=1.03;utterance.onend=done;utterance.onerror=done;speechSynthesis.speak(utterance)}
+  stop(){speechSynthesis.cancel()}
+}
+class SpeechQueue {
+  constructor(provider,limit=6){this.provider=provider;this.limit=limit;this.items=[];this.active=null}
+  enqueue(item){if(!voiceEnabled()||!this.provider.available())return;if(item.priority==="high"){this.provider.stop();this.active=null;this.items=this.items.filter((x)=>x.priority==="high")}this.items.push(item);this.items=this.items.slice(-this.limit);this.next()}
+  next(){if(this.active||!this.items.length)return;this.active=this.items.shift();this.provider.speak(this.active.text,()=>{markSpoken(this.active);clearNarrationFocus();this.active=null;this.next()})}
+  clear(){this.items=[];this.active=null;this.provider.stop()}
+}
+const speechQueue=new SpeechQueue(("speechSynthesis" in window)?new BrowserSpeechProvider():new NoSpeechProvider());
+const voiceEnabled=()=>localStorage.getItem("aura.voice.enabled")==="true";
+const spokenKey=()=>`aura.spoken.${state.projectId}`;
+const spokenIds=()=>new Set(JSON.parse(localStorage.getItem(spokenKey())||"[]"));
+function markSpoken(item){const ids=spokenIds();ids.add(item.narrationId);localStorage.setItem(spokenKey(),JSON.stringify([...ids].slice(-200)))}
+function applyNarrationFocus(item){clearTimeout(state.narrationTimer);state.focusIds=new Set(item.semanticIds.filter(entity));render();$("representation-view").contentWindow?.postMessage({type:"aura.workspace.focus",semanticIds:[...state.focusIds]},location.origin);if(!voiceEnabled())state.narrationTimer=setTimeout(clearNarrationFocus,5000)}
+function clearNarrationFocus(){state.focusIds.clear();render();$("representation-view").contentWindow?.postMessage({type:"aura.workspace.focus",semanticIds:[]},location.origin)}
+function cancelNarrationFocus(){clearTimeout(state.narrationTimer);clearNarrationFocus()}
+function receiveNarration(item,historical){if(state.narrations.some((x)=>x.narrationId===item.narrationId))return;state.narrations.push(item);render();if(!historical&&!spokenIds().has(item.narrationId)){if(Date.now()>state.narrationSuppressedUntil)applyNarrationFocus(item);speechQueue.enqueue(item)}}
+function presentFreshNarrations(){const unspoken=state.narrations.filter((x)=>!spokenIds().has(x.narrationId));const urgent=unspoken.filter((x)=>x.priority==="high").slice(-1);const completion=unspoken.filter((x)=>x.kind==="completion").slice(-1);for(const item of [...urgent,...completion]){applyNarrationFocus(item);speechQueue.enqueue(item)}}
+$("voice-enabled").checked=voiceEnabled();
+$("voice-enabled").onchange=(event)=>{localStorage.setItem("aura.voice.enabled",String(event.target.checked));if(!event.target.checked)speechQueue.clear()};
+$("stop-speaking").onclick=()=>speechQueue.clear();
 function inspectEvidence(id) {
   const evidence = entities("evidence").find((item) => item.id === id)?.metadata;
   if (!evidence) return;
@@ -168,6 +213,7 @@ function connect(after = 0) {
     state.lastEventId = event.eventId;
     state.reconnectAttempt = 0;
     state.events.push(event);
+    renderProgress();
     $("timeline").insertAdjacentHTML(
       "beforeend",
       `<span class="event">${event.eventId}. ${event.type}</span>`,
@@ -180,6 +226,7 @@ function connect(after = 0) {
       $("status").textContent = "Project ready";
     if (event.type === "focus.requested")
       window.auraFocus(event.payload.entity_ids, event.payload.explanation);
+    if (event.type === "narration.created") receiveNarration(event.payload,event.historical);
     if (event.type === "revision.committed") await loadProject();
   };
   state.socket.onclose = () => {
@@ -191,6 +238,7 @@ $("create").onclick = async () => {
   state.events = [];
   state.lastEventId = 0;
   $("timeline").innerHTML = "";
+  renderProgress();
   $("status").textContent = "Understanding objective â†’ Planning project...";
   const response = await fetch("/api/projects", {
     method: "POST",
@@ -207,11 +255,13 @@ $("create").onclick = async () => {
   }
   const project = await response.json();
   state.projectId = project.projectId;
+  speechQueue.clear();
   $("status").textContent =
     project.planningMode === "deterministic_fallback"
       ? "Using deterministic fallback"
       : "Project ready";
   await loadProject();
+  presentFreshNarrations();
   connect(0);
 };
 $("modify").onclick = async () => {
@@ -251,9 +301,11 @@ $("open-project").onclick = async () => {
   const id = $("projects").value;
   if (!id) return;
   state.projectId = id;
+  speechQueue.clear();
   state.events = [];
   state.lastEventId = 0;
   $("timeline").innerHTML = "";
+  renderProgress();
   await loadProject();
   connect(0);
   $("status").textContent = "Recovered persisted project";
@@ -265,4 +317,6 @@ window.addEventListener("message", (event) => {
     event.data?.type === "aura.representation.selection"
   )
     select(event.data.semanticId);
+  if (event.origin === location.origin && event.data?.type === "aura.representation.user_interaction")
+    cancelNarrationFocus();
 });

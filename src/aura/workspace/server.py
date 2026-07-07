@@ -35,6 +35,7 @@ from .events import WorkspaceEvent
 from .representation_service import RepresentationService, initial_records, irrigation_specs
 from .representations import RepresentationRecord, RepresentationStatus
 from .modifications import LiveModificationPlanner,ModificationProposal,inverse_proposal,propose
+from .narration import NarrationService
 
 
 class CreateProjectBody(BaseModel):
@@ -57,6 +58,7 @@ class EventEnvelope(BaseModel):
     semanticIds: list[str]
     payload: dict[str, Any]
     timestamp: str
+    historical: bool = False
 
 
 class RepresentationUpdateBody(BaseModel):
@@ -89,7 +91,7 @@ class EventBroker:
 
     def replay(self, project_id: str, after: int) -> list[EventEnvelope]:
         return [EventEnvelope(eventId=item.event_id, projectId=item.project_id, revision=item.revision,
-            type=item.type, semanticIds=item.semantic_ids, payload=item.payload, timestamp=item.timestamp)
+            type=item.type, semanticIds=item.semantic_ids, payload=item.payload, timestamp=item.timestamp,historical=True)
             for item in self.repository.get_events_after(project_id, after)]
 
 
@@ -131,6 +133,7 @@ class WorkspaceApplication:
                 self.repository = SQLiteProjectRepository(database, artifact_dir or settings.workspace_artifact_dir, artifact_store)
         self.broker = EventBroker(self.repository)
         self.representation_service = RepresentationService(self.repository)
+        self.narration_service = NarrationService()
         self.modification_proposals:dict[str,ModificationProposal]={}
         self.modification_locks:dict[str,threading.Lock]={}
 
@@ -189,6 +192,9 @@ class WorkspaceApplication:
             raise HTTPException(503, detail=str(exc)) from exc
         plan = outcome.plan
         project_id = plan.entities[0].id
+        existing=self.repository.get_project(project_id)
+        if body.planningMode=="deterministic_test" and existing is not None:
+            return existing
         event_drafts = [{"type": "project.started", "payload": {"planningMode": outcome.mode}, "semantic_ids": []}]
         if outcome.mode == "live_model":
             event_drafts.append({"type": "planning.live_model", "payload": {"message": "Planning with live model"}, "semantic_ids": []})
@@ -215,7 +221,7 @@ class WorkspaceApplication:
         except PersistenceFailure as exc:
             raise HTTPException(503, detail={"code": "persistence_failure", "message": str(exc)}) from exc
         self.broker.reset(project_id)
-        for event in committed: await self.broker.publish_committed(event)
+        await self.publish_with_narration(committed,graph,record.representations)
         completed = await run_in_threadpool(self.representation_service.persist_specs, project_id,
             len(graph.revisions), representations, specs)
         record.representations = [item.to_dict() for item in completed]
@@ -232,9 +238,19 @@ class WorkspaceApplication:
                         {"type":"representation.failed","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id,"error":item.error}})
                 representation_events.append(
                     {"type":f"representation.{item.status.value}","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id,"artifactId":item.artifact_id,"error":item.error}})
-        for event in self.repository.append_events(project_id,len(graph.revisions),representation_events):
-            await self.broker.publish_committed(event)
+        representation_committed=self.repository.append_events(project_id,len(graph.revisions),representation_events)
+        await self.publish_with_narration(representation_committed,graph,record.representations)
         return record
+
+    async def publish_with_narration(self,committed:list[StoredEvent],graph:EngineeringGraph,
+                                     representations:list[dict[str,Any]])->None:
+        for event in committed: await self.broker.publish_committed(event)
+        narrations=self.narration_service.events(committed,graph,representations)
+        if not narrations:return
+        drafts=[{"type":"narration.created","semantic_ids":list(item.semantic_ids),"payload":item.to_dict(),
+                 "timestamp":item.created_at} for item in narrations]
+        for event in self.repository.append_events(graph.project_id,len(graph.revisions),drafts):
+            await self.broker.publish_committed(event)
 
     def _event_draft(self, event: WorkspaceEvent, graph: EngineeringGraph) -> dict[str, Any]:
         semantic_ids = []
@@ -282,7 +298,7 @@ class WorkspaceApplication:
             committed = self.repository.save_commit(updated_record, result.patch, verification, event_drafts)  # type: ignore[arg-type]
         except PersistenceFailure as exc:
             raise HTTPException(503, detail={"code": "persistence_failure", "message": str(exc)}) from exc
-        for event in committed: await self.broker.publish_committed(event)
+        await self.publish_with_narration(committed,updated,representations)
         after_entity = updated.get(selected.id)
         after = {"id": after_entity.id, "name": after_entity.name, "revision": len(updated.revisions)}
         return {"projectId": project_id, "before": before, "after": after,
@@ -372,6 +388,12 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
                  "verification": item["verification"], "createdAt": item["createdAt"]}
                 for item in application.repository.list_revisions(project_id)]
 
+    @app.get("/api/projects/{project_id}/narrations")
+    def get_narrations(project_id:str)->list[dict[str,Any]]:
+        _record(application,project_id)
+        return [item.payload for item in application.repository.get_events_after(project_id,0)
+                if item.type=="narration.created"]
+
     @app.post("/api/projects/{project_id}/modifications")
     async def modify_project(project_id: str, body: ModificationBody) -> dict[str, Any]:
         return await application.modify(project_id, body)
@@ -417,7 +439,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         event_type=f"representation.{updated.status.value}"
         events=application.repository.append_events(project_id,updated.revision,[{"type":event_type,"semantic_ids":list(updated.semantic_ids),
             "payload":{"representationId":representation_id,"metrics":body.metrics,"error":body.error}}])
-        for event in events: await application.broker.publish_committed(event)
+        await application.publish_with_narration(events,record.graph,record.representations)
         return updated.to_dict()
 
     @app.post("/api/projects/{project_id}/modification-proposals",status_code=201)
@@ -435,9 +457,10 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             code=str(exc);status=409 if code=="stale_revision" else 422
             raise HTTPException(status,detail={"code":code,"currentRevision":len(record.graph.revisions)}) from exc
         application.modification_proposals[proposal.proposal_id]=proposal
-        for event in application.repository.append_events(project_id,len(record.graph.revisions),[
+        events=application.repository.append_events(project_id,len(record.graph.revisions),[
             {"type":"modification.requested","semantic_ids":body.selectedSemanticIds,"payload":{"request":body.request}},
-            {"type":"modification.preview_ready","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal.proposal_id}}]): await application.broker.publish_committed(event)
+            {"type":"modification.preview_ready","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal.proposal_id,"affected":list(proposal.affected_ids),"regenerated":list(proposal.regenerate),"unchanged":list(proposal.unaffected)}}])
+        await application.publish_with_narration(events,record.graph,record.representations)
         return proposal.to_dict()
 
     @app.post("/api/projects/{project_id}/verification/{finding_id}/repair-proposal",status_code=201)
@@ -450,6 +473,10 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         if check not in {"flyback","missing-driver","direct-pump-gpio"} or not driver: raise HTTPException(422,detail={"code":"no_bounded_repair"})
         proposal=propose(record.graph,len(record.graph.revisions),[driver],"Replace with a logic-level MOSFET and flyback protection","verification_repair")
         application.modification_proposals[proposal.proposal_id]=proposal
+        events=application.repository.append_events(project_id,len(record.graph.revisions),[{"type":"modification.preview_ready",
+            "semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal.proposal_id,"affected":list(proposal.affected_ids),
+            "regenerated":list(proposal.regenerate),"unchanged":list(proposal.unaffected)}}])
+        await application.publish_with_narration(events,record.graph,record.representations)
         return proposal.to_dict()
 
     @app.delete("/api/projects/{project_id}/modification-proposals/{proposal_id}")
@@ -490,7 +517,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             drafts=[{"type":"modification.committed","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal_id,"diff":diff}},{"type":"revision.committed","semantic_ids":list(proposal.affected_ids),"payload":{"diff":diff}},*lifecycle]
             verification={"outcome":proposal.verification,"diff":diff,"kind":"undo" if proposal.mode=="undo" else "modification"}
             committed=application.repository.save_commit(updated_record,result.patch,verification,drafts)
-            for event in committed:await application.broker.publish_committed(event)
+            await application.publish_with_narration(committed,updated,reps)
             application.modification_proposals.pop(proposal_id,None)
             return {"projectId":project_id,"revision":len(updated.revisions),"summary":proposal.summary,"diff":diff,"representations":reps}
         finally:lock.release()

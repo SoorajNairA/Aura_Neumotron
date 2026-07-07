@@ -42,7 +42,7 @@ class ModificationProposal:
 def propose(graph:EngineeringGraph,base:int,ids:list[str],request:str,mode:str="automatic")->ModificationProposal:
     if base!=len(graph.revisions): raise ValueError("stale_revision")
     if len(ids)!=1 or ids[0] not in graph.entities: raise ValueError("unsupported_target")
-    target=graph.get(ids[0]);meta=dict(target.metadata);lower=request.lower();ops=[]
+    target=graph.get(ids[0]);meta=dict(target.metadata);lower=request.lower();ops=[];unaffected=("unrelated subsystems",)
     family=meta.get("family",meta.get("role",""))
     from aura.verification.catalogue import CATALOGUE
     exact=next((item for item in CATALOGUE if item.component_definition_id.lower() in lower),None)
@@ -63,9 +63,9 @@ def propose(graph:EngineeringGraph,base:int,ids:list[str],request:str,mode:str="
         dims={k:dict(v) for k,v in meta["dimensions"].items()};ops=[]
         for key in ("width","length"):
             old=dims[key]["value"];dims[key]["value"]=round(old*1.2);ops.append({"operation":"replace_parameter","path":f"dimensions.{key}.value","oldValue":old,"newValue":dims[key]["value"]})
-        meta["dimensions"]=dims;summary="Increase container capacity while preserving height";affected=(target.id,);regen=(f"repr-{target.id.removeprefix('component-')}-3d",)
+        meta["dimensions"]=dims;summary="Increase container capacity while preserving height";affected=(target.id,);regen=(f"repr-{target.id.removeprefix('component-')}-3d",);unaffected=("electronics",)
     elif target.id=="component-reservoir" and any(x in lower for x in ("capacity","40%","width","depth")):
-        dims={k:dict(v) for k,v in meta["dimensions"].items()};oldw=dims["width"]["value"];oldd=dims["length"]["value"];dims["width"]["value"]=round(oldw*1.18);dims["length"]["value"]=round(oldd*1.18);meta["dimensions"]=dims;summary="Increase reservoir capacity approximately 40% while preserving height";affected=(target.id,"component-tubing");regen=("repr-reservoir-3d","repr-tubing-3d");ops=[{"operation":"replace_parameter","path":"dimensions.width.value","oldValue":oldw,"newValue":dims["width"]["value"]},{"operation":"replace_parameter","path":"dimensions.length.value","oldValue":oldd,"newValue":dims["length"]["value"]}]
+        dims={k:dict(v) for k,v in meta["dimensions"].items()};oldw=dims["width"]["value"];oldd=dims["length"]["value"];dims["width"]["value"]=round(oldw*1.18);dims["length"]["value"]=round(oldd*1.18);meta["dimensions"]=dims;summary="Increase reservoir capacity approximately 40% while preserving height";affected=(target.id,"component-tubing");regen=("repr-reservoir-3d","repr-tubing-3d");unaffected=("electronics",);ops=[{"operation":"replace_parameter","path":"dimensions.width.value","oldValue":oldw,"newValue":dims["width"]["value"]},{"operation":"replace_parameter","path":"dimensions.length.value","oldValue":oldd,"newValue":dims["length"]["value"]}]
     elif target.id=="component-driver" and "mosfet" in lower:
         params=dict(meta["parameters"]);old=params.get("driver_type");params.update(driver_type="logic-level MOSFET",flyback_protection=True);meta["parameters"]=params;summary="Replace driver with a logic-level MOSFET suitable for the pump";affected=(target.id,);regen=("repr-irrigation-schematic",);ops=[{"operation":"replace_parameter","path":"parameters.driver_type","oldValue":old,"newValue":params["driver_type"]}]
     elif target.id=="component-pump" and any(x in lower for x in ("move","farther","position")):
@@ -73,7 +73,7 @@ def propose(graph:EngineeringGraph,base:int,ids:list[str],request:str,mode:str="
     else: raise ValueError("unsupported_modification")
     patch=GraphPatch(f"patch-{uuid4().hex}",(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=target.id,changes={"metadata":meta}),),summary,graph.current_revision_id)
     verification={"outcome":"accepted_with_warnings","checks":[{"state":"PASSED","message":"Target and dimensions valid"},{"state":"WARNING","message":"Conceptual geometry remains estimated"}]}
-    return ModificationProposal(f"proposal-{uuid4().hex}",base,tuple(ids),summary,mode,tuple(ops),affected,("unrelated subsystems",),regen,verification,patch)
+    return ModificationProposal(f"proposal-{uuid4().hex}",base,tuple(ids),summary,mode,tuple(ops),affected,unaffected,regen,verification,patch)
 
 def inverse_proposal(graph:EngineeringGraph, revision:dict[str,Any])->ModificationProposal:
     diff=revision.get("verification",{}).get("diff")

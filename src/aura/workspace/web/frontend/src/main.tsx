@@ -108,6 +108,9 @@ class SceneView {
 		this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 		host.appendChild(this.renderer.domElement);
 		this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+		this.controls.addEventListener("start", () =>
+			parent.postMessage({ type: "aura.representation.user_interaction" }, location.origin),
+		);
 		this.controls.enableDamping = true;
 		this.controls.target.set(15, 20, 45);
 		this.scene.add(new THREE.HemisphereLight(0xddeeff, 0x152538, 2.2));

@@ -116,6 +116,13 @@ footer {
 .finding.failed { border-color:#ff5266; }
 .finding.estimated,.finding.conceptual { border-color:#ffd26b; }
 dialog { max-width:620px; background:#091d2b; color:#d8f7ff; border:1px solid #63e7ff; }
+.voice-controls { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.voice-controls input { flex:none; }
+#narration-feed { max-height:220px; overflow:auto; }
+.narration-item { display:block; width:100%; text-align:left; margin:6px 0; padding:8px; border-left:3px solid #42badc; }
+.narration-item.high { border-left-color:#ff5266; }
+.narration-item small { display:block; color:#91aeba; margin-top:4px; }
+.narration-evidence { color:#63e7ff; text-decoration:underline; }
 pre {
   white-space: pre-wrap;
 }

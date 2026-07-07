@@ -102,5 +102,7 @@ def test_circuit_generation_failure_persists_visible_fallback_events(tmp_path: P
         circuit=next(item for item in project["representations"] if item["type"] == "circuit_schematic")
         assert circuit["status"] == "fallback" and circuit["fallbackType"] == "placeholder"
         types=[event.type for event in app.state.workspace.repository.get_events_after(project["projectId"],0)]
-        assert types[-2:] == ["representation.failed","representation.fallback"]
+        fallback_index=types.index("representation.fallback")
+        assert types[fallback_index-1:fallback_index+1] == ["representation.failed","representation.fallback"]
+        assert "narration.created" in types[fallback_index+1:]
     app.state.workspace.repository.close()
