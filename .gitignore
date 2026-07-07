@@ -75,10 +75,14 @@ voices/*.flac
 
 # Build Artifacts
 
+node_modules/
 dist/
 build/
 generated/
 site/
+playwright-report/
+test-results/
+*.tsbuildinfo
 
 # Diagnostics
 

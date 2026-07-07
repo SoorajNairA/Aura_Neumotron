@@ -1,6 +1,6 @@
 # Production representation dependency audit
 
-Audit command: `npm audit --json` in `src/aura/workspace/representation_runtime` on 2026-08-07.
+Audit command: `npm audit --json` in `src/aura/workspace/web/frontend` on 2026-08-07.
 
 Direct compatible fixes were applied: Vite `7.1.7 → 7.3.6` removed six development-server advisories, and Vitest `3.2.4 → 3.2.7` removed the critical UI-server advisory. Build and browser tests passed after both upgrades. No forced audit fix was used.
 

@@ -6,7 +6,7 @@
 - Rendering: `three@0.185.1`.
 - Circuit generation: `@tscircuit/core@0.0.1609` and `circuit-json@0.0.464`.
 - Circuit rendering: `@tscircuit/schematic-viewer@2.0.76`, React/ReactDOM `18.3.1`.
-- Tooling: Vite `7.1.7`, TypeScript `5.9.3`, Vitest `3.2.4`, Playwright `1.62.1`.
+- Tooling: Vite `7.3.6`, TypeScript `5.9.3`, Vitest `3.2.7`, Playwright `1.62.1`.
 - Repositories inspected at: CascadeStudio `4fabeebd16a39c8f08aa630ccb8f3ed471f95a78`, Replicad `c7bdff60153100138672d52d5d249d757ff5ddc6`, schematic-viewer `fedb2f944c8b183c05fa1f3cdc442e0d3e2fea10`, step.parts `c6113328a5695b976a010a203a90fe86191769bf`.
 
 ## Licence summary
@@ -42,6 +42,9 @@ Select `cascade-core`. The primary candidate passed browser build, curved loft/s
 
 The 21.2 MB kernel payload needs caching and a lazy-loading boundary. `cascade-core` also bundles unused OpenSCAD-parser paths that Vite warns contain Node `fs/path` imports. The tscircuit dependency graph currently requires build-time/runtime React separation, emits a viewer ref warning, and reports 10 production audit findings (2 moderate, 8 high) in transitive packages; it must be upgraded or narrowed before production use. Catalogue metadata cannot be trusted for redistribution until per-model licence, attribution, units, and orientation are machine-readable.
 
-## Exact next integration step
+## Production disposition
 
-Define a Workspace representation adapter that serializes only `RepresentationInput`, generated mesh buffers/Circuit JSON, artifact metrics, and the explicit semantic mapping. Lazy-load the cascade worker and schematic viewer behind that adapter; do not persist Three.js, React, tscircuit, or OpenCascade runtime objects in AURA domain models.
+Goal 2 implemented the selected stack under `src/aura/workspace/web/frontend`.
+The Engineering Graph stores no Three.js, React, tscircuit, or OpenCascade
+runtime objects. The superseded executable experiment was retired after its
+important behaviors were covered by production tests.

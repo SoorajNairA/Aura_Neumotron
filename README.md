@@ -29,8 +29,9 @@ experiments and are not part of normal startup.
 - A deterministic request-to-revision-to-event flow requiring no LLM, GUI,
   voice, desktop, internet, or Unreal installation.
 
-This foundation does not yet implement CAD, circuit simulation, automatic
-engineering calculations, or the final interactive workspace UI.
+The browser Workspace includes production mechanical representations through
+cascade-core/Three.js and generated Circuit JSON rendered by tscircuit's
+schematic viewer.
 
 ## Installation
 
@@ -75,17 +76,15 @@ Launch through the package entry point:
 aura
 ```
 
-For source-tree development:
+For the compatibility assistant:
 
 ```powershell
 $env:PYTHONPATH = "src"
-python -m aura.main
+aura-assistant
 ```
 
-On Windows, `launch_aura.vbs` continues to provide the hidden-console launch.
-The current assistant supports text/voice conversation, safe file and folder
-creation, known application and URL opening, project templates, memory, and
-result reveal.
+The compatibility assistant supports text/voice conversation, safe tools,
+project templates, memory, and result reveal.
 
 Run the primary browser engineering workspace server:
 
@@ -101,10 +100,18 @@ selection, information display, verification warnings, representation states,
 and AURA focus highlighting. The existing QML interface remains a legacy
 assistant fallback and is not imported by the workspace server.
 
-Projects persist by default in `runtime/workspace/aura.db`; artifact binaries
-are stored separately under `runtime/workspace/artifacts/`. Both locations are
-configurable and ignored by Git. Set `AURA_WORKSPACE_STORAGE_MODE=memory` only
-for disposable development or tests.
+Projects and artifacts persist by default in the platform user-data directory
+(`%LOCALAPPDATA%\AURA` on Windows). `AURA_DATA_DIR`,
+`AURA_WORKSPACE_DB_PATH`, and `AURA_WORKSPACE_ARTIFACT_DIR` override it. Set
+`AURA_WORKSPACE_STORAGE_MODE=memory` only for disposable development or tests.
+
+The production frontend package is under `src/aura/workspace/web/frontend`:
+
+```powershell
+cd src/aura/workspace/web/frontend
+npm ci
+npm run build
+```
 
 ## Testing
 
@@ -140,8 +147,8 @@ Their old reports are historical evidence, not proof of the current checkout.
 
 ## Configuration
 
-Settings are loaded from `.env` with `.env.example` as a fallback. Important
-options include:
+Settings use package defaults and optional values from `.env`. Copy
+`.env.example` when local customization is needed. Important options include:
 
 ```env
 AURA_PLANNER_PROVIDER=ollama
@@ -163,6 +170,8 @@ memory are excluded from Git.
 - [Legacy systems](docs/LEGACY.md)
 - [Validation status](docs/VALIDATION.md)
 - [Development](docs/DEVELOPMENT.md)
+- [Representation stack decision](docs/decisions/representation-stack.md)
+- [Third-party notices](docs/THIRD_PARTY_NOTICES.md)
 
 Known migration limitations include the still-large compatibility supervisor,
 fragmented historical test scripts, host-dependent voice/desktop behavior, and

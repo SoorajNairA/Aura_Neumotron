@@ -8,7 +8,7 @@ This isolated experiment uses the following pinned packages. Their upstream lice
 - `@tscircuit/schematic-viewer@2.0.76`, MIT upstream repository (the published manifest omits its licence field).
 - `circuit-json@0.0.464`, ISC.
 - `react@18.3.1` and `react-dom@18.3.1`, MIT.
-- `vite@7.1.7`, `vitest@3.2.4`, and `@vitejs/plugin-react@5.1.4`, MIT.
+- `vite@7.3.6`, `vitest@3.2.7`, and `@vitejs/plugin-react@5.1.4`, MIT.
 - `@playwright/test@1.62.1`, Apache-2.0.
 
 No step.parts model is redistributed. The repository application is MIT, but individual models retain their own upstream terms. The `bearing_608zz` API/catalogue record did not identify a model licence or attribution, so the asset was rejected and represented by a labelled procedural proxy.
