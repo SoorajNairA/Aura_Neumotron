@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --passWithNoTests --exclude e2e/**",
     "test:browser": "npm run build && playwright test"
   },
   "dependencies": {
