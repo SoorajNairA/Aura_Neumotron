@@ -45,3 +45,15 @@ historical results as current validation.
 `workspace/`, `memory/`, `logs/`, model caches, local voice samples, build
 outputs, and Python caches are reproducible or host-specific and remain ignored.
 Do not commit secrets, downloaded models, generated HTML, or runtime event data.
+## Representation runtime
+
+Install and build the isolated production browser/Node representation runtime before packaging:
+
+```powershell
+cd src/aura/workspace/representation_runtime
+npm ci
+npm run build
+npm run test:browser
+```
+
+`@tscircuit/core` is used only by the fixed Node generator. The browser bundle consumes Circuit JSON and lazy-loads `cascade-core` only for validated mechanical representations.
