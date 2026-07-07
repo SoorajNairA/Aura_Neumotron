@@ -52,8 +52,24 @@ RELATIONSHIPS = [
 
 def irrigation_assembly(graph: EngineeringGraph) -> dict[str, Any]:
     if "component-reservoir" not in graph.entities or "component-pump" not in graph.entities:
+        if "component-upper-arm" in graph.entities and "component-shoulder-servo" in graph.entities:
+            return robotic_arm_assembly(graph)
         return engineering_assembly(graph)
     return _irrigation_assembly(graph)
+
+def robotic_arm_assembly(graph:EngineeringGraph)->dict[str,Any]:
+    layout={
+        "component-base":((0,0,9),(0,0,9)),"component-shoulder-servo":((0,0,35),(-45,0,45)),
+        "component-upper-arm":((32,0,105),(-10,0,135)),"component-elbow-servo":((64,0,170),(25,0,210)),
+        "component-forearm":((35,0,225),(65,0,280)),"component-end-effector":((5,0,282),(100,0,345)),
+        "component-controller":((100,35,10),(160,65,35)),"component-power":((100,-35,12),(160,-65,40)),
+    }
+    parts=[]
+    for entity in graph.find(kind=EntityKind.COMPONENT):
+        meta=entity.metadata;dims=meta.get("dimensions",{});size=tuple(float(dims.get(k,{}).get("value",v)) for k,v in (("width",40),("length",30),("height",18)))
+        assembled,exploded=layout.get(entity.id,((0,0,0),(0,0,50)))
+        parts.append(PhysicalPart(entity.id,entity.name,(entity.parent_id or "subsystem").removeprefix("subsystem-"),entity.parent_id or graph.project_id,"conceptual procedural model",size,assembled,exploded,"conceptual"))
+    return {"assemblyId":"robotic-arm-concept","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"hierarchy":{},"parts":[p.to_dict() for p in parts],"connectors":[],"relationships":[{"from":r.source_id,"to":r.target_id,"type":r.type} for r in graph.relationships.values()],"revision":len(graph.revisions),"layoutStatus":"conceptual mechanical assembly"}
 
 def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
     components=graph.find(kind=EntityKind.COMPONENT);groups:dict[str,list[EngineeringEntity]]={}

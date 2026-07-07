@@ -19,6 +19,9 @@ aura = "aura.workspace.server:main"
 aura-assistant = "aura.legacy.assistant.main:main"
 aura-migrate-storage = "aura.infrastructure.persistence.storage_migration:main"
 aura-demo = "aura.workspace.demo:main"
+aura-diagnostics = "aura.workspace.diagnostics:main"
+aura-model-check = "aura.workspace.diagnostics:model_check"
+aura-pipeline-check = "aura.workspace.diagnostics:pipeline_check"
 
 [project.optional-dependencies]
 voice = [

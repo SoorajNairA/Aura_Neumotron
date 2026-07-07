@@ -51,9 +51,15 @@ class LivePlanner:
             try:
                 raw = self._generate(prompt)
                 structured = StructuredPlannerResponse.model_validate(json.loads(raw))
+                # Known bounded product families use their richer deterministic
+                # semantic templates after Vertex has supplied requirements and
+                # assumptions. Novel supported objectives retain model-proposed
+                # components for the generic planner.
+                known_template=any(word in request.objective.lower() for word in ("fan","feeder","weather","humidity","pressure","tank","servo","lid","robotic arm","robot arm"))
                 planned_request = ProjectRequest(
                     structured.projectName, request.objective,
-                    tuple(structured.requirements), assumptions=tuple(structured.assumptions),
+                    tuple(structured.requirements), components=() if known_template else tuple(structured.components),
+                    assumptions=tuple(structured.assumptions),
                 )
                 plan = PlannerService().plan(planned_request)
                 plan.validate()

@@ -30,6 +30,8 @@ def classify_objective(objective:str)->dict[str,Any]:
     hits=sorted({label for word,label in outside.items() if word in text})
     if hits:
         return {"status":CapabilityStatus.UNSUPPORTED.value,"reasons":[f"Current capability excludes {', '.join(hits)}."],"supportedAlternative":"A small low-voltage conceptual mechatronic analogue may be created instead."}
+    if "robotic arm" in text or "robot arm" in text:
+        return {"status":CapabilityStatus.SUPPORTED_WITH_LIMITATIONS.value,"reasons":["A low-voltage servo-driven conceptual arm is supported; payload, structural analysis, precision kinematics, and manufacturing readiness are not verified."]}
     keywords=("esp32","sensor","fan","feeder","weather","tank","servo","motor","pump","monitor","controller","automation","robotic","temperature","humidity","lid","irrigation")
     if any(word in text for word in keywords):
         return {"status":CapabilityStatus.SUPPORTED.value,"reasons":["Objective is within bounded small low-voltage mechatronics."]}

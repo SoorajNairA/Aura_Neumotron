@@ -211,6 +211,11 @@ class WorkspaceApplication:
         except RuntimeError as exc:
             raise HTTPException(503, detail=str(exc)) from exc
         plan = outcome.plan
+        capability = classify_objective(body.objective)["status"]
+        if capability in {"SUPPORTED", "SUPPORTED_WITH_LIMITATIONS"}:
+            component_entities=[item for item in plan.entities if item.kind is EntityKind.COMPONENT]
+            if not component_entities:
+                raise HTTPException(422,detail={"status":"PLANNING_FAILED","reasons":["Supported Planner output contained no semantic components after bounded repair/fallback."]})
         project_id = plan.entities[0].id
         existing=self.repository.get_project(project_id)
         if body.planningMode=="deterministic_test" and existing is not None:
@@ -367,7 +372,10 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.get("/")
     def index() -> FileResponse:
-        return FileResponse(web_root / "index.html")
+        # The Vite renderer is the single production UI for browser tests and
+        # the Electron shell.  The previous dashboard/iframe remains only as
+        # source history and is no longer served to users.
+        return FileResponse(web_root / "representation" / "index.html")
 
     @app.get("/health/live")
     def health_live() -> dict[str, str]:

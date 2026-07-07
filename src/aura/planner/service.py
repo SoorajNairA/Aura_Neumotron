@@ -23,7 +23,8 @@ class PlannerService:
             raise ValueError(capability)
         if "irrigation" in request.objective.lower() or ("soil" in request.objective.lower() and "pump" in request.objective.lower()):
             return self._irrigation_plan(request)
-        if not request.components and any(word in request.objective.lower() for word in ("fan","feeder","weather","humidity","pressure","tank","servo","lid")):
+        if ((not request.components and any(word in request.objective.lower() for word in ("fan","feeder","weather","humidity","pressure","tank","servo","lid")))
+                or "robotic arm" in request.objective.lower() or "robot arm" in request.objective.lower()):
             return self._mechatronic_plan(request,capability["status"])
         project_id = self._id(request.project_name, "project")
         assembly_id = self._id(request.project_name, "assembly")
@@ -93,6 +94,8 @@ class PlannerService:
         elif any(word in text for word in ("weather","humidity","pressure")): families += ["environmental-sensor"]
         elif "tank" in text: families += ["distance-sensor","indicator","container"]
         elif "servo" in text or "lid" in text: families += ["servo","lid","hinge","mounting-plate"]
+        if "robotic arm" in text or "robot arm" in text:
+            families = ["controller","power","base","shoulder-servo","upper-arm","elbow-servo","forearm","end-effector"]
         specs={
           "controller":("Controller board","microcontroller_board","electronics",{"logic_voltage_v":3.3,"gpio_max_current_ma":12},(52,28,8)),
           "power":("Low-voltage power source","low_voltage_power_source","power",{"voltage_v":5.0,"available_current_a":3.0,"mains_exposed":False},(48,30,18)),
@@ -109,6 +112,12 @@ class PlannerService:
           "lid":("Lightweight lid","lid","mechanical",{"mass_g":120},(120,90,6)),
           "hinge":("Lid hinge","hinge","mechanical",{"relationship":"revolute_proxy"},(80,10,10)),
           "mounting-plate":("Mounting plate","mounting_plate","structure",{},(150,100,6)),
+          "base":("Robotic arm base","mounting_plate","structure",{"validation":"conceptual mechanical assembly"},(120,100,18)),
+          "shoulder-servo":("Shoulder servo","servo","actuation",{"voltage_v":5.0,"current_a":0.8,"joint":"shoulder","load_verified":False},(40,20,38)),
+          "upper-arm":("Upper arm link","simple_arm","structure",{"length_mm":145,"load_verified":False},(28,145,18)),
+          "elbow-servo":("Elbow servo","servo","actuation",{"voltage_v":5.0,"current_a":0.8,"joint":"elbow","load_verified":False},(40,20,38)),
+          "forearm":("Forearm link","simple_arm","structure",{"length_mm":125,"load_verified":False},(24,125,16)),
+          "end-effector":("Conceptual gripper","generic_mechanical_part","structure",{"precision_kinematics_verified":False},(65,45,22)),
         }
         subsystems=tuple(SubsystemSpec(f"subsystem-{role}",role.title(),role,"Deterministic semantic subsystem.") for role in dict.fromkeys(specs[f][2] for f in families))
         components=[]
@@ -125,6 +134,9 @@ class PlannerService:
         connect("component-controller","component-driver","control")
         for target in sorted(ids-{"component-power","component-enclosure","component-container","component-lid","component-hinge","component-mounting-plate","component-dispensing-mechanism"}):connect("component-power",target,"power");connect("component-power",target,"ground")
         connect("component-servo","component-dispensing-mechanism","mechanical");connect("component-servo","component-lid","mechanical");connect("component-hinge","component-lid","mechanical")
+        connect("component-controller","component-shoulder-servo","control");connect("component-controller","component-elbow-servo","control")
+        connect("component-base","component-shoulder-servo","mechanical");connect("component-shoulder-servo","component-upper-arm","mechanical")
+        connect("component-upper-arm","component-elbow-servo","mechanical");connect("component-elbow-servo","component-forearm","mechanical");connect("component-forearm","component-end-effector","mechanical")
         entities=[PlannedEntity(project_id,EntityKind.PROJECT,request.project_name,metadata=(("objective",request.objective),("capability_status",capability_status)))]
         entities += [PlannedEntity(s.id,EntityKind.SUBSYSTEM,s.name,project_id,(("role",s.role),)) for s in subsystems]
         entities += [PlannedEntity(c.id,EntityKind.COMPONENT,c.name,c.subsystem_id,tuple({"role":c.role,"family":c.role,"parameters":c.parameters,"interfaces":list(c.interfaces),"dimensions":c.dimensions,"representation_status":"placeholder","assumption_refs":list(c.assumption_refs)}.items())) for c in components]
