@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import webbrowser
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -29,6 +30,7 @@ from .assembly import irrigation_assembly
 from .events import WorkspaceEvent
 from .representation_service import RepresentationService, initial_records, irrigation_specs
 from .representations import RepresentationRecord, RepresentationStatus
+from .modifications import ModificationProposal,propose
 
 
 class CreateProjectBody(BaseModel):
@@ -58,6 +60,9 @@ class RepresentationUpdateBody(BaseModel):
     status: str
     error: Optional[str] = None
     metrics: dict[str, float] = Field(default_factory=dict)
+
+class ProposalBody(BaseModel):
+    projectId:str;baseRevision:int;selectedSemanticIds:list[str];request:str=Field(min_length=5);mode:str="automatic"
 
 
 class EventBroker:
@@ -102,6 +107,8 @@ class WorkspaceApplication:
         self.repository = repository or SQLiteProjectRepository(database, artifact_dir or settings.workspace_artifact_dir)
         self.broker = EventBroker(self.repository)
         self.representation_service = RepresentationService(self.repository)
+        self.modification_proposals:dict[str,ModificationProposal]={}
+        self.modification_locks:dict[str,threading.Lock]={}
 
     def _request(self, objective: str) -> ProjectRequest:
         return ProjectRequest("Automatic Irrigation System", objective,
@@ -331,6 +338,53 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             "payload":{"representationId":representation_id,"metrics":body.metrics,"error":body.error}}])
         for event in events: await application.broker.publish_committed(event)
         return updated.to_dict()
+
+    @app.post("/api/projects/{project_id}/modification-proposals",status_code=201)
+    async def create_modification_proposal(project_id:str,body:ProposalBody)->dict[str,Any]:
+        record=_record(application,project_id)
+        if body.projectId!=project_id: raise HTTPException(422,"Project ID mismatch")
+        try: proposal=propose(record.graph,body.baseRevision,body.selectedSemanticIds,body.request,body.mode)
+        except ValueError as exc:
+            code=str(exc);status=409 if code=="stale_revision" else 422
+            raise HTTPException(status,detail={"code":code,"currentRevision":len(record.graph.revisions)}) from exc
+        application.modification_proposals[proposal.proposal_id]=proposal
+        for event in application.repository.append_events(project_id,len(record.graph.revisions),[
+            {"type":"modification.requested","semantic_ids":body.selectedSemanticIds,"payload":{"request":body.request}},
+            {"type":"modification.preview_ready","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal.proposal_id}}]): await application.broker.publish_committed(event)
+        return proposal.to_dict()
+
+    @app.delete("/api/projects/{project_id}/modification-proposals/{proposal_id}")
+    async def cancel_modification(project_id:str,proposal_id:str)->dict[str,bool]:
+        proposal=application.modification_proposals.pop(proposal_id,None)
+        if proposal:
+            for event in application.repository.append_events(project_id,proposal.base_revision,[{"type":"modification.cancelled","semantic_ids":list(proposal.target_ids),"payload":{"proposalId":proposal_id}}]): await application.broker.publish_committed(event)
+        return {"cancelled":bool(proposal)}
+
+    @app.post("/api/projects/{project_id}/modification-proposals/{proposal_id}/commit")
+    async def commit_modification(project_id:str,proposal_id:str)->dict[str,Any]:
+        proposal=application.modification_proposals.get(proposal_id)
+        if not proposal: raise HTTPException(404,"Proposal not found")
+        lock=application.modification_locks.setdefault(project_id,threading.Lock())
+        if not lock.acquire(blocking=False): raise HTTPException(409,detail={"code":"modification_in_progress"})
+        try:
+            record=_record(application,project_id)
+            if len(record.graph.revisions)!=proposal.base_revision: raise HTTPException(409,detail={"code":"stale_revision","currentRevision":len(record.graph.revisions)})
+            result=VerificationService().verify_modification(record.graph,proposal.patch)
+            updated=WorkspaceBridge().commit(record.graph,result)
+            reps=[]
+            for item in record.representations:
+                copy=dict(item)
+                if copy["representationId"] in proposal.regenerate: copy["status"]="stale"
+                reps.append(copy)
+            updated_record=StoredProject(record.project_id,record.objective,record.planning_mode,record.fallback_reason,"ready",updated,reps,record.created_at,datetime.now(timezone.utc).isoformat())
+            diff={"changed":list(proposal.operations),"regenerated":list(proposal.regenerate),"affected":list(proposal.affected_ids),"unchanged":list(proposal.unaffected)}
+            drafts=[{"type":"modification.committed","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal_id,"diff":diff}},{"type":"revision.committed","semantic_ids":list(proposal.affected_ids),"payload":{"diff":diff}}]
+            for rid in proposal.regenerate:drafts.append({"type":"representation.stale","semantic_ids":list(proposal.affected_ids),"payload":{"representationId":rid}})
+            committed=application.repository.save_commit(updated_record,proposal.patch,{"outcome":proposal.verification},drafts)
+            for event in committed:await application.broker.publish_committed(event)
+            application.modification_proposals.pop(proposal_id,None)
+            return {"projectId":project_id,"revision":len(updated.revisions),"summary":proposal.summary,"diff":diff,"representations":reps}
+        finally:lock.release()
 
     @app.websocket("/api/projects/{project_id}/events")
     async def events(websocket: WebSocket, project_id: str,
