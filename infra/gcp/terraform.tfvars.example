@@ -1,0 +1,7 @@
+project_id = "auraproject-v1"
+region = "asia-south1"
+image = "asia-south1-docker.pkg.dev/auraproject-v1/aura/workspace:latest"
+min_instances = 0
+# Set true only for intentional persisted-data teardown:
+database_deletion_protection = true
+artifact_force_destroy = false

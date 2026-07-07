@@ -88,6 +88,13 @@ test-results/
 
 diagnostics_report.md
 
+# Terraform local state and private variable files
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+
 # Local Scratch Files
 
 _test*.py
