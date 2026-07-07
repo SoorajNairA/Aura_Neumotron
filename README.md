@@ -63,7 +63,7 @@ existing reproducible assistant setup during migration.
 
 ## Running
 
-Install and start Ollama, then install at least one supported local model:
+The compatibility assistant optionally uses Ollama. To run it, install a supported local model:
 
 ```powershell
 ollama pull qwen3:8b
@@ -90,7 +90,8 @@ Run the primary browser engineering workspace server:
 
 ```powershell
 $env:PYTHONPATH = "src"
-pip install -e ".[server]"
+pip install -e ".[server,vertex]"
+gcloud auth application-default login
 python -m aura.workspace.server --open
 ```
 
@@ -151,9 +152,11 @@ Settings use package defaults and optional values from `.env`. Copy
 `.env.example` when local customization is needed. Important options include:
 
 ```env
-AURA_PLANNER_PROVIDER=ollama
-AURA_PLANNER_MODEL=qwen3:8b
-AURA_PLANNER_TIMEOUT=15
+AURA_LLM_PROVIDER=vertex
+AURA_GCP_PROJECT=your-gcp-project-id
+AURA_GCP_LOCATION=global
+AURA_VERTEX_MODEL=gemini-3.1-flash-lite
+AURA_VERTEX_TIMEOUT_SECONDS=20
 AURA_DETERMINISTIC_FALLBACK=true
 AURA_HARDWARE_PROFILE=auto
 AURA_STT_MODEL=small
@@ -171,6 +174,7 @@ memory are excluded from Git.
 - [Validation status](docs/VALIDATION.md)
 - [Development](docs/DEVELOPMENT.md)
 - [Representation stack decision](docs/decisions/representation-stack.md)
+- [Vertex Planner decision](docs/decisions/vertex-planner.md)
 - [Third-party notices](docs/THIRD_PARTY_NOTICES.md)
 
 Known migration limitations include the still-large compatibility supervisor,

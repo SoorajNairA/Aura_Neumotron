@@ -7,13 +7,14 @@ Use Python 3.10 or newer. Install the browser workspace and test dependencies:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e ".[server,dev]"
+pip install -e ".[server,vertex,dev]"
 Copy-Item .env.example .env
 ```
 
-The active live Planner uses `AURA_PLANNER_MODEL=qwen3:8b`. The deterministic
-irrigation fallback requires no local model. `qwen2.5:3b` remains supported only
-as the low-hardware fallback for the compatibility assistant.
+The active live Planner uses Vertex AI with Application Default Credentials and
+`gemini-3.1-flash-lite`. Run `gcloud auth application-default login`; configure
+`AURA_GCP_PROJECT` when ADC does not provide a project. The deterministic Planner
+requires no model. Ollama remains isolated to the compatibility assistant.
 
 ## Run
 
@@ -37,7 +38,7 @@ pytest -q
 python -m compileall -q src tests
 ```
 
-Live Ollama, voice, desktop, and Unreal checks are opt-in. Never describe their
+Live Vertex, Ollama compatibility, voice, desktop, and Unreal checks are opt-in. Never describe their
 historical results as current validation.
 
 ## Generated data
