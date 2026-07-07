@@ -1,9 +1,36 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
+from typing import Optional
 from uuid import uuid4
+import json
+from pydantic import BaseModel,ConfigDict,Field
 from aura.engineering_graph.model import EngineeringGraph
 from aura.engineering_graph.patches import GraphOperation,GraphPatch,PatchOperation
+
+class ModificationIntent(BaseModel):
+    model_config=ConfigDict(extra="forbid")
+    targetSemanticId:str
+    intent:str
+    scalePercent:Optional[float]=None
+    preserve:list[str]=Field(default_factory=list)
+
+class LiveModificationPlanner:
+    def __init__(self,provider):self.provider=provider;self.last_metadata={}
+    def propose(self,graph,base:int,ids:list[str],request:str,mode:str="automatic"):
+        if len(ids)!=1 or ids[0] not in graph.entities:raise ValueError("unsupported_target")
+        target=graph.get(ids[0]);context={"selectedSemanticIds":ids,"component":{"id":target.id,"name":target.name,"family":target.metadata.get("family",target.metadata.get("role")),"parameters":target.metadata.get("parameters",{}),"dimensions":target.metadata.get("dimensions",{})},"request":request,"allowedIntents":["increase_size","lower_threshold","move_component","replace_driver"]}
+        errors=""
+        for attempt in range(2):
+            prompt=f"Normalize this bounded engineering change without inventing components: {json.dumps(context,separators=(',',':'))}. {errors}"
+            result=self.provider.generate_structured([{"role":"user","content":prompt}],system_prompt="You normalize AURA modification intent. Return only the response schema.",max_tokens=400,response_schema=ModificationIntent.model_json_schema())
+            try:intent=ModificationIntent.model_validate_json(result.text)
+            except Exception as exc:errors=f"Previous schema error: {exc}";continue
+            if intent.targetSemanticId!=target.id or intent.intent not in context["allowedIntents"]:errors="Target or intent was outside the bounded request.";continue
+            canonical={"increase_size":"increase capacity larger size","lower_threshold":"lower temperature threshold earlier","move_component":"move position farther","replace_driver":"replace with logic-level mosfet"}[intent.intent]
+            self.last_metadata={"repairAttempts":attempt,"firstPassValid":attempt==0,"inputTokens":result.input_tokens,"outputTokens":result.output_tokens,"totalTokens":result.total_tokens,"model":result.model}
+            return propose(graph,base,ids,canonical,mode)
+        raise ValueError("model_modification_invalid")
 
 @dataclass(frozen=True)
 class ModificationProposal:

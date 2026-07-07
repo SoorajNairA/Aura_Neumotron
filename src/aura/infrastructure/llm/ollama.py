@@ -173,8 +173,8 @@ Be useful. Be honest. Be competent. Be human in conversation, even if you are no
 class OllamaConversationModel(ConversationModel):
     """Ollama /api/chat backend.
 
-    The Engineering Workspace configures qwen3:8b. The compatibility assistant
-    may use qwen2.5:3b on lower-memory hardware. Set the model in config/env.
+    Retained for the compatibility assistant. The Engineering Workspace does not
+    route through this backend.
     """
 
     backend_name = "ollama"

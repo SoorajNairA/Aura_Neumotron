@@ -36,7 +36,7 @@ load_dotenv(dotenv_path=".env", override=False)
 
 @dataclass(frozen=True)
 class Settings:
-    """AURA local-only configuration. All services run offline."""
+    """AURA configuration; the Workspace Planner may use managed Vertex AI."""
 
     creator_name: str = os.getenv("AURA_CREATOR_NAME", "Sooraj").strip() or "Sooraj"
 
@@ -46,9 +46,13 @@ class Settings:
     workspace_storage_mode: str = os.getenv("AURA_WORKSPACE_STORAGE_MODE", "sqlite").strip().lower()
     workspace_db_path: Path = Path(os.getenv("AURA_WORKSPACE_DB_PATH", str(aura_data_dir() / "workspace" / "aura.db")))
     workspace_artifact_dir: Path = Path(os.getenv("AURA_WORKSPACE_ARTIFACT_DIR", str(aura_data_dir() / "workspace" / "artifacts")))
-    planner_provider: str = os.getenv("AURA_PLANNER_PROVIDER", "ollama").strip().lower()
-    planner_model: str = os.getenv("AURA_PLANNER_MODEL", "qwen3:8b").strip()
-    planner_timeout: float = float(os.getenv("AURA_PLANNER_TIMEOUT", "15"))
+    planner_provider: str = os.getenv("AURA_LLM_PROVIDER",os.getenv("AURA_PLANNER_PROVIDER","vertex")).strip().lower()
+    planner_model: str = os.getenv("AURA_PLANNER_MODEL", "").strip()
+    planner_timeout: float = float(os.getenv("AURA_PLANNER_TIMEOUT", "20"))
+    gcp_project:str=os.getenv("AURA_GCP_PROJECT",os.getenv("GOOGLE_CLOUD_PROJECT","")).strip()
+    gcp_location:str=os.getenv("AURA_GCP_LOCATION","global").strip()
+    vertex_model:str=os.getenv("AURA_VERTEX_MODEL","gemini-3.1-flash-lite").strip()
+    vertex_timeout:float=float(os.getenv("AURA_VERTEX_TIMEOUT_SECONDS","20"))
     deterministic_fallback: bool = os.getenv(
         "AURA_DETERMINISTIC_FALLBACK", "true"
     ).strip().lower() in {"1", "true", "yes", "on"}
@@ -118,7 +122,7 @@ class Settings:
     )
 
     # ------------------------------------------------------------------
-    # Local Conversation Brain (Ollama / Qwen)
+    # Legacy compatibility assistant conversation brain (Ollama).
     # ------------------------------------------------------------------
     conversation_backend: str = os.getenv("AURA_CONVERSATION_BACKEND", "ollama")
     ollama_base_url: str = os.getenv("AURA_OLLAMA_BASE_URL", "http://localhost:11434")

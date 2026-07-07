@@ -23,7 +23,7 @@ class PlannerService:
             raise ValueError(capability)
         if "irrigation" in request.objective.lower() or ("soil" in request.objective.lower() and "pump" in request.objective.lower()):
             return self._irrigation_plan(request)
-        if not request.components and any(word in request.objective.lower() for word in ("fan","feeder","weather","tank","servo","lid")):
+        if not request.components and any(word in request.objective.lower() for word in ("fan","feeder","weather","humidity","pressure","tank","servo","lid")):
             return self._mechatronic_plan(request,capability["status"])
         project_id = self._id(request.project_name, "project")
         assembly_id = self._id(request.project_name, "assembly")
@@ -90,7 +90,7 @@ class PlannerService:
         families=["controller","power","enclosure"]
         if "fan" in text: families += ["temperature-sensor","driver","fan"]
         elif "feeder" in text: families += ["servo","container","dispensing-mechanism"]
-        elif "weather" in text: families += ["environmental-sensor"]
+        elif any(word in text for word in ("weather","humidity","pressure")): families += ["environmental-sensor"]
         elif "tank" in text: families += ["distance-sensor","indicator","container"]
         elif "servo" in text or "lid" in text: families += ["servo","lid","hinge","mounting-plate"]
         specs={

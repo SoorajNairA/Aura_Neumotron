@@ -28,6 +28,9 @@ class PlanningOutcome:
     plan: ProjectPlan
     mode: str
     fallback_reason: str | None = None
+    repair_attempts:int=0
+    first_pass_valid:bool=False
+    provider_metadata:dict[str,Any]|None=None
 
 
 class LivePlanner:
@@ -36,6 +39,7 @@ class LivePlanner:
     def __init__(self, provider: ModelProvider, timeout_seconds: float = 15.0) -> None:
         self.provider = provider
         self.timeout_seconds = timeout_seconds
+        self._generation_metadata:dict[str,Any]={}
 
     def plan(self, request: ProjectRequest, cancel: Event | None = None) -> PlanningOutcome:
         cancel = cancel or Event()
@@ -48,12 +52,12 @@ class LivePlanner:
                 raw = self._generate(prompt)
                 structured = StructuredPlannerResponse.model_validate(json.loads(raw))
                 planned_request = ProjectRequest(
-                    structured.projectName, structured.objective,
+                    structured.projectName, request.objective,
                     tuple(structured.requirements), assumptions=tuple(structured.assumptions),
                 )
                 plan = PlannerService().plan(planned_request)
                 plan.validate()
-                return PlanningOutcome(plan, "live_model")
+                return PlanningOutcome(plan,"live_model",None,attempt,attempt==0,dict(self._generation_metadata))
             except (ValueError, json.JSONDecodeError, ValidationError) as exc:
                 errors = str(exc)
             except FutureTimeout:
@@ -64,11 +68,15 @@ class LivePlanner:
 
     def _generate(self, prompt: str) -> str:
         executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="aura-planner")
-        future = executor.submit(self.provider.generate,
-            [{"role": "user", "content": prompt}],
-            system_prompt="Return exactly one JSON object and no prose.", max_tokens=1200)
+        if hasattr(self.provider,"generate_structured"):
+            future=executor.submit(self.provider.generate_structured,[{"role":"user","content":prompt}],system_prompt="You are AURA's bounded engineering Planner. Return one schema-valid object.",max_tokens=1200,response_schema=StructuredPlannerResponse.model_json_schema())
+        else:
+            future = executor.submit(self.provider.generate,[{"role": "user", "content": prompt}],system_prompt="Return exactly one JSON object and no prose.", max_tokens=1200)
         try:
-            return future.result(timeout=self.timeout_seconds)
+            result=future.result(timeout=self.timeout_seconds)
+            if hasattr(result,"text"):
+                self._generation_metadata={"inputTokens":result.input_tokens,"outputTokens":result.output_tokens,"totalTokens":result.total_tokens,"model":result.model,**result.metadata};return result.text
+            return result
         except FutureTimeout:
             future.cancel()
             raise

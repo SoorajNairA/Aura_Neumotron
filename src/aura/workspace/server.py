@@ -31,7 +31,7 @@ from .assembly import irrigation_assembly
 from .events import WorkspaceEvent
 from .representation_service import RepresentationService, initial_records, irrigation_specs
 from .representations import RepresentationRecord, RepresentationStatus
-from .modifications import ModificationProposal,inverse_proposal,propose
+from .modifications import LiveModificationPlanner,ModificationProposal,inverse_proposal,propose
 
 
 class CreateProjectBody(BaseModel):
@@ -124,7 +124,10 @@ class WorkspaceApplication:
         if body.planningMode == "live_model":
             provider = self.provider or self._default_provider()
             if provider is not None:
+                self.provider=provider
                 outcome = LivePlanner(provider, self.planner_timeout).plan(request)
+                if outcome.mode=="deterministic_fallback" and outcome.fallback_reason and any(term in outcome.fallback_reason for term in ("Application Default Credentials","ADC/IAM access")):
+                    raise RuntimeError(outcome.fallback_reason)
                 if outcome.mode == "deterministic_fallback" and not fallback_enabled:
                     raise RuntimeError(outcome.fallback_reason or "live planning failed")
                 return outcome
@@ -137,17 +140,21 @@ class WorkspaceApplication:
     def _default_provider(self) -> Any | None:
         try:
             from aura.app.config import Settings
-            from aura.infrastructure.llm.ollama import OllamaConversationModel
-            from aura.infrastructure.llm.provider import ConversationModelAdapter
             settings = Settings()
-            if settings.planner_provider != "ollama":
-                return None
-            model = settings.planner_model
-            return ConversationModelAdapter(OllamaConversationModel(
-                model, settings.ollama_base_url, max(2, int(self.planner_timeout) - 1),
-                settings.ollama_context_length))
-        except Exception:
-            return None
+            if settings.planner_provider=="vertex":
+                from aura.infrastructure.llm.vertex import VertexPlannerProvider
+                project=settings.gcp_project
+                if not project:
+                    try:
+                        import google.auth
+                        _,project=google.auth.default(scopes=[VertexPlannerProvider.SCOPE])
+                    except Exception as exc:raise RuntimeError("Vertex Planner ADC is unavailable; run: gcloud auth application-default login") from exc
+                if not project or not settings.vertex_model:raise RuntimeError("Vertex Planner requires an ADC project or AURA_GCP_PROJECT and AURA_VERTEX_MODEL")
+                return VertexPlannerProvider(project,settings.gcp_location,settings.vertex_model,settings.vertex_timeout)
+            if settings.planner_provider=="deterministic":return None
+            raise RuntimeError(f"Unsupported Planner provider: {settings.planner_provider}")
+        except RuntimeError:raise
+        except Exception as exc:raise RuntimeError(f"Could not initialize Planner provider: {exc}") from exc
 
     async def create(self, body: CreateProjectBody) -> StoredProject:
         try:
@@ -354,7 +361,13 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     async def create_modification_proposal(project_id:str,body:ProposalBody)->dict[str,Any]:
         record=_record(application,project_id)
         if body.projectId!=project_id: raise HTTPException(422,"Project ID mismatch")
-        try: proposal=propose(record.graph,body.baseRevision,body.selectedSemanticIds,body.request,body.mode)
+        try:
+            if record.planning_mode=="live_model" and application.provider is not None and hasattr(application.provider,"generate_structured"):
+                try:proposal=await run_in_threadpool(LiveModificationPlanner(application.provider).propose,record.graph,body.baseRevision,body.selectedSemanticIds,body.request,body.mode)
+                except Exception as model_exc:
+                    if model_exc.__class__.__name__=="VertexAuthenticationError":raise HTTPException(503,detail={"code":"vertex_authentication_error","message":str(model_exc)}) from model_exc
+                    proposal=propose(record.graph,body.baseRevision,body.selectedSemanticIds,body.request,body.mode)
+            else:proposal=propose(record.graph,body.baseRevision,body.selectedSemanticIds,body.request,body.mode)
         except ValueError as exc:
             code=str(exc);status=409 if code=="stale_revision" else 422
             raise HTTPException(status,detail={"code":code,"currentRevision":len(record.graph.revisions)}) from exc

@@ -1,7 +1,17 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from dataclasses import dataclass,field
 from typing import Any, Protocol
+
+@dataclass(frozen=True)
+class ModelGenerationResult:
+    text:str
+    input_tokens:int|None=None
+    output_tokens:int|None=None
+    total_tokens:int|None=None
+    model:str|None=None
+    metadata:dict[str,Any]=field(default_factory=dict)
 
 
 class ModelProvider(Protocol):

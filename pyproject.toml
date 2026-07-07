@@ -35,6 +35,7 @@ server = [
     "uvicorn>=0.34,<1",
     "pydantic>=2.9,<3",
 ]
+vertex = ["google-auth>=2.35,<3"]
 xtts = [
     "spacy==3.7.5",
     "coqui-tts==0.25.3",
@@ -68,4 +69,5 @@ markers = [
     "legacy: tests for archived or transitional functionality",
     "unreal: tests for the opt-in Unreal legacy subsystem",
     "slow: tests unsuitable for the default fast suite",
+    "vertex_live: opt-in tests that incur authenticated Vertex AI requests",
 ]
