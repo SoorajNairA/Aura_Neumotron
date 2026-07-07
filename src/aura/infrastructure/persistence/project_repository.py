@@ -12,6 +12,7 @@ from typing import Any, Protocol
 from uuid import uuid4
 
 from aura.engineering_graph.model import EngineeringGraph
+from aura.infrastructure.artifacts import ArtifactStore, LocalFilesystemArtifactStore
 from aura.engineering_graph.patches import GraphPatch
 from aura.engineering_graph.serialization import graph_from_dict, graph_to_dict, patch_from_dict, patch_to_dict
 
@@ -74,13 +75,18 @@ class ProjectRepository(Protocol):
     def get_artifact(self, artifact_id: str) -> ArtifactMetadata | None: ...
     def update_representations(self, project_id: str, representations: list[dict[str, Any]]) -> None: ...
     def append_events(self, project_id: str, revision: int, events: list[dict[str, Any]]) -> list[StoredEvent]: ...
+    def create_artifact(self, project_id: str, revision: int, component_ids: list[str], representation_type: str, format: str) -> ArtifactMetadata: ...
+    def write_artifact(self, artifact_id: str, content: bytes, generator: str, generator_version: str) -> ArtifactMetadata: ...
+    def read_artifact(self, artifact_id: str) -> bytes: ...
+    def is_ready(self) -> bool: ...
+    def close(self) -> None: ...
 
 
 class SQLiteProjectRepository:
-    def __init__(self, database: str | Path, artifact_root: Path) -> None:
+    def __init__(self, database: str | Path, artifact_root: Path, artifact_store: ArtifactStore | None = None) -> None:
         self.database = str(database)
         self.artifact_root = artifact_root.resolve()
-        self.artifact_root.mkdir(parents=True, exist_ok=True)
+        self.artifact_store = artifact_store or LocalFilesystemArtifactStore(self.artifact_root)
         if self.database != ":memory:":
             Path(self.database).parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
@@ -227,23 +233,36 @@ class SQLiteProjectRepository:
         if metadata is None: raise KeyError(f"Unknown artifact: {artifact_id}")
         if not re.fullmatch(r"artifact-[0-9a-f]{32}", artifact_id): raise ValueError("Unsafe artifact id")
         extension = re.sub(r"[^a-z0-9]", "", metadata.format.lower()) or "bin"
-        relative = Path(metadata.project_id) / f"{artifact_id}.{extension}"
-        destination = self.resolve_artifact_path(relative)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        temporary = destination.with_suffix(destination.suffix + ".tmp")
-        temporary.write_bytes(content); temporary.replace(destination)
+        relative = Path("projects") / metadata.project_id / "revisions" / str(metadata.revision) / "representations" / artifact_id / f"artifact.{extension}"
         digest = hashlib.sha256(content).hexdigest(); now = datetime.now(timezone.utc).isoformat()
-        with self._lock, self._connection:
-            self._connection.execute("UPDATE artifacts SET status='ready',content_hash=?,relative_path=?,generator=?,generator_version=?,created_at=? WHERE artifact_id=?",
-                (digest, relative.as_posix(), generator, generator_version, now, artifact_id))
+        self.artifact_store.put(relative.as_posix(), content, digest)
+        try:
+            with self._lock, self._connection:
+                self._connection.execute("UPDATE artifacts SET status='ready',content_hash=?,relative_path=?,generator=?,generator_version=?,created_at=? WHERE artifact_id=?",
+                    (digest, relative.as_posix(), generator, generator_version, now, artifact_id))
+        except Exception:
+            try: self.artifact_store.delete(relative.as_posix())
+            except Exception: pass
+            raise
         return self.get_artifact(artifact_id)  # type: ignore[return-value]
 
-    def resolve_artifact_path(self, relative_path: str | Path) -> Path:
-        relative = Path(relative_path)
-        if relative.is_absolute(): raise ValueError("Artifact path must be relative")
-        destination = (self.artifact_root / relative).resolve()
+    def read_artifact(self, artifact_id: str) -> bytes:
+        metadata = self.get_artifact(artifact_id)
+        if metadata is None or metadata.status != "ready" or not metadata.relative_path:
+            raise KeyError(f"Artifact content is unavailable: {artifact_id}")
+        content = self.artifact_store.get(metadata.relative_path)
+        if hashlib.sha256(content).hexdigest() != metadata.content_hash:
+            raise CorruptProjectData(f"Artifact hash verification failed: {artifact_id}")
+        return content
+
+    def is_ready(self) -> bool:
         try:
-            destination.relative_to(self.artifact_root)
-        except ValueError as exc:
-            raise ValueError("Artifact path escapes configured root") from exc
-        return destination
+            self._connection.execute("SELECT 1").fetchone()
+            return self.artifact_store.ready()
+        except Exception:
+            return False
+
+    def resolve_artifact_path(self, relative_path: str | Path) -> Path:
+        if not isinstance(self.artifact_store, LocalFilesystemArtifactStore):
+            raise RuntimeError("Cloud artifacts do not have local filesystem paths")
+        return self.artifact_store.resolve(relative_path)

@@ -8,6 +8,8 @@ const state = {
   criticalIds: new Set(),
   events: [],
   socket: null,
+  lastEventId: 0,
+  reconnectAttempt: 0,
 };
 const $ = (id) => document.getElementById(id);
 function entities(kind) {
@@ -129,6 +131,9 @@ function connect(after = 0) {
   );
   state.socket.onmessage = async (message) => {
     const event = JSON.parse(message.data);
+    if (event.eventId <= state.lastEventId) return;
+    state.lastEventId = event.eventId;
+    state.reconnectAttempt = 0;
     state.events.push(event);
     $("timeline").insertAdjacentHTML(
       "beforeend",
@@ -146,11 +151,12 @@ function connect(after = 0) {
   };
   state.socket.onclose = () => {
     if (state.projectId)
-      setTimeout(() => connect(state.events.at(-1)?.eventId || 0), 1000);
+      setTimeout(() => connect(state.lastEventId), Math.min(1000 * 2 ** state.reconnectAttempt++, 15000));
   };
 }
 $("create").onclick = async () => {
   state.events = [];
+  state.lastEventId = 0;
   $("timeline").innerHTML = "";
   $("status").textContent = "Understanding objective â†’ Planning project...";
   const response = await fetch("/api/projects", {
@@ -213,6 +219,7 @@ $("open-project").onclick = async () => {
   if (!id) return;
   state.projectId = id;
   state.events = [];
+  state.lastEventId = 0;
   $("timeline").innerHTML = "";
   await loadProject();
   connect(0);

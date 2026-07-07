@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import webbrowser
 import threading
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -101,11 +102,31 @@ class WorkspaceApplication:
             planner_timeout = settings.planner_timeout
         self.planner_timeout = planner_timeout
         mode = storage_mode or settings.workspace_storage_mode
-        if mode not in {"sqlite", "memory"}: raise ValueError(f"Unsupported workspace storage mode: {mode}")
+        if mode not in {"sqlite", "memory", "postgres"}: raise ValueError(f"Unsupported workspace storage mode: {mode}")
         database = ":memory:" if mode == "memory" else str(db_path or settings.workspace_db_path)
         if mode != "memory" and db_path is None and artifact_dir is None:
             migrate_legacy_workspace_data(settings)
-        self.repository = repository or SQLiteProjectRepository(database, artifact_dir or settings.workspace_artifact_dir)
+        if repository is not None:
+            self.repository = repository
+        else:
+            from aura.infrastructure.artifacts import GcsArtifactStore, LocalFilesystemArtifactStore
+            if settings.artifact_storage_mode == "gcs":
+                artifact_store = GcsArtifactStore(settings.gcs_bucket)
+            elif settings.artifact_storage_mode == "local":
+                artifact_store = LocalFilesystemArtifactStore(artifact_dir or settings.workspace_artifact_dir)
+            else:
+                raise ValueError(f"Unsupported artifact storage mode: {settings.artifact_storage_mode}")
+            if mode == "postgres":
+                from aura.infrastructure.persistence.postgres_repository import PostgresProjectRepository
+                dsn = settings.database_url
+                if not dsn:
+                    from psycopg.conninfo import make_conninfo
+                    dsn = make_conninfo(host=settings.db_host, port=settings.db_port, dbname=settings.db_name,
+                        user=settings.db_user, password=settings.db_password)
+                self.repository = PostgresProjectRepository(dsn, artifact_store, settings.db_pool_size,
+                    settings.db_max_overflow, settings.db_pool_timeout)
+            else:
+                self.repository = SQLiteProjectRepository(database, artifact_dir or settings.workspace_artifact_dir, artifact_store)
         self.broker = EventBroker(self.repository)
         self.representation_service = RepresentationService(self.repository)
         self.modification_proposals:dict[str,ModificationProposal]={}
@@ -279,6 +300,16 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     def index() -> FileResponse:
         return FileResponse(web_root / "index.html")
 
+    @app.get("/health/live")
+    def health_live() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @app.get("/health/ready")
+    def health_ready() -> dict[str, str]:
+        if not application.repository.is_ready():
+            raise HTTPException(503, detail={"status": "not_ready"})
+        return {"status": "ready"}
+
     @app.post("/api/projects", status_code=201)
     async def create_project(body: CreateProjectBody) -> dict[str, Any]:
         record = await application.create(body)
@@ -333,7 +364,9 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         artifact = application.repository.get_artifact(artifact_id)
         if artifact is None or artifact.status != "ready" or not artifact.relative_path:
             raise HTTPException(404, detail={"code":"artifact_content_not_found","artifactId":artifact_id})
-        content = application.repository.resolve_artifact_path(artifact.relative_path).read_bytes()  # type: ignore[attr-defined]
+        try: content = application.repository.read_artifact(artifact_id)
+        except (KeyError, CorruptProjectData) as exc:
+            raise HTTPException(404, detail={"code":"artifact_content_not_found","artifactId":artifact_id}) from exc
         media = "application/json" if artifact.format in {"circuit-json","representation-spec"} else "application/octet-stream"
         return Response(content, media_type=media)
 
@@ -474,7 +507,7 @@ def main() -> None:
     settings = Settings()
     parser = argparse.ArgumentParser(description="Run the AURA browser workspace")
     parser.add_argument("--host", default=settings.workspace_host)
-    parser.add_argument("--port", default=settings.workspace_port, type=int)
+    parser.add_argument("--port", default=int(os.getenv("PORT", str(settings.workspace_port))), type=int)
     parser.add_argument("--open", action="store_true", dest="open_browser")
     args = parser.parse_args()
     if args.open_browser:
