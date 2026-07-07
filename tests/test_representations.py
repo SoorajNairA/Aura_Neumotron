@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -49,6 +50,17 @@ def test_node_generator_success_timeout_and_malformed_output(tmp_path: Path):
     with pytest.raises(TimeoutError): CircuitGeneratorAdapter(timeout=.05,script_path=slow).generate(circuit)
     malformed=tmp_path/"malformed.mjs";malformed.write_text("process.stdout.write('bad')",encoding="utf8")
     with pytest.raises(RuntimeError,match="malformed"): CircuitGeneratorAdapter(script_path=malformed).generate(circuit)
+
+
+@pytest.mark.integration
+def test_node_generator_location_is_independent_of_working_directory(tmp_path: Path):
+    circuit=next(spec for spec in irrigation_specs(graph()) if spec.kind is RepresentationType.CIRCUIT_SCHEMATIC)
+    previous=Path.cwd()
+    try:
+        os.chdir(tmp_path)
+        assert CircuitGeneratorAdapter(timeout=15).generate(circuit).status is RepresentationStatus.READY
+    finally:
+        os.chdir(previous)
 
 
 @pytest.mark.integration

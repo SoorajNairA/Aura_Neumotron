@@ -63,7 +63,7 @@ class CircuitGeneratorAdapter:
 
     def __init__(self, timeout: float = 8.0, node_executable: str = "node", script_path: Path | None = None) -> None:
         self.timeout=timeout; self.node_executable=node_executable
-        self.script_path=(script_path or Path(__file__).with_name("representation_runtime") / "generate-circuit.mjs").resolve()
+        self.script_path=(script_path or Path(__file__).with_name("web") / "frontend" / "generators" / "tscircuit" / "generate-circuit.mjs").resolve()
 
     def can_generate(self, spec: RepresentationSpec) -> bool: return spec.kind is RepresentationType.CIRCUIT_SCHEMATIC
 

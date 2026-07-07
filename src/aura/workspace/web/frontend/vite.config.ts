@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-const outputDirectory = resolve(__dirname, "../web/representation");
+const outputDirectory = resolve(__dirname, "../representation");
 
 export default defineConfig({
   base: "/assets/representation/",
