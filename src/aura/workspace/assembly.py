@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
+from aura.engineering_graph.interfaces import component_interfaces, interface_dict
 
 
 @dataclass(frozen=True)
@@ -17,13 +18,14 @@ class PhysicalPart:
     assembled: tuple[float, float, float]
     exploded: tuple[float, float, float]
     verification: str = "estimated"
+    family: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {"semanticId":self.semantic_id,"label":self.label,"subsystem":self.subsystem,
             "parentAssembly":self.parent,"representationSource":self.source,"dimensions":list(self.dimensions),
             "assembledTransform":{"position":list(self.assembled),"rotation":[0,0,0,1]},
             "explodedTransform":{"position":list(self.exploded),"rotation":[0,0,0,1]},
-            "verificationState":self.verification}
+            "verificationState":self.verification,"family":self.family}
 
 
 CONNECTORS = [
@@ -52,24 +54,8 @@ RELATIONSHIPS = [
 
 def irrigation_assembly(graph: EngineeringGraph) -> dict[str, Any]:
     if "component-reservoir" not in graph.entities or "component-pump" not in graph.entities:
-        if "component-upper-arm" in graph.entities and "component-shoulder-servo" in graph.entities:
-            return robotic_arm_assembly(graph)
         return engineering_assembly(graph)
     return _irrigation_assembly(graph)
-
-def robotic_arm_assembly(graph:EngineeringGraph)->dict[str,Any]:
-    layout={
-        "component-base":((0,0,9),(0,0,9)),"component-shoulder-servo":((0,0,35),(-45,0,45)),
-        "component-upper-arm":((32,0,105),(-10,0,135)),"component-elbow-servo":((64,0,170),(25,0,210)),
-        "component-forearm":((35,0,225),(65,0,280)),"component-end-effector":((5,0,282),(100,0,345)),
-        "component-controller":((100,35,10),(160,65,35)),"component-power":((100,-35,12),(160,-65,40)),
-    }
-    parts=[]
-    for entity in graph.find(kind=EntityKind.COMPONENT):
-        meta=entity.metadata;dims=meta.get("dimensions",{});size=tuple(float(dims.get(k,{}).get("value",v)) for k,v in (("width",40),("length",30),("height",18)))
-        assembled,exploded=layout.get(entity.id,((0,0,0),(0,0,50)))
-        parts.append(PhysicalPart(entity.id,entity.name,(entity.parent_id or "subsystem").removeprefix("subsystem-"),entity.parent_id or graph.project_id,"conceptual procedural model",size,assembled,exploded,"conceptual"))
-    return {"assemblyId":"robotic-arm-concept","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"hierarchy":{},"parts":[p.to_dict() for p in parts],"connectors":[],"relationships":[{"from":r.source_id,"to":r.target_id,"type":r.type} for r in graph.relationships.values()],"revision":len(graph.revisions),"layoutStatus":"conceptual mechanical assembly"}
 
 def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
     components=graph.find(kind=EntityKind.COMPONENT);groups:dict[str,list[EngineeringEntity]]={}
@@ -83,9 +69,31 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
             role=next((name for name in columns if name in (entity.parent_id or "") or name in str(meta.get("subsystem",""))),"mechanical")
             assembled=(columns[role],index*55-group_index*8,6.0);exploded=(assembled[0]*1.45,assembled[1]*1.5,assembled[2]+45+index*8)
             source="parametric CAD" if family in {"enclosure","container","reservoir","tube","mounting_plate","lid","generic_mechanical_part"} else "conceptual proxy"
-            parts.append(PhysicalPart(entity.id,entity.name,role,parent,source,dimensions,assembled,exploded,"conceptual"))
-    relationships=[{"from":r.source_id,"to":r.target_id,"type":r.type} for r in graph.relationships.values()]
-    return {"assemblyId":f"assembly-{graph.project_id}","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"hierarchy":hierarchy,"parts":[p.to_dict() for p in _resolve_exploded_collisions(parts)],"connectors":[],"relationships":relationships,"revision":len(graph.revisions),"layoutStatus":"conceptual"}
+            parts.append(PhysicalPart(entity.id,entity.name,role,parent,source,dimensions,assembled,exploded,"conceptual",family))
+    by_id={part.semantic_id:part for part in parts};interfaces=[];by_owner={}
+    for entity in components:
+        part=by_id[entity.id];family=entity.metadata.get("family",entity.metadata.get("role",""))
+        definitions=component_interfaces(family,part.dimensions);by_owner[entity.id]=definitions
+        interfaces.extend(interface_dict(entity.id,item) for item in definitions)
+    positions={part.semantic_id:list(part.assembled) for part in parts};mated=[];constraints=[];used=set()
+    mechanical={"mechanical","fixed","revolute","hinge"}
+    for relation in graph.relationships.values():
+        if relation.type not in mechanical or relation.source_id not in by_owner or relation.target_id not in by_owner: continue
+        pair=next(((a,b) for a in by_owner[relation.source_id] for b in by_owner[relation.target_id]
+            if b.kind in a.compatible and f"{relation.source_id}:{a.name}" not in used and f"{relation.target_id}:{b.name}" not in used),None)
+        if not pair: continue
+        source,target=pair;source_world=[positions[relation.source_id][i]+source.position[i] for i in range(3)]
+        positions[relation.target_id]=[source_world[i]-target.position[i]+(source.axis[i] if source.axis else 0)*source.clearance_mm for i in range(3)]
+        source_id=f"{relation.source_id}:{source.name}";target_id=f"{relation.target_id}:{target.name}";used.update((source_id,target_id))
+        constraints.append((relation.source_id,source,relation.target_id,target))
+        mated.append({"from":source_id,"to":target_id,"type":"revolute" if source.kind in {"rotating_output","hinge_axis"} else "fixed"})
+    for _ in range(len(constraints)+1):
+        for source_owner,source,target_owner,target in constraints:
+            source_world=[positions[source_owner][i]+source.position[i] for i in range(3)]
+            positions[target_owner]=[source_world[i]-target.position[i]+(source.axis[i] if source.axis else 0)*source.clearance_mm for i in range(3)]
+    from dataclasses import replace
+    parts=[replace(part,assembled=tuple(positions[part.semantic_id]),exploded=tuple(positions[part.semantic_id][i]+(part.exploded[i]-part.assembled[i]) for i in range(3))) for part in parts]
+    return {"assemblyId":f"assembly-{graph.project_id}","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"hierarchy":hierarchy,"parts":[p.to_dict() for p in _resolve_exploded_collisions(parts)],"interfaces":interfaces,"connectors":interfaces,"relationships":mated,"revision":len(graph.revisions),"layoutStatus":"conceptual mechanical assembly","placementMethod":"interface-frame-mating"}
 
 def _irrigation_assembly(graph: EngineeringGraph) -> dict[str, Any]:
     graph_ids={entity.id for entity in graph.find(kind=EntityKind.COMPONENT)}

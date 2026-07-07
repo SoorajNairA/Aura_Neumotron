@@ -94,7 +94,7 @@ class RepresentationSpecValidator:
     MAX_PATH_POINTS = 64
     MAX_COMPONENTS = 100
     OPERATIONS = {"loft", "pipe", "filleted_enclosure", "box", "cylinder"}
-    COMPONENT_KINDS = {"controller", "soil_sensor", "mosfet", "diode", "motor", "power_source"}
+    COMPONENT_KINDS = {"controller", "soil_sensor", "mosfet", "diode", "motor", "servo", "power_source"}
 
     def validate(self, spec: RepresentationSpec, graph_ids: set[str]) -> RepresentationSpec:
         if not spec.semantic_ids or any(item not in graph_ids or not item.startswith("component-") for item in spec.semantic_ids):

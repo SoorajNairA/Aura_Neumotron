@@ -32,23 +32,40 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
         elif family in {"tube"} or entity.id=="component-tubing": geometry={"operation":"pipe","radius":5,"path":[[0,0,0],[30,0,15],[55,20,45],[85,25,80]]}
         elif family in {"lid","generic_mechanical_part"}: geometry={"operation":"box","width":value("width",60),"depth":value("length",40),"height":value("height",8)}
         if geometry: mechanical.append(RepresentationSpec(RepresentationType.MECHANICAL_3D,(entity.id,),{"units":"mm","coordinateSystem":coordinate,"geometry":geometry}))
-    categories={"microcontroller_board":("U","controller",["VCC","GND","GPIO"]),"controller":("U","controller",["VCC","GND","GPIO"]),"temperature_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"environmental_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"distance_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"moisture_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"mosfet_driver":("Q","mosfet",["G","D","S"]),"pump switching":("Q","mosfet",["G","D","S"]),"fan":("M","motor",["+","-"]),"servo":("M","motor",["+","-"]),"small_dc_pump":("M","motor",["+","-"]),"water delivery":("M","motor",["+","-"]),"low_voltage_power_source":("BT","power_source",["+","-"]),"system power":("BT","power_source",["+","-"]),"indicator":("R","soil_sensor",["VCC","GND","OUT"]),"soil sensing":("S","soil_sensor",["VCC","GND","OUT"])}
+    categories={"microcontroller_board":("U","controller",["VCC","GND","PWM1","PWM2"]),"controller":("U","controller",["VCC","GND","PWM1","PWM2"]),"temperature_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"environmental_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"distance_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"moisture_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"mosfet_driver":("Q","mosfet",["G","D","S"]),"pump switching":("Q","mosfet",["G","D","S"]),"fan":("M","motor",["+","-"]),"servo":("M","servo",["PWM","V+","GND"]),"small_dc_pump":("M","motor",["+","-"]),"water delivery":("M","motor",["+","-"]),"low_voltage_power_source":("BT","power_source",["+","-"]),"system power":("BT","power_source",["+","-"]),"indicator":("R","soil_sensor",["VCC","GND","OUT"]),"soil sensing":("S","soil_sensor",["VCC","GND","OUT"])}
     counts={};circuit_components=[];references={}
     for entity in components:
         family=entity.metadata.get("family",entity.metadata.get("role",""));category=categories.get(family)
         if not category: continue
         prefix,kind,pins=category;counts[prefix]=counts.get(prefix,0)+1;ref=f"{prefix}{counts[prefix]}";references[entity.id]=ref
         circuit_components.append({"reference":ref,"semanticId":entity.id,"kind":kind,"pins":pins})
-    connections=[]
+    connections=[];unconnected=[];signal_counts={}
+    pin_alias={
+        "controller":{"power":"VCC","5v":"VCC","3v3":"VCC","ground":"GND","gnd":"GND","signal":"PWM1","gpio-pump":"PWM1","gpio-sensor":"PWM2"},
+        "servo":{"power":"V+","ground":"GND","signal":"PWM"},
+        "power_source":{"power":"+","5v":"+","ground":"-"},
+        "motor":{"power":"+","power+":"+","ground":"-"},
+        "mosfet":{"logic-in":"G","logic-gnd":"S","load-in":"D","load-out":"D"},
+        "soil_sensor":{"power":"VCC","vcc":"VCC","ground":"GND","gnd":"GND","signal":"OUT"},
+    }
     for relationship in graph.relationships.values():
         a,b=references.get(relationship.source_id),references.get(relationship.target_id)
-        if a and b: connections.append({"from":f"{a}.{next(x['pins'][-1] for x in circuit_components if x['reference']==a)}","to":f"{b}.{next(x['pins'][0] for x in circuit_components if x['reference']==b)}"})
+        if not (a and b): continue
+        source=next(x for x in circuit_components if x["reference"]==a);target=next(x for x in circuit_components if x["reference"]==b)
+        connection_id=relationship.metadata.get("connection_id","");connection=graph.entities.get(connection_id)
+        source_interface=(connection.metadata.get("source_interface") if connection else None) or ("signal" if relationship.type=="control" else relationship.type)
+        target_interface=(connection.metadata.get("target_interface") if connection else None) or ("signal" if relationship.type=="control" else relationship.type)
+        source_pin=pin_alias.get(source["kind"],{}).get(source_interface);target_pin=pin_alias.get(target["kind"],{}).get(target_interface)
+        if source["kind"]=="controller" and target["kind"]=="servo" and relationship.type=="control":
+            signal_counts[a]=signal_counts.get(a,0)+1;source_pin=f"PWM{signal_counts[a]}"
+        if source_pin in source["pins"] and target_pin in target["pins"]: connections.append({"from":f"{a}.{source_pin}","to":f"{b}.{target_pin}","graphConnectionId":connection_id})
+        elif relationship.type in {"power","ground","control","signal","regulated-power","switched-power"}: unconnected.append({"graphConnectionId":connection_id,"sourceSemanticId":relationship.source_id,"targetSemanticId":relationship.target_id,"reason":"no compatible electrical interface"})
     graph_ids = {entity.id for entity in graph.find(kind=EntityKind.COMPONENT)}
     if "component-reservoir" in graph_ids:
         order={"component-reservoir":0,"component-tubing":1,"component-enclosure":2};mechanical.sort(key=lambda spec:order.get(spec.semantic_ids[0],9))
     circuit = RepresentationSpec(RepresentationType.CIRCUIT_SCHEMATIC,
         tuple(dict.fromkeys(item["semanticId"] for item in circuit_components)),
-        {"components": circuit_components, "connections": connections})
+        {"components": circuit_components, "connections": connections, "unconnected":unconnected})
     validator = RepresentationSpecValidator()
     return [validator.validate(spec, graph_ids) for spec in [*mechanical, circuit] if spec.semantic_ids]
 

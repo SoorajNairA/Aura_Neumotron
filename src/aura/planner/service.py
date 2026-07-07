@@ -6,6 +6,7 @@ from uuid import NAMESPACE_URL, uuid5
 from aura.engineering_graph.model import EngineeringEntity, EntityKind, Relationship
 from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation
 from aura.capabilities import CapabilityStatus, classify_objective
+from aura.engineering_graph.interfaces import component_interfaces
 
 from .schemas import (
     ComponentSpec, ConnectionSpec, PlannedEntity, PlannedRelationship, ProjectPlan, ProjectRequest, SubsystemSpec,
@@ -125,14 +126,22 @@ class PlannerService:
         for family in families:
             name,kind,role,params,dims=specs[family];cid=f"component-{family}";params=dict(params)
             if family in curated: params["component_definition_id"]=curated[family]
-            components.append(ComponentSpec(cid,name,kind,f"subsystem-{role}",f"{name} for the requested low-voltage system.",params,("power","ground","signal"),{key:{"value":value,"unit":"mm"} for key,value in zip(("width","length","height"),dims)},assumption_refs=(f"assumption-{family}",)))
+            physical=component_interfaces(kind,tuple(float(value) for value in dims))
+            interface_names=tuple(dict.fromkeys([item.name for item in physical] or ["power","ground","signal"]))
+            components.append(ComponentSpec(cid,name,kind,f"subsystem-{role}",f"{name} for the requested low-voltage system.",params,interface_names,{key:{"value":value,"unit":"mm"} for key,value in zip(("width","length","height"),dims)},assumption_refs=(f"assumption-{family}",)))
         ids={c.id for c in components};connections=[]
+        by_component={c.id:c for c in components}
         def connect(a,b,kind):
-            if a in ids and b in ids: connections.append(ConnectionSpec(f"connection-{a[10:]}-{b[10:]}-{kind}",a,b,"signal","signal",kind,f"{kind.title()} connection."))
+            endpoint={"power":("power","power"),"ground":("ground","ground"),"control":("signal","signal"),"signal":("signal","signal"),"switched-power":("signal","power"),"regulated-power":("power","power")}.get(kind)
+            if endpoint is None and a in by_component and b in by_component:
+                left=component_interfaces(by_component[a].role,tuple(float(x.get("value",1)) for x in by_component[a].dimensions.values()))
+                right=component_interfaces(by_component[b].role,tuple(float(x.get("value",1)) for x in by_component[b].dimensions.values()))
+                pair=next(((x.name,y.name) for x in left for y in right if y.kind in x.compatible),("mechanical","mechanical"));endpoint=pair
+            if a in ids and b in ids: connections.append(ConnectionSpec(f"connection-{a[10:]}-{b[10:]}-{kind}",a,b,endpoint[0],endpoint[1],kind,f"{kind.title()} connection."))
         for sensor in ("component-temperature-sensor","component-environmental-sensor","component-distance-sensor"):connect(sensor,"component-controller","signal")
         for load in ("component-fan","component-servo"): connect("component-driver" if "component-driver" in ids else "component-controller",load,"switched-power" if "component-driver" in ids else "control")
         connect("component-controller","component-driver","control")
-        for target in sorted(ids-{"component-power","component-enclosure","component-container","component-lid","component-hinge","component-mounting-plate","component-dispensing-mechanism"}):connect("component-power",target,"power");connect("component-power",target,"ground")
+        for target in sorted(item.id for item in components if item.id!="component-power" and {"power","ground"}.issubset(item.interfaces)):connect("component-power",target,"power");connect("component-power",target,"ground")
         connect("component-servo","component-dispensing-mechanism","mechanical");connect("component-servo","component-lid","mechanical");connect("component-hinge","component-lid","mechanical")
         connect("component-controller","component-shoulder-servo","control");connect("component-controller","component-elbow-servo","control")
         connect("component-base","component-shoulder-servo","mechanical");connect("component-shoulder-servo","component-upper-arm","mechanical")
@@ -141,7 +150,7 @@ class PlannerService:
         entities += [PlannedEntity(s.id,EntityKind.SUBSYSTEM,s.name,project_id,(("role",s.role),)) for s in subsystems]
         entities += [PlannedEntity(c.id,EntityKind.COMPONENT,c.name,c.subsystem_id,tuple({"role":c.role,"family":c.role,"parameters":c.parameters,"interfaces":list(c.interfaces),"dimensions":c.dimensions,"representation_status":"placeholder","assumption_refs":list(c.assumption_refs)}.items())) for c in components]
         entities += [PlannedEntity(f"assumption-{i}",EntityKind.ASSUMPTION,value,project_id) for i,value in enumerate(("Use 5 V isolated low-voltage power","Exact mechanical fit remains conceptual"),1)]
-        entities += [PlannedEntity(c.id,EntityKind.CONNECTION,c.description,project_id,tuple({"source_id":c.source_id,"target_id":c.target_id,"connection_type":c.connection_type}.items())) for c in connections]
+        entities += [PlannedEntity(c.id,EntityKind.CONNECTION,c.description,project_id,tuple({"source_id":c.source_id,"target_id":c.target_id,"source_interface":c.source_interface,"target_interface":c.target_interface,"connection_type":c.connection_type}.items())) for c in connections]
         operations=[GraphOperation(PatchOperation.ADD_ENTITY,entity=EngineeringEntity(e.id,e.kind,e.name,e.parent_id,dict(e.metadata))) for e in entities]
         relationships=tuple(PlannedRelationship(c.id+"-edge",c.source_id,c.target_id,c.connection_type) for c in connections)
         operations += [GraphOperation(PatchOperation.ADD_RELATIONSHIP,relationship=Relationship(r.id,r.source_id,r.target_id,r.type,{"connection_id":r.id.removesuffix("-edge")})) for r in relationships]
