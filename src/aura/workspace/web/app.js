@@ -152,7 +152,7 @@ function connect(after = 0) {
 $("create").onclick = async () => {
   state.events = [];
   $("timeline").innerHTML = "";
-  $("status").textContent = "Creating project";
+  $("status").textContent = "Understanding objective â†’ Planning project...";
   const response = await fetch("/api/projects", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -162,7 +162,8 @@ $("create").onclick = async () => {
     }),
   });
   if (!response.ok) {
-    $("status").textContent = "Project partially completed";
+    const error=await response.json();
+    $("status").textContent = error.detail?.status === "NEEDS_CLARIFICATION" ? `Clarification needed: ${error.detail.questions?.[0]}` : `Unsupported: ${error.detail?.reasons?.[0] || "Project could not be created"}`;
     return;
   }
   const project = await response.json();

@@ -65,6 +65,7 @@ const cadCode = (s: any) => {
 		return `Pipe(Circle(${g.radius}),BSpline(${JSON.stringify(g.path)}));`;
 	if (g.operation === "filleted_enclosure")
 		return `let b=Box(${g.width},${g.depth},${g.height},true);FilletEdges(b,${g.radius},Edges(b).ofType("Line").indices());`;
+	if (g.operation === "box") return `Box(${g.width},${g.depth},${g.height},true);`;
 	throw Error("Unsupported CAD operation");
 };
 
@@ -180,6 +181,10 @@ class SceneView {
 	}
 	geometry(p: Part) {
 		const [x, y, z] = p.dimensions;
+		if(p.semanticId.includes("fan")) return new THREE.CylinderGeometry(x/2,x/2,Math.max(y,8),32);
+		if(p.semanticId.includes("servo")) return new THREE.BoxGeometry(x,y,z);
+		if(p.semanticId.includes("container")) return new THREE.CylinderGeometry(x/2,x/2,z,32,1,true);
+		if(p.semanticId.includes("hinge")) return new THREE.CylinderGeometry(y/2,y/2,x,18);
 		switch (p.semanticId) {
 			case "component-reservoir":
 				return new THREE.CylinderGeometry(x / 2, x / 2, y, 32);
@@ -242,8 +247,8 @@ class SceneView {
 	}
 	showPreview(proposal: Proposal) {
 		this.clearPreview();
-		if (!proposal.affectedSemanticIds.includes("component-reservoir")) return;
-		const part=this.parts.get("component-reservoir");if(!part)return;
+		const id=proposal.affectedSemanticIds.find(x=>x.includes("reservoir")||x.includes("container"));if(!id)return;
+		const part=this.parts.get(id);if(!part)return;
 		const width=proposal.operations.find(x=>x.path==="dimensions.width.value")?.newValue||part.dimensions[0];
 		const length=proposal.operations.find(x=>x.path==="dimensions.length.value")?.newValue||part.dimensions[1];
 		const mesh=new THREE.Mesh(new THREE.CylinderGeometry(width/2,width/2,length,32),new THREE.MeshBasicMaterial({color:0x63f5df,transparent:true,opacity:.28,wireframe:true,depthWrite:false}));
