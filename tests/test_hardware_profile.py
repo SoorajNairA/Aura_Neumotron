@@ -16,7 +16,7 @@ def test_performance_profile_uses_qwen8b_and_xtts() -> None:
         patch("aura.hardware_profile._total_ram_gb", return_value=16.0),
         patch(
             "aura.hardware_profile._cuda_info",
-            return_value=(True, "RTX 3050", 4.0),
+            return_value=(True, "RTX 4060", 8.0),
         ),
         patch(
             "aura.hardware_profile._installed_ollama_models",
@@ -27,6 +27,31 @@ def test_performance_profile_uses_qwen8b_and_xtts() -> None:
 
     assert profile.tier == "performance"
     assert resolved.ollama_conversation_model == "qwen3:8b"
+    assert resolved.tts_backend == "xtts"
+    assert resolved.tts_device == "cuda"
+
+
+def test_four_gb_gpu_uses_qwen3b_with_xtts() -> None:
+    settings = Settings(
+        ollama_conversation_model="auto",
+        tts_backend="auto",
+        hardware_profile="auto",
+    )
+    with (
+        patch("aura.hardware_profile._total_ram_gb", return_value=16.0),
+        patch(
+            "aura.hardware_profile._cuda_info",
+            return_value=(True, "RTX 3050", 4.0),
+        ),
+        patch(
+            "aura.hardware_profile._installed_ollama_models",
+            return_value={"qwen3:8b", "qwen2.5:3b"},
+        ),
+    ):
+        resolved, profile = resolve_runtime_settings(settings)
+
+    assert profile.tier == "low"
+    assert resolved.ollama_conversation_model == "qwen2.5:3b"
     assert resolved.tts_backend == "xtts"
     assert resolved.tts_device == "cuda"
 
@@ -84,6 +109,7 @@ def test_missing_8b_uses_installed_3b_fallback() -> None:
 if __name__ == "__main__":
     tests = [
         test_performance_profile_uses_qwen8b_and_xtts,
+        test_four_gb_gpu_uses_qwen3b_with_xtts,
         test_low_profile_uses_qwen3b_and_pyttsx3,
         test_missing_8b_uses_installed_3b_fallback,
     ]

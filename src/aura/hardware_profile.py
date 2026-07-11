@@ -132,8 +132,16 @@ def resolve_runtime_settings(
         selected_tts = settings.tts_backend
         tts_reason = "explicit TTS override"
     else:
-        selected_tts = "xtts" if tier == "performance" else "pyttsx3"
-        tts_reason = f"{tier} profile"
+        xtts_capable = (
+            cuda_available
+            and vram_gb >= settings.xtts_min_vram_gb
+        )
+        selected_tts = "xtts" if xtts_capable else "pyttsx3"
+        tts_reason = (
+            f"CUDA VRAM {vram_gb:.1f} GB"
+            if xtts_capable
+            else "CUDA/VRAM threshold not met"
+        )
 
     selected_device = "cuda" if selected_tts == "xtts" and cuda_available else "cpu"
     resolved = replace(

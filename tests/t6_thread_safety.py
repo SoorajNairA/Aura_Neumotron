@@ -64,7 +64,7 @@ def run_test():
         for e in errors:
             print(f"    {e}")
 
-    final_turns = wm.recent()
+    final_turns = wm.recent(n=30)
     print(f"  Final turn count     : {len(final_turns)}  (maxlen=30)")
     print(f"  All turns have role  : {all('role' in t for t in final_turns)}")
     print(f"  All turns have content: {all('content' in t for t in final_turns)}")
@@ -83,7 +83,7 @@ def run_test():
 
     no_crashes = len(errors) == 0
     all_done = len(results) == NUM_THREADS
-    data_ok = len(final_turns) > 0 and all(
+    data_ok = len(final_turns) == 30 and all(
         isinstance(t.get("content"), str) for t in final_turns
     )
 

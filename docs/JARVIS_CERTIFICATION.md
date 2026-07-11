@@ -1,7 +1,7 @@
 # AURA Jarvis Certification
 
-Date: June 14, 2026  
-Mode: Live Windows host execution  
+Date: June 14, 2026
+Mode: Live Windows host execution
 Result: **39/39 functional acceptance tests passed**
 
 ## Scores

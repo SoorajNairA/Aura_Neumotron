@@ -8,7 +8,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Generic, TypeVar
+from typing import Callable, Generic, Iterator, TypeVar
 
 _logger = logging.getLogger("aura")
 
@@ -126,6 +126,7 @@ class XTTSBackend:
         self.fp16_enabled = False
         self._speaker: str | None = None
         self._model_lock = threading.Lock()
+        self._speech_lock = threading.Lock()
         self._queue = TTSQueue[str](self._generate_and_play, name="aura-xtts")
 
         if voice_reference:
@@ -228,6 +229,60 @@ class XTTSBackend:
             return
         self.initialize()
         self._queue.submit(clean_text, wait=True)
+
+    def speak_pipelined(self, chunks: Iterator[str]) -> list[str]:
+        """Generate the next chunk while the current chunk is playing."""
+        generated: queue.Queue[tuple[str, Path] | BaseException | None] = queue.Queue()
+        stop_requested = threading.Event()
+
+        def generator() -> None:
+            try:
+                for chunk in chunks:
+                    if stop_requested.is_set():
+                        break
+                    path = self.speak_to_file(chunk)
+                    if stop_requested.is_set():
+                        path.unlink(missing_ok=True)
+                        break
+                    generated.put((chunk, path))
+            except BaseException as exc:
+                generated.put(exc)
+            finally:
+                generated.put(None)
+
+        spoken: list[str] = []
+        with self._speech_lock:
+            worker = threading.Thread(
+                target=generator,
+                daemon=True,
+                name="aura-xtts-pipeline",
+            )
+            worker.start()
+            try:
+                while True:
+                    item = generated.get()
+                    if item is None:
+                        break
+                    if isinstance(item, BaseException):
+                        if spoken:
+                            _logger.warning(
+                                "XTTS pipeline stopped after %d spoken chunk(s): %s",
+                                len(spoken),
+                                item,
+                            )
+                            break
+                        raise RuntimeError("XTTS pipeline generation failed.") from item
+                    chunk, audio_path = item
+                    self._play_audio_file(audio_path)
+                    spoken.append(chunk)
+            finally:
+                stop_requested.set()
+                worker.join(timeout=10)
+                while not generated.empty():
+                    pending = generated.get_nowait()
+                    if isinstance(pending, tuple):
+                        pending[1].unlink(missing_ok=True)
+        return spoken
 
     def speak_to_file(self, text: str, output_path: str | Path | None = None) -> Path:
         clean_text = " ".join(text.split())
@@ -368,10 +423,14 @@ class XTTSBackend:
             _logger.error(f"XTTS: changed voice reference rejected; keeping current voice: {exc}")
 
     def _generate_and_play(self, text: str) -> None:
+        with self._speech_lock:
+            audio_path = self.speak_to_file(text)
+            self._play_audio_file(audio_path)
+
+    def _play_audio_file(self, audio_path: Path) -> None:
         import sounddevice as sd
         import soundfile as sf
 
-        audio_path = self.speak_to_file(text)
         try:
             audio, sample_rate = sf.read(str(audio_path), dtype="float32")
             started = time.perf_counter()

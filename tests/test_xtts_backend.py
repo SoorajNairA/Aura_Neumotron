@@ -147,6 +147,30 @@ def test_missing_xtts_falls_back_to_pyttsx3() -> None:
     assert diagnostics["active_backend"] == "pyttsx3"
 
 
+def test_broken_pyttsx3_is_skipped_after_first_failure() -> None:
+    spoken: list[str] = []
+
+    def dotnet_fallback(service: TTSService, text: str) -> bool:
+        spoken.append(text)
+        service._active_backend = "windows_dotnet"
+        return True
+
+    with (
+        patch("aura.tts.pyttsx3.init", side_effect=RuntimeError("COM class not registered")) as init,
+        patch.object(TTSService, "_speak_windows_dotnet", dotnet_fallback),
+    ):
+        service = _tts_service(backend="pyttsx3")
+        service.speak("First fallback.")
+        service.speak("Second fallback.")
+        diagnostics = service.get_diagnostics()
+        service.shutdown()
+
+    assert init.call_count == 1
+    assert spoken == ["First fallback.", "Second fallback."]
+    assert diagnostics["pyttsx3_available"] is False
+    assert diagnostics["active_backend"] == "windows_dotnet"
+
+
 def test_cpu_configuration_is_preserved() -> None:
     backend = XTTSBackend(device="cpu")
     assert backend.requested_device == "cpu"

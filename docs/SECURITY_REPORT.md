@@ -40,5 +40,5 @@ clean initial release history before pushing to GitHub.
 
 ## Status
 
-Release working tree: **clean of secrets**  
+Release working tree: **clean of secrets**
 Existing pre-release history: **not safe to push**

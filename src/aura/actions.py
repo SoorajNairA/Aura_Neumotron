@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 import subprocess
+import tempfile
 import time
 import webbrowser
 from collections.abc import Callable
@@ -11,9 +12,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urlparse
+from urllib.parse import unquote
 
 from .models import ActionRequest, ActionResult
 from .research import ResearchAgent
+from .safety import SafetyLayer
 
 _logger = logging.getLogger("aura")
 
@@ -130,10 +133,16 @@ class ExecutionAgent:
         research_agent: Optional[ResearchAgent] = None,
         max_research_results: int = 8,
         registry: Optional[ToolRegistry] = None,
+        workspace_root: str | Path | None = None,
+        approved_roots: tuple[str | Path, ...] = (),
+        safety: Optional[SafetyLayer] = None,
     ) -> None:
         self.research_agent = research_agent or ResearchAgent()
         self.max_research_results = max_research_results
         self.registry = registry or ToolRegistry()
+        self.workspace_root = Path(workspace_root or Path.cwd()).expanduser().resolve()
+        self.approved_roots = tuple(Path(root).expanduser().resolve() for root in approved_roots)
+        self.safety = safety or SafetyLayer()
         self._register_default_tools()
 
     def run(self, request: ActionRequest) -> ActionResult:
@@ -228,7 +237,11 @@ class ExecutionAgent:
             self.registry.register(
                 name="write_text_file",
                 description="Write UTF-8 text to a file",
-                arguments_schema={"path": "string", "content": "string"},
+                arguments_schema={
+                    "path": "string",
+                    "content": "string",
+                    "overwrite": "bool",
+                },
                 required=("path", "content"),
                 handler=self._write_text_file,
             )
@@ -293,13 +306,23 @@ class ExecutionAgent:
         if parsed.scheme not in {"http", "https"}:
             return ActionResult(action="open_url", ok=False, message="Only http and https URLs are allowed.")
 
-        webbrowser.open(url)
+        opened = bool(webbrowser.open(url))
+        if not opened:
+            return ActionResult(
+                action="open_url",
+                ok=False,
+                message=f"The default browser did not accept {url}.",
+                output={"url": url},
+            )
         return ActionResult(action="open_url", ok=True, message=f"Opened {url}.", output={"url": url})
 
     def _create_folder(self, arguments: dict[str, Any]) -> ActionResult:
         path = Path(str(arguments.get("path", "")).strip()).expanduser()
         if not str(path):
             return ActionResult(action="create_folder", ok=False, message="Folder path cannot be empty.")
+        decision_result = self._authorize_filesystem_mutation("create_folder", path, arguments)
+        if decision_result is not None:
+            return decision_result
         os.makedirs(path, exist_ok=True)
         return ActionResult(action="create_folder", ok=True, message=f"Created folder: {path}.")
 
@@ -313,15 +336,29 @@ class ExecutionAgent:
                 message=f"File already exists: {path}.",
                 output={"already_exists": True},
             )
+        decision_result = self._authorize_filesystem_mutation("create_file", path, arguments)
+        if decision_result is not None:
+            return decision_result
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("", encoding="utf-8")
+        _atomic_write_text(path, "")
         return ActionResult(action="create_file", ok=True, message=f"Created file: {path}.")
 
     def _write_text_file(self, arguments: dict[str, Any]) -> ActionResult:
         path = Path(str(arguments.get("path", "")).strip()).expanduser()
         content = str(arguments.get("content", ""))
+        overwrite = _as_bool(arguments.get("overwrite", False))
+        decision_result = self._authorize_filesystem_mutation("write_text_file", path, arguments)
+        if decision_result is not None:
+            return decision_result
+        if path.exists() and path.is_file() and path.stat().st_size > 0 and not overwrite:
+            return ActionResult(
+                action="write_text_file",
+                ok=False,
+                message=f"File already contains data and was not overwritten: {path}.",
+                output={"overwrite_required": True, "path": str(path)},
+            )
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        _atomic_write_text(path, content)
         return ActionResult(action="write_text_file", ok=True, message=f"Wrote file: {path}.")
 
     def _research_web(self, args: dict[str, Any]) -> ActionResult:
@@ -367,9 +404,61 @@ class ExecutionAgent:
         except Exception as exc:
             return ActionResult(action="research_web", ok=False, message=f"Research failed: {exc}")
 
+    def _authorize_filesystem_mutation(
+        self,
+        action: str,
+        path: Path,
+        arguments: dict[str, Any],
+    ) -> ActionResult | None:
+        decision = self.safety.assess_path(
+            action,
+            str(path),
+            self.workspace_root,
+            self.approved_roots,
+        )
+        arguments["path"] = str(decision.target)
+        if decision.denied:
+            return ActionResult(
+                action=action,
+                ok=False,
+                message=f"Denied filesystem access: {decision.reason}",
+                output={
+                    "path": str(decision.target),
+                    "policy_decision": decision.decision,
+                    "policy_reason": decision.reason,
+                },
+            )
+        if decision.requires_confirmation and not self._has_required_filesystem_approval(action, arguments, decision.reason):
+            return ActionResult(
+                action=action,
+                ok=False,
+                message=f"Confirmation required for filesystem access: {decision.reason}",
+                output={
+                    "path": str(decision.target),
+                    "confirmation_required": True,
+                    "policy_decision": decision.decision,
+                    "policy_reason": decision.reason,
+                },
+            )
+        return None
+
+    def _has_required_filesystem_approval(
+        self,
+        action: str,
+        arguments: dict[str, Any],
+        reason: str,
+    ) -> bool:
+        if "outside approved workspace" in reason:
+            return _as_bool(arguments.get("allow_external_write", False))
+        if action in {"create_file", "write_text_file"} and "existing" in reason.lower():
+            return _as_bool(arguments.get("overwrite", False))
+        return _as_bool(arguments.get("allow_external_write", False))
+
 
 def _normalize_url(url: str) -> str:
     if not url:
+        return ""
+    if any(ord(char) < 32 or ord(char) == 127 for char in url):
         return ""
     shortcuts = {
         "youtube": "https://youtube.com",
@@ -381,9 +470,23 @@ def _normalize_url(url: str) -> str:
     key = url.lower().strip()
     if key in shortcuts:
         return shortcuts[key]
-    if "://" not in url:
-        return "https://" + url
-    return url
+    stripped = url.strip()
+    decoded = unquote(stripped).strip()
+    if any(ord(char) < 32 or ord(char) == 127 for char in decoded):
+        return ""
+    parsed_decoded = urlparse(decoded)
+    if parsed_decoded.scheme and parsed_decoded.scheme.lower() not in {"http", "https"}:
+        return ""
+    parsed = urlparse(stripped)
+    if parsed.scheme and parsed.scheme.lower() not in {"http", "https"}:
+        return ""
+    normalized = stripped if parsed.scheme else "https://" + stripped
+    final = urlparse(normalized)
+    if final.scheme.lower() not in {"http", "https"} or not final.netloc:
+        return ""
+    if any(char.isspace() for char in final.netloc):
+        return ""
+    return normalized
 
 
 def _resolve_app_command(key: str) -> list[str] | None:
@@ -484,3 +587,21 @@ def _as_bool(value: Any) -> bool:
     if isinstance(value, bool):
         return value
     return str(value).strip().lower() in {"1", "true", "yes", "y", "overwrite"}
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        delete=False,
+    ) as handle:
+        handle.write(content)
+        temp_path = Path(handle.name)
+    try:
+        temp_path.replace(path)
+    finally:
+        temp_path.unlink(missing_ok=True)

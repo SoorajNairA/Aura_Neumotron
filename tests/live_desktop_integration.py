@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import sys
 import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,11 @@ class DirectCommandHarness:
         self.supervisor.safety = SafetyLayer()
         self.supervisor.memory = MemoryStore(ROOT / "memory")
         self.supervisor.working_memory = WorkingMemory(max_turns=30)
+        self.supervisor.conversation_history = self.supervisor.working_memory
+        self.supervisor.architecture = None
+        self.supervisor.executive = _NoopExecutive()
+        self.supervisor.result_revealer = None
+        self.supervisor._ui_listeners = []
         self.spoken: list[str] = []
         self.supervisor._speak = self.spoken.append
 
@@ -46,6 +52,11 @@ class DirectCommandHarness:
         self.spoken.clear()
         self.supervisor.handle_spoken_text(text, require_wake_word=False)
         return list(self.spoken)
+
+
+class _NoopExecutive:
+    def can_handle(self, goal: str) -> bool:
+        return False
 
 
 def run_action(text: str, executor: ExecutionAgent, llm: LLMService) -> dict[str, Any]:
@@ -93,22 +104,31 @@ def main() -> None:
     ]
     logs["tests"]["open_urls"] = [run_action(text, executor, llm) for text in url_inputs]
 
+    isolated_root = ROOT / "workspace" / "live_desktop_integration" / uuid.uuid4().hex
+    isolated_folder = isolated_root / "DemoFolder"
+    isolated_file = isolated_root / "notes.txt"
+    initial_state = {
+        "root_exists": isolated_root.exists(),
+        "folder_exists": isolated_folder.exists(),
+        "file_exists": isolated_file.exists(),
+    }
     file_ops: list[dict[str, Any]] = []
     for text in [
-        "Create a folder named DemoFolder",
-        "Create file notes.txt",
-        'Write "Hello from AURA" into notes.txt',
+        f"Create a folder named {isolated_folder}",
+        f"Create file {isolated_file}",
+        f'Write "Hello from AURA" into {isolated_file}',
     ]:
         file_ops.append(run_action(text, executor, llm))
 
-    demo_folder = ROOT / "DemoFolder"
-    notes_file = ROOT / "notes.txt"
     logs["tests"]["file_operations"] = {
+        "isolated_root": str(isolated_root),
+        "initial_state": initial_state,
         "actions": file_ops,
-        "folder_exists": demo_folder.exists() and demo_folder.is_dir(),
-        "file_exists": notes_file.exists() and notes_file.is_file(),
-        "file_contents": notes_file.read_text(encoding="utf-8") if notes_file.exists() else None,
-        "contents_match": notes_file.exists() and notes_file.read_text(encoding="utf-8") == "Hello from AURA",
+        "folder_exists": isolated_folder.exists() and isolated_folder.is_dir(),
+        "file_exists": isolated_file.exists() and isolated_file.is_file(),
+        "file_contents": isolated_file.read_text(encoding="utf-8") if isolated_file.exists() else None,
+        "contents_match": isolated_file.exists() and isolated_file.read_text(encoding="utf-8") == "Hello from AURA",
+        "false_positive_impossible": not any(initial_state.values()),
     }
 
     harness = DirectCommandHarness()

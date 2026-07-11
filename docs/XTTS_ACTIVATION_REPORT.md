@@ -1,6 +1,6 @@
 # AURA XTTS-v2 Activation Report
 
-Date: June 14, 2026  
+Date: June 14, 2026
 Status: **Activated and live-tested**
 
 ## Voice System

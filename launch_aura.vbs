@@ -14,8 +14,6 @@ End If
 
 shell.CurrentDirectory = rootPath
 shell.Environment("PROCESS")("PYTHONPATH") = rootPath & "\src"
-shell.Environment("PROCESS")("AURA_DEMO_MODE") = "true"
-shell.Environment("PROCESS")("AURA_DEMO_WORKSPACE") = "DemoWorkspace"
 
 command = Chr(34) & pythonExe & Chr(34) & " -m aura.main"
 shell.Run command, 0, False

@@ -17,7 +17,7 @@ class Settings:
     """AURA local-only configuration. All services run offline."""
 
     creator_name: str = os.getenv("AURA_CREATOR_NAME", "Sooraj").strip() or "Sooraj"
-    
+
     # Local TTS (XTTS-v2 with pyttsx3 and Windows Speech fallbacks)
     voice_persona: str = os.getenv(
         "AURA_VOICE_PERSONA",
@@ -95,7 +95,7 @@ class Settings:
         "AURA_OLLAMA_FALLBACK_MODEL", "qwen2.5:3b"
     ).strip()
     ollama_request_timeout: int = int(os.getenv("AURA_OLLAMA_TIMEOUT", "120"))
-    ollama_context_length: int = int(os.getenv("AURA_OLLAMA_CONTEXT_LENGTH", "32768"))
+    ollama_context_length: int = int(os.getenv("AURA_OLLAMA_CONTEXT_LENGTH", "8192"))
 
     hardware_profile: str = os.getenv(
         "AURA_HARDWARE_PROFILE", "auto"
@@ -104,7 +104,10 @@ class Settings:
         os.getenv("AURA_PERFORMANCE_MIN_RAM_GB", "12")
     )
     performance_min_vram_gb: float = float(
-        os.getenv("AURA_PERFORMANCE_MIN_VRAM_GB", "3.5")
+        os.getenv("AURA_PERFORMANCE_MIN_VRAM_GB", "6")
+    )
+    xtts_min_vram_gb: float = float(
+        os.getenv("AURA_XTTS_MIN_VRAM_GB", "3.5")
     )
 
     stt_model: str = os.getenv("AURA_STT_MODEL", "small")

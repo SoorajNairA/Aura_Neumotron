@@ -6,7 +6,7 @@ import random
 import re
 import time
 from datetime import datetime as _dt
-from typing import TYPE_CHECKING, Any, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from .conversation_context import ConversationContext
@@ -105,6 +105,10 @@ _FAST_PATH: dict[str, dict[str, list[str]]] = {
             "Doing well, thanks. What's on your mind?",
         ]
     },
+    "did you crash": {"*": ["Briefly. I've recovered."]},
+    "did you crash?": {"*": ["Briefly. I've recovered."]},
+    "you're slow": {"*": ["Physics occasionally wins."]},
+    "you are slow": {"*": ["Physics occasionally wins."]},
 }
 
 # Interaction types the heuristic classifies reliably — LLM classify is skipped entirely.
@@ -114,6 +118,7 @@ _HEURISTIC_CONFIDENT: frozenset[str] = frozenset({
     "memory_recall",
     "advice_request",
     "question",
+    "discussion",
     "direct_system_command",
     "goal_request",
 })
@@ -141,11 +146,13 @@ _TYPE_SYSTEM_PROMPTS: dict[str, str] = {
     ),
     "question": (
         "You are AURA. The user asked a question. Answer directly and clearly. "
-        "No task breakdown. No project creation. Just a concise, informative answer."
+        "No task breakdown. No project creation. Just a concise, informative answer. "
+        "Do not mention models, prompts, inference, backends, or internal implementation."
     ),
     "discussion": (
         "You are AURA. The user wants to discuss a topic. Engage naturally. "
-        "Offer opinions, analysis, or ask follow-up questions. Stay conversational. No planning."
+        "Offer opinions, analysis, or ask follow-up questions. Stay conversational. No planning. "
+        "Do not expose internal implementation details."
     ),
     "memory_recall": (
         "You are AURA. The user is asking about prior conversations or past context. "
@@ -423,13 +430,20 @@ class LLMService:
         if context is not None:
             # Full ConversationContext: use working memory turns + current user turn
             messages = list(context.recent_messages)  # copy
-            # Append context block as an implicit system note if present
             ctx_block = context.to_context_block()
             if ctx_block:
-                messages.append({
-                    "role": "user",
-                    "content": f"[Context]\n{ctx_block}\n\nUser request: {user_text}",
-                })
+                contextual_request = f"{user_text}\n\n[Context]\n{ctx_block}"
+                if (
+                    messages
+                    and messages[-1].get("role") == "user"
+                    and str(messages[-1].get("content", "")).strip() == user_text.strip()
+                ):
+                    messages[-1] = {
+                        **messages[-1],
+                        "content": contextual_request,
+                    }
+                else:
+                    messages.append({"role": "user", "content": contextual_request})
             elif not messages or messages[-1].get("content") != user_text:
                 messages.append({"role": "user", "content": user_text})
             return messages
@@ -475,7 +489,8 @@ class LLMService:
                 "You can control the computer through enabled tools. "
                 f"Currently enabled capabilities: {', '.join(enabled)}. "
                 "When a request matches an enabled capability, use the tool instead of refusing. "
-                "Never claim to be just a voice assistant and never deny an enabled capability."
+                "Never claim to be just a voice assistant and never deny an enabled capability. "
+                "Do not name the underlying model, runtime, prompt, inference path, or backend in normal replies."
             )
         if context is not None and context.mood_hint != "neutral":
             extras.append(f"The user seems {context.mood_hint}. Adjust your tone accordingly.")
@@ -746,6 +761,12 @@ class LLMService:
                 f"Fast path  identity=true  reply='{identity_reply}'  llm_calls=0"
             )
             return identity_reply
+        capability_reply = self._capability_fast_path_reply(token)
+        if capability_reply is not None:
+            _ctrace.info(
+                f"Fast path  capabilities=true  reply='{capability_reply}'  llm_calls=0"
+            )
+            return capability_reply
 
         entry = _FAST_PATH.get(token)
         if entry is None:
@@ -806,6 +827,41 @@ class LLMService:
                 "You built my systems and continue improving me."
             )
         return None
+
+    def _capability_fast_path_reply(self, token: str) -> Optional[str]:
+        normalized = " ".join(token.split())
+        if normalized not in {
+            "what can you do",
+            "what are your capabilities",
+            "show capabilities",
+            "what can aura do",
+        }:
+            return None
+
+        labels = {
+            "open_app": "open applications",
+            "open_url": "open websites",
+            "create_folder": "create folders",
+            "create_file": "create files",
+            "write_text_file": "write text files",
+        }
+        enabled = [
+            label
+            for capability, label in labels.items()
+            if self.available_capabilities.get(capability, False)
+        ]
+        if not enabled:
+            return "I can converse, remember context, and help plan your work."
+
+        listed = ", ".join(enabled[:-1])
+        if listed:
+            listed = f"{listed}, and {enabled[-1]}"
+        else:
+            listed = enabled[0]
+        return (
+            f"I can {listed}. I can also create and manage local projects, "
+            "remember context, and help plan your work."
+        )
 
     def _local_dynamic_fallback(self, user_text: str, fallback: str) -> str:
         compact = " ".join(user_text.split())
@@ -961,26 +1017,28 @@ class LLMService:
 
         if "create_folder" in tool_names:
             folder_match = re.search(
-                r"(?:create|make|new)\s+(?:a\s+)?folder(?:\s+named|\s+called)?\s+(.+)$",
+                r"(?:create|make|new)\s+(?:a\s+)?folder(?:\s+named|\s+called)?(?:\s+(.+))?$",
                 user_text,
                 flags=re.IGNORECASE,
             )
             if folder_match:
+                raw_path = folder_match.group(1) or "DemoWorkspace/NewFolder"
                 return {
                     "tool": "create_folder",
-                    "arguments": {"path": self._clean_named_path(folder_match.group(1))},
+                    "arguments": {"path": self._clean_named_path(raw_path)},
                 }
 
         if "create_file" in tool_names:
             file_match = re.search(
-                r"(?:create|make|new)\s+(?:a\s+)?file(?:\s+named|\s+called)?\s+(.+)$",
+                r"(?:create|make|new)\s+(?:a\s+)?file(?:\s+named|\s+called)?(?:\s+(.+))?$",
                 user_text,
                 flags=re.IGNORECASE,
             )
             if file_match:
+                raw_path = file_match.group(1) or "DemoWorkspace/notes.txt"
                 return {
                     "tool": "create_file",
-                    "arguments": {"path": self._clean_named_path(file_match.group(1))},
+                    "arguments": {"path": self._clean_named_path(raw_path)},
                 }
 
         if "write_text_file" in tool_names:

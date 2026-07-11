@@ -20,7 +20,7 @@ from __future__ import annotations
 import threading
 import time
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -34,16 +34,28 @@ if TYPE_CHECKING:
 
 class ConversationState(Enum):
     IDLE = "idle"
+    LISTENING = "listening"
+    REASONING = "reasoning"
     CONVERSING = "conversing"
     PLANNING = "planning"
     EXECUTING = "executing"
+    VERIFYING = "verifying"
+    RECOVERING = "recovering"
+    SPEAKING = "speaking"
+    COMPLETE = "complete"
 
     def describe(self) -> str:
         return {
             ConversationState.IDLE:       "Standing by.",
+            ConversationState.LISTENING:  "Listening.",
+            ConversationState.REASONING:  "Analyzing request.",
             ConversationState.CONVERSING: "In conversation.",
             ConversationState.PLANNING:   "Working on a plan.",
             ConversationState.EXECUTING:  "Executing tasks.",
+            ConversationState.VERIFYING:  "Verifying results.",
+            ConversationState.RECOVERING: "Recovering.",
+            ConversationState.SPEAKING:   "Speaking.",
+            ConversationState.COMPLETE:   "Completed.",
         }[self]
 
 
@@ -243,12 +255,6 @@ class ConversationContextBuilder:
             # Active project — keyword match only
             terms = [t for t in user_text.lower().split() if len(t) > 2]
             active_project = self._memory.get_project_by_keyword(terms)
-            if active_project:
-                active_project["_key"] = next(
-                    (k for k in self._memory.get_projects()
-                     if any(t in k.lower() for t in terms)),
-                    "project",
-                )
 
             # Long-term memory — top-6 snippets only
             relevant_memories = self._retrieve_memory_snippets(user_text, top_k=6)
