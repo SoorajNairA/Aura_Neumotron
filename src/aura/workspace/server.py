@@ -311,7 +311,7 @@ class WorkspaceApplication:
         circuit_specs=[spec for spec in specs if spec.kind.value=="circuit_schematic"]
         circuit_fidelity=all(spec.payload.get("fidelity",{}).get("portsComplete") and spec.payload.get("fidelity",{}).get("netsComplete") for spec in circuit_specs)
         critical_semantic=any(item.severity=="critical" and item.state is VerificationState.FAILED for item in verified.findings)
-        physical_complete=bool(physical_ids) and physical_ids <= ready_physical and len(assembly.get("parts",())) >= len(physical_ids)
+        physical_complete=bool(physical_ids) and physical_ids <= ready_physical and len(assembly.get("parts",())) >= len(physical_ids) and not assembly.get("unresolvedMechanicalRelations")
         required_failed = any(item.status is RepresentationStatus.FALLBACK for item in completed) or not physical_complete or not circuit_fidelity or critical_semantic
         record.status = "build_incomplete" if required_failed else ("ready_with_limitations" if capability == "SUPPORTED_WITH_LIMITATIONS" else "ready")
         self.repository.update_project_status(project_id, record.status)

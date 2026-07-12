@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
@@ -102,14 +102,20 @@ class PlannerService:
         templates.  A useful unknown is kept as a conceptual component, with the
         original Planner intent and resolution class carried into the graph.
         """
-        text=request.objective.lower();planner_labels=" ".join(request.components).lower();project_id=self._id(request.objective,"project")
+        # The structured planner may carry essential mechanism requirements in
+        # its project name or requirements list.  Normalization must preserve
+        # them all; looking only at the free-form objective silently dropped
+        # "Tri-Axis" in live planner output.
+        semantic_text=request.objective
+        intent_text=" ".join((request.project_name,semantic_text,*request.requirements))
+        text=semantic_text.lower();objective_text=request.objective.lower();planner_labels=" ".join(request.components).lower();project_id=self._id(request.objective,"project")
         semantic_requirements=[]
         def require(key,label,roles,*,axes=0):
             if not any(item["key"]==key for item in semantic_requirements):
                 semantic_requirements.append({"key":key,"label":label,"roles":list(roles),"axes":axes,"critical":True})
         require("controller","Control logic",("controller",))
         require("power","Low-voltage power",("power",))
-        motion_words=("move","rotate","turn","lift","tilt","pan","balance","conveyor","dispens","arm","drive")
+        motion_words=("move","rotate","turn","lift","tilt","pan","balance","conveyor","dispens","arm","drive","slid")
         # "Drawer opened" is a sensed state, not necessarily an instruction to
         # actuate the drawer.  Open/close only imply motion for a moving closure.
         non_indicator_motion=("turn" in text and "turn on" not in text and "turns on" not in text)
@@ -124,8 +130,10 @@ class PlannerService:
             require("support","Stationary support",("support",))
         if any(re.search(rf"\b{re.escape(word)}\b", text) or re.search(rf"\b{re.escape(word)}\b", planner_labels) for word in ("remote","wireless","receiver","bluetooth")):
             require("remote-control-input","Remote control input",("remote_control_input",))
-        multi_axis=2 if "two-axis" in text or ("pan" in text and "tilt" in text) or "balanc" in text else 0
-        if multi_axis: require("controlled-axes",f"{multi_axis}-axis controlled motion",("controlled_motion",),axes=multi_axis)
+        axis_count=self._requested_axis_count(intent_text)
+        if not axis_count and (("pan" in text and "tilt" in text) or "balanc" in text): axis_count=2
+        servo_count=self._named_component_count(f"{intent_text} {planner_labels}","servo")
+        if axis_count: require("controlled-axes",f"{axis_count}-axis controlled motion",("controlled_motion",),axes=axis_count)
         if any(word in text for word in ("position","balanc","track")): require("position-feedback","Position/state feedback",("feedback_position",))
         if "temperature" in text or "thermal" in text or "warm" in text: require("temperature-feedback","Temperature feedback",("feedback_temperature",))
         if "drawer" in text and any(word in text for word in ("detect","opened","open state")): require("open-state-feedback","Open-state feedback",("feedback_open_state",))
@@ -141,7 +149,7 @@ class PlannerService:
         if any(word in text for word in ("airflow","fan","ventilation")): include("fan");include("driver")
         if any(word in text for word in ("water","liquid","soil","pump","fluid","irrigation")): include("container");include("tube");include("pump");include("driver")
         if any(word in text for word in ("dispense","dispensing","food","portion")): include("container");include("servo");include("dispensing-mechanism");include("mounting-plate")
-        if any(word in text for word in ("lid","flap","shade")): include("lid");include("hinge");include("servo");include("mounting-plate")
+        if any(re.search(rf"\b{re.escape(word)}\b",text) for word in ("lid","flap","shade")): include("lid");include("hinge");include("servo");include("mounting-plate")
         if "drawer" in text: include("drawer");include("open-state-sensor")
         if "light" in text and any(word in text for word in ("turn on","turns on","output","illuminate")): include("indicator")
         if "conveyor" in text or "belt" in text: include("conveyor");include("motor");include("driver");include("support")
@@ -152,8 +160,16 @@ class PlannerService:
         if "ball" in text or "object" in text: include("tracked-object")
         if any(word in text for word in ("position","balanc","track")): include("position-sensor")
         if needs_motion and not any(family in families for family in ("servo","motor")): include("servo")
-        if needs_motion: include("mechanism");include("mounting-plate")
-        if multi_axis: include("servo",multi_axis);include("mechanism",multi_axis);include("mounting-plate")
+        sliding_system="slid" in text and any(word in text for word in ("door","panel","drawer"))
+        if needs_motion and not sliding_system and not mobile_drive: include("mechanism");include("mounting-plate")
+        if axis_count: include("servo",axis_count);include("mechanism",axis_count);include("mounting-plate")
+        if servo_count:
+            include("servo",servo_count)
+            if needs_motion: include("mechanism",servo_count)
+        motor_count=self._named_component_count(f"{intent_text} {planner_labels}","motor")
+        if motor_count: include("motor",motor_count)
+        if sliding_system:
+            include("sliding-panel");include("linear-mechanism");include("mounting-plate");include("support")
 
         specs={
           "controller":("Controller board","microcontroller_board","electronics",{"logic_voltage_v":3.3,"gpio_max_current_ma":12,"functional_roles":["controller"],"resolution_quality":"EXACT"},(52,28,8)),
@@ -182,6 +198,8 @@ class PlannerService:
           "mounting-plate":("Mounting plate","mounting_plate","structure",{"functional_roles":["support"],"resolution_quality":"COMPATIBLE_GENERIC"},(150,100,6)),
           "support":("Structural support","mounting_plate","structure",{"functional_roles":["support"],"resolution_quality":"CONCEPTUAL"},(150,100,12)),
           "mechanism":("Driven mechanism","generic_mechanical_part","mechanical",{"functional_roles":["moving_surface"],"resolution_quality":"CONCEPTUAL"},(100,60,8)),
+          "linear-mechanism":("Rotary-to-linear drive","linear_drive","mechanical",{"functional_roles":["motion_transmission"],"joint_type":"prismatic","resolution_quality":"CONCEPTUAL"},(100,36,18)),
+          "sliding-panel":("Sliding panel","sliding_panel","mechanical",{"functional_roles":["moving_surface","moving_body"],"joint_type":"prismatic","resolution_quality":"CONCEPTUAL"},(160,12,90)),
           "controlled-platform":("Controlled platform","generic_mechanical_part","mechanical",{"functional_roles":["moving_surface","moving_body"],"resolution_quality":"CONCEPTUAL"},(140,100,8)),
           "camera-platform":("Camera platform","generic_mechanical_part","mechanical",{"functional_roles":["moving_surface","moving_body"],"resolution_quality":"CONCEPTUAL"},(80,60,18)),
           "conveyor":("Conveyor surface","generic_mechanical_part","mechanical",{"functional_roles":["moving_surface","moving_body"],"resolution_quality":"CONCEPTUAL"},(180,70,20)),
@@ -192,7 +210,7 @@ class PlannerService:
         curated={"controller":"esp32-devkit-v1","temperature-sensor":"bme280-i2c-module","environmental-sensor":"bme280-breakout","distance-sensor":"vl53l0x-module","fan":"dc-fan-5v","servo":"sg90-servo","driver":"logic-mosfet-module","motor-driver":"drv8833-module","power":"supply-usb-5v-2a"}
         raw_trace=[];raw_counts={}
         for raw in request.components:
-            resolved=self._resolve_component_intent(raw,text)
+            resolved=self._resolve_component_intent(raw,objective_text)
             raw_trace.append({"plannerIntent":raw,**resolved})
             family=resolved.get("normalizedFamily")
             if family: raw_counts[family]=raw_counts.get(family,0)+1
@@ -212,7 +230,28 @@ class PlannerService:
                 physical=component_interfaces(kind,tuple(float(value) for value in dims));interface_names=tuple(dict.fromkeys(item.name for item in physical))
                 components.append(ComponentSpec(cid,name,kind,f"subsystem-{role}",f"{name} for the requested low-voltage system.",params,interface_names,{key:{"value":value,"unit":"mm"} for key,value in zip(("width","length","height"),dims)},assumption_refs=(f"assumption-{family}",)))
                 component_by_family.setdefault(family,[]).append(cid)
-        ids={c.id for c in components};connections=[];by_component={c.id:c for c in components};controller_signal=0
+        # Explicit axes remain graph semantics.  An actuator can advertise one
+        # or more controlled axes, and a distinct driven body records which
+        # axis it realizes.  This supports servo, motor, and future actuator
+        # families without a project-name or robotic-arm branch.
+        if axis_count:
+            next_axis=1
+            for index,component in enumerate(components):
+                if "controlled_motion" not in component.parameters.get("functional_roles",()): continue
+                capacity=max(int(component.parameters.get("controlled_dof",0) or 0),1)
+                assigned=[]
+                while len(assigned)<capacity and next_axis<=axis_count:
+                    assigned.append(f"axis-{next_axis}");next_axis+=1
+                if assigned:
+                    parameters=dict(component.parameters);parameters["controlled_axis_ids"]=assigned
+                    components[index]=replace(component,parameters=parameters)
+            index_by_id={component.id:index for index,component in enumerate(components)}
+            transmissions=component_by_family.get("mechanism",[])+component_by_family.get("linear-mechanism",[])
+            for axis_index,component_id in enumerate(transmissions[:axis_count],1):
+                index=index_by_id[component_id];component=components[index];parameters=dict(component.parameters)
+                parameters["driven_axis_ids"]=[f"axis-{axis_index}"]
+                components[index]=replace(component,parameters=parameters)
+        ids={c.id for c in components};connections=[];by_component={c.id:c for c in components};controller_signal=0;mechanical_interfaces_used:set[str]=set()
         def connect(a,b,kind):
             nonlocal controller_signal
             endpoint={"power":("power","power"),"ground":("ground","ground"),"control":("signal","signal"),"signal":("signal","signal"),"switched-power":("signal","power"),"regulated-power":("power","power")}.get(kind)
@@ -221,14 +260,18 @@ class PlannerService:
                     controller_signal+=1;endpoint=(f"signal-{min(controller_signal,8)}","signal")
                 elif b in by_component and by_component[b].role in {"microcontroller_board","controller"}:
                     controller_signal+=1;endpoint=("signal",f"signal-{min(controller_signal,8)}")
-            # A downstream actuator body is fixed to the prior link.  Its
-            # rotating output is reserved for the next driven link, so it is
-            # never mated through the prior link's rotating input.
-            if kind=="mechanical" and a in by_component and b in by_component and by_component[a].role=="generic_mechanical_part" and by_component[b].role=="servo":
-                endpoint=("end-face","body-mount")
+            if kind=="mechanical" and a in by_component and b in by_component:
+                left=component_interfaces(by_component[a].role,tuple(float(x.get("value",1)) for x in by_component[a].dimensions.values()));right=component_interfaces(by_component[b].role,tuple(float(x.get("value",1)) for x in by_component[b].dimensions.values()))
+                # A downstream actuator body is fixed to the prior link.  Its
+                # rotating output remains available for the next driven link.
+                preferred=((x,y) for x in left for y in right if by_component[a].role in {"generic_mechanical_part","linear_drive"} and by_component[b].role=="servo" and x.name=="end-face" and y.name=="body-mount")
+                compatible=((x,y) for x in left for y in right if y.kind in x.compatible)
+                pair=next((pair for pair in (*preferred,*compatible) if f"{a}:{pair[0].name}" not in mechanical_interfaces_used and f"{b}:{pair[1].name}" not in mechanical_interfaces_used),None)
+                if pair:
+                    endpoint=(pair[0].name,pair[1].name);mechanical_interfaces_used.update((f"{a}:{endpoint[0]}",f"{b}:{endpoint[1]}"))
             if kind=="switched-power" and a in by_component and by_component[a].role in {"mosfet_driver","motor_driver","relay_module"}:
                 endpoint=("load-output","power")
-            if endpoint is None and a in by_component and b in by_component:
+            if endpoint is None and kind!="mechanical" and a in by_component and b in by_component:
                 left=component_interfaces(by_component[a].role,tuple(float(x.get("value",1)) for x in by_component[a].dimensions.values()));right=component_interfaces(by_component[b].role,tuple(float(x.get("value",1)) for x in by_component[b].dimensions.values()))
                 endpoint=next(((x.name,y.name) for x in left for y in right if y.kind in x.compatible),("mechanical","mechanical"))
             if a in ids and b in ids and endpoint: connections.append(ConnectionSpec(f"connection-{a[10:]}-{b[10:]}-{kind}",a,b,endpoint[0],endpoint[1],kind,f"{kind.title()} connection."))
@@ -247,7 +290,11 @@ class PlannerService:
         servos=component_by_family.get("servo",[]);mechanisms=component_by_family.get("mechanism",[]);platforms=component_by_family.get("controlled-platform",[])+component_by_family.get("camera-platform",[])+component_by_family.get("conveyor",[])+component_by_family.get("lid",[])+component_by_family.get("dispensing-mechanism",[])
         mounts=component_by_family.get("mounting-plate",[])+component_by_family.get("support",[])
         if servos and mounts: connect(mounts[0],servos[0],"mechanical")
-        if len(servos)>1 and mechanisms:
+        linear_drives=component_by_family.get("linear-mechanism",[]);sliding_panels=component_by_family.get("sliding-panel",[])
+        if servos and linear_drives and sliding_panels:
+            connect(servos[0],linear_drives[0],"mechanical")
+            connect(linear_drives[0],sliding_panels[0],"mechanical")
+        elif len(servos)>1 and mechanisms:
             for index,servo in enumerate(servos):
                 stage=mechanisms[min(index,len(mechanisms)-1)];connect(servo,stage,"mechanical")
                 if index+1<len(servos): connect(stage,servos[index+1],"mechanical")
@@ -255,7 +302,9 @@ class PlannerService:
         elif servos and platforms: connect(servos[0],platforms[0],"mechanical")
         elif servos and mechanisms: connect(servos[0],mechanisms[0],"mechanical")
         if component_by_family.get("hinge",[]) and component_by_family.get("lid",[]): connect(component_by_family["hinge"][0],component_by_family["lid"][0],"mechanical")
-        if component_by_family.get("motor",[]) and component_by_family.get("conveyor",[]): connect(component_by_family["motor"][0],component_by_family["conveyor"][0],"mechanical")
+        if component_by_family.get("motor",[]) and component_by_family.get("conveyor",[]):
+            connect(component_by_family["motor"][0],component_by_family["conveyor"][0],"mechanical")
+            if component_by_family.get("support",[]): connect(component_by_family["support"][0],component_by_family["motor"][0],"mechanical")
         motors=component_by_family.get("motor",[]);wheels=component_by_family.get("drive-wheel",[]);chassis=component_by_family.get("chassis",[])
         if motors and chassis:
             for index,motor in enumerate(motors): connect(chassis[min(index,len(chassis)-1)],motor,"mechanical")
@@ -273,6 +322,24 @@ class PlannerService:
         patch=GraphPatch(self._id(request.objective,"initial-patch"),tuple(operations),f"Create {request.project_name}")
         plan=ProjectPlan(request,tuple(entities),relationships,patch,(RepresentationRequest(project_id,"system_diagram"),),VerificationRequest(patch.id,("structure","electrical","physical","safety","objective_coverage")),(WorkspaceEventProposal("project.started",project_id),),subsystems,tuple(components),tuple(connections),("Use low-voltage DC only","Unsupported certification remains explicit"))
         plan.validate();return plan
+
+    @staticmethod
+    def _requested_axis_count(text: str) -> int:
+        """Extract an explicitly requested number of independently controlled axes."""
+        words={"one":1,"single":1,"two":2,"dual":2,"three":3,"tri":3,"four":4,"five":5,"six":6,"seven":7,"eight":8}
+        number=r"(?:\d+|one|single|two|dual|three|tri|four|five|six|seven|eight)"
+        def value(token: str) -> int: return int(token) if token.isdigit() else words[token]
+        counts=[]
+        for match in re.finditer(rf"\b(?P<count>{number})\s*[- ]?axis(?:es)?\b",text.lower()): counts.append(value(match.group("count")))
+        for match in re.finditer(rf"\b(?P<count>{number})\s+(?:independent\s+)?(?:(?:servo|motor|actuator)\s+)?(?:control\s+)?(?:channels|joints)\b",text.lower()): counts.append(value(match.group("count")))
+        return max(counts,default=0)
+
+    @staticmethod
+    def _named_component_count(text: str, family: str) -> int:
+        words={"one":1,"single":1,"two":2,"three":3,"four":4,"five":5,"six":6,"seven":7,"eight":8}
+        match=re.search(rf"\b(?P<count>\d+|{'|'.join(words)})\s+(?:(?:hobby|small|dc|raw)\s+)?{re.escape(family)}s?\b",text.lower())
+        if not match: return 0
+        token=match.group("count");return int(token) if token.isdigit() else words[token]
 
     def repair_context(self, plan: ProjectPlan, verification: Any) -> tuple[dict[str, Any], list[str]]:
         """Extract the bounded, provider-neutral context for one graph repair."""

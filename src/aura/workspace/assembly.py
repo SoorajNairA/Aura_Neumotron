@@ -19,13 +19,14 @@ class PhysicalPart:
     exploded: tuple[float, float, float]
     verification: str = "estimated"
     family: str = ""
+    transform_source: str = "LAYOUT_FALLBACK"
 
     def to_dict(self) -> dict[str, Any]:
         return {"semanticId":self.semantic_id,"label":self.label,"subsystem":self.subsystem,
             "parentAssembly":self.parent,"representationSource":self.source,"dimensions":list(self.dimensions),
             "assembledTransform":{"position":list(self.assembled),"rotation":[0,0,0,1]},
             "explodedTransform":{"position":list(self.exploded),"rotation":[0,0,0,1]},
-            "verificationState":self.verification,"family":self.family}
+            "verificationState":self.verification,"family":self.family,"transformSource":self.transform_source}
 
 
 def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
@@ -46,25 +47,38 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
         part=by_id[entity.id];family=entity.metadata.get("family",entity.metadata.get("role",""))
         definitions=component_interfaces(family,part.dimensions);by_owner[entity.id]=definitions
         interfaces.extend(interface_dict(entity.id,item) for item in definitions)
-    positions={part.semantic_id:list(part.assembled) for part in parts};mated=[];constraints=[];used=set()
+    positions={part.semantic_id:list(part.assembled) for part in parts};mated=[];constraints=[];used=set();placement={part.semantic_id:"LAYOUT_FALLBACK" for part in parts};unresolved=[]
+    connection_entities={entity.id:entity for entity in graph.find(kind=EntityKind.CONNECTION)}
     mechanical={"mechanical","fixed","revolute","hinge"}
     for relation in graph.relationships.values():
         if relation.type not in mechanical or relation.source_id not in by_owner or relation.target_id not in by_owner: continue
-        pair=next(((a,b) for a in by_owner[relation.source_id] for b in by_owner[relation.target_id]
-            if b.kind in a.compatible and f"{relation.source_id}:{a.name}" not in used and f"{relation.target_id}:{b.name}" not in used),None)
-        if not pair: continue
+        connection=connection_entities.get(str(relation.metadata.get("connection_id","")))
+        metadata=connection.metadata if connection else {}
+        exact=((a,b) for a in by_owner[relation.source_id] for b in by_owner[relation.target_id]
+               if a.name==metadata.get("source_interface") and b.name==metadata.get("target_interface"))
+        compatible=((a,b) for a in by_owner[relation.source_id] for b in by_owner[relation.target_id] if b.kind in a.compatible)
+        pair=next((candidate for candidate in (*exact,*compatible)
+                   if candidate[1].kind in candidate[0].compatible and f"{relation.source_id}:{candidate[0].name}" not in used and f"{relation.target_id}:{candidate[1].name}" not in used),None)
+        if not pair:
+            unresolved.append({"relationshipId":relation.id,"sourceId":relation.source_id,"targetId":relation.target_id,"reason":"no unused compatible interface pair"});continue
         source,target=pair;source_world=[positions[relation.source_id][i]+source.position[i] for i in range(3)]
         positions[relation.target_id]=[source_world[i]-target.position[i]+(source.axis[i] if source.axis else 0)*source.clearance_mm for i in range(3)]
         source_id=f"{relation.source_id}:{source.name}";target_id=f"{relation.target_id}:{target.name}";used.update((source_id,target_id))
         constraints.append((relation.source_id,source,relation.target_id,target))
-        mated.append({"from":source_id,"to":target_id,"type":"revolute" if source.kind in {"rotating_output","hinge_axis"} else "fixed"})
+        placement[relation.target_id]="MATE_SOLVED"
+        mate_type="revolute" if source.kind in {"rotating_output","hinge_axis"} else "prismatic" if source.kind=="linear_output" else "fixed"
+        mated.append({"from":source_id,"to":target_id,"type":mate_type})
     for _ in range(len(constraints)+1):
         for source_owner,source,target_owner,target in constraints:
             source_world=[positions[source_owner][i]+source.position[i] for i in range(3)]
             positions[target_owner]=[source_world[i]-target.position[i]+(source.axis[i] if source.axis else 0)*source.clearance_mm for i in range(3)]
     from dataclasses import replace
-    parts=[replace(part,assembled=tuple(positions[part.semantic_id]),exploded=tuple(positions[part.semantic_id][i]+(part.exploded[i]-part.assembled[i]) for i in range(3))) for part in parts]
-    return {"assemblyId":f"assembly-{graph.project_id}","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"hierarchy":hierarchy,"parts":[p.to_dict() for p in _resolve_exploded_collisions(parts)],"interfaces":interfaces,"connectors":interfaces,"relationships":mated,"revision":len(graph.revisions),"layoutStatus":"conceptual mechanical assembly","placementMethod":"interface-frame-mating"}
+    target_ids={target_owner for _,_,target_owner,_ in constraints}
+    for source_owner,_,_,_ in constraints:
+        if source_owner not in target_ids: placement[source_owner]="FIXED_DEFAULT"
+    parts=[replace(part,assembled=tuple(positions[part.semantic_id]),exploded=tuple(positions[part.semantic_id][i]+(part.exploded[i]-part.assembled[i]) for i in range(3)),transform_source=placement[part.semantic_id]) for part in parts]
+    source_counts={source:sum(part.transform_source==source for part in parts) for source in ("MATE_SOLVED","LAYOUT_FALLBACK","FIXED_DEFAULT")}
+    return {"assemblyId":f"assembly-{graph.project_id}","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"hierarchy":hierarchy,"parts":[p.to_dict() for p in _resolve_exploded_collisions(parts)],"interfaces":interfaces,"connectors":interfaces,"relationships":mated,"unresolvedMechanicalRelations":unresolved,"transformSourceCounts":source_counts,"revision":len(graph.revisions),"layoutStatus":"conceptual mechanical assembly","placementMethod":"interface-frame-mating"}
 
 def _resolve_exploded_collisions(parts: list[PhysicalPart]) -> list[PhysicalPart]:
     """Deterministically extend withdrawal vectors until exploded AABBs clear."""

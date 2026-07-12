@@ -46,6 +46,20 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float]) ->
         ]
     elif family == "drive_wheel":
         result.append(InterfaceDefinition("hub-input", "rotating_input", (0, 0, 0), axis=(0, 1, 0), compatible=("rotating_output",)))
+    elif family == "linear_drive":
+        # A reusable rotary-to-linear transmission.  The actuator mates to the
+        # input; the moving panel mates to the linear output.  It is deliberately
+        # separate from a rotary joint so a sliding mechanism cannot silently
+        # collapse into a revolute arm layout.
+        result += [
+            InterfaceDefinition("rotating-input", "rotating_input", (0, -length / 2, 0), axis=(0, -1, 0), compatible=("rotating_output",)),
+            InterfaceDefinition("linear-output", "linear_output", (0, length / 2, 0), axis=(0, 1, 0), compatible=("linear_input",)),
+        ]
+    elif family == "sliding_panel":
+        result += [
+            InterfaceDefinition("linear-input", "linear_input", (0, -length / 2, 0), axis=(0, 1, 0), compatible=("linear_output",)),
+            InterfaceDefinition("end-face", "structural_face", (0, length / 2, 0), axis=(0, 0, 1), compatible=("fixed_mount", "structural_face")),
+        ]
     elif family in {"simple_arm", "lid", "dispensing-mechanism", "generic_mechanical_part", "tracked_object"}:
         result += [
             InterfaceDefinition("joint-input", "rotating_input", (0, 0, -length / 2), axis=(0, 1, 0), compatible=("rotating_output", "hinge_axis")),
@@ -57,7 +71,12 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float]) ->
             # distinct hinge interface for its stationary support.
             result.append(InterfaceDefinition("hinge-input", "rotating_input", (width / 2, 0, -length / 2), axis=(0, 1, 0), compatible=("hinge_axis",)))
     elif family in {"mounting_plate", "base", "enclosure", "container"}:
+        # A support may carry more than one component.  These are distinct,
+        # stable interfaces rather than an implicitly reusable component centre.
         result.append(InterfaceDefinition("mount-face", "structural_face", (0, 0, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)))
+        if family in {"mounting_plate", "base"}:
+            for index, (x, y) in enumerate(((-.28, -.28), (-.28, .28), (.28, -.28), (.28, .28)), 1):
+                result.append(InterfaceDefinition(f"mount-face-{index}", "structural_face", (width * x, length * y, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)))
     elif family == "hinge":
         result.append(InterfaceDefinition("axis", "hinge_axis", (0, 0, 0), axis=(0, 1, 0), compatible=("rotating_input",)))
     return tuple(result)
