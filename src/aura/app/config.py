@@ -61,7 +61,7 @@ class Settings:
     planner_provider: str = os.getenv("AURA_LLM_PROVIDER",os.getenv("AURA_PLANNER_PROVIDER","vertex")).strip().lower()
     planner_model: str = os.getenv("AURA_PLANNER_MODEL", "").strip()
     planner_timeout: float = float(os.getenv("AURA_PLANNER_TIMEOUT", "20"))
-    circuit_timeout: float = float(os.getenv("AURA_CIRCUIT_TIMEOUT", "8"))
+    circuit_timeout: float = float(os.getenv("AURA_CIRCUIT_TIMEOUT", "20"))
     cad_timeout: float = float(os.getenv("AURA_CAD_TIMEOUT", "10"))
     artifact_timeout: float = float(os.getenv("AURA_ARTIFACT_TIMEOUT", "10"))
     websocket_reconnect_attempts: int = int(os.getenv("AURA_WEBSOCKET_RECONNECT_ATTEMPTS", "6"))

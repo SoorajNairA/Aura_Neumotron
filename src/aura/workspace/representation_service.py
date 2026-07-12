@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from aura.engineering_graph.model import EngineeringGraph, EntityKind
+from aura.engineering_graph.electrical import electrical_nets, materialize_electrical_nets
 from aura.infrastructure.persistence.project_repository import ProjectRepository
 from .representations import (GenerationResult, RepresentationRecord, RepresentationSpec,
     RepresentationSpecValidator, RepresentationStatus, RepresentationType)
@@ -39,6 +40,9 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
         if not category: continue
         prefix,kind,pins=category;counts[prefix]=counts.get(prefix,0)+1;ref=f"{prefix}{counts[prefix]}";references[entity.id]=ref
         circuit_components.append({"reference":ref,"semanticId":entity.id,"kind":kind,"pins":pins})
+    # Circuit topology is compiled exclusively from first-class graph nets.
+    if not electrical_nets(graph):
+        materialize_electrical_nets(graph)  # migration path for persisted pre-net graphs
     connections=[];unconnected=[];signal_counts={}
     pin_alias={
         "controller":{"power":"VCC","5v":"VCC","3v3":"VCC","ground":"GND","gnd":"GND","signal":"PWM1","gpio-pump":"PWM1","gpio-sensor":"PWM2"},
@@ -48,18 +52,20 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
         "mosfet":{"logic-in":"G","logic-gnd":"S","load-in":"D","load-out":"D"},
         "soil_sensor":{"power":"VCC","vcc":"VCC","ground":"GND","gnd":"GND","signal":"OUT"},
     }
-    for relationship in graph.relationships.values():
-        a,b=references.get(relationship.source_id),references.get(relationship.target_id)
-        if not (a and b): continue
-        source=next(x for x in circuit_components if x["reference"]==a);target=next(x for x in circuit_components if x["reference"]==b)
-        connection_id=relationship.metadata.get("connection_id","");connection=graph.entities.get(connection_id)
-        source_interface=(connection.metadata.get("source_interface") if connection else None) or ("signal" if relationship.type=="control" else relationship.type)
-        target_interface=(connection.metadata.get("target_interface") if connection else None) or ("signal" if relationship.type=="control" else relationship.type)
-        source_pin=pin_alias.get(source["kind"],{}).get(source_interface);target_pin=pin_alias.get(target["kind"],{}).get(target_interface)
-        if source["kind"]=="controller" and target["kind"]=="servo" and relationship.type=="control":
-            signal_counts[a]=signal_counts.get(a,0)+1;source_pin=f"PWM{signal_counts[a]}"
-        if source_pin in source["pins"] and target_pin in target["pins"]: connections.append({"from":f"{a}.{source_pin}","to":f"{b}.{target_pin}","graphConnectionId":connection_id})
-        elif relationship.type in {"power","ground","control","signal","regulated-power","switched-power"}: unconnected.append({"graphConnectionId":connection_id,"sourceSemanticId":relationship.source_id,"targetSemanticId":relationship.target_id,"reason":"no compatible electrical interface"})
+    by_reference={item["reference"]:item for item in circuit_components}
+    for net in electrical_nets(graph):
+        resolved=[]
+        for terminal in net["terminals"]:
+            component_id,interface=terminal["componentId"],terminal["interfaceId"]
+            reference=references.get(component_id);component=by_reference.get(reference or "")
+            pin=pin_alias.get(component["kind"],{}).get(interface) if component else None
+            if component and component["kind"]=="controller" and net["role"] in {"control","signal"}:
+                signal_counts[reference]=signal_counts.get(reference,0)+1;pin=f"PWM{signal_counts[reference]}"
+            if reference and component and pin in component["pins"]: resolved.append((reference,pin,component_id))
+            else: unconnected.append({"netId":net["netId"],"sourceSemanticId":component_id,"interfaceId":interface,"reason":"terminal has no compatible schematic pin"})
+        if len(resolved)>1:
+            origin=resolved[0]
+            for target in resolved[1:]: connections.append({"from":f"{origin[0]}.{origin[1]}","to":f"{target[0]}.{target[1]}","netId":net["netId"],"graphConnectionId":net["connectionIds"][0],"role":net["role"],"displayStyle":net["displayStyle"]})
     graph_ids = {entity.id for entity in graph.find(kind=EntityKind.COMPONENT)}
     if "component-reservoir" in graph_ids:
         order={"component-reservoir":0,"component-tubing":1,"component-enclosure":2};mechanical.sort(key=lambda spec:order.get(spec.semantic_ids[0],9))
@@ -88,7 +94,7 @@ class CircuitGeneratorAdapter:
     generator_version = TSCIRCUIT_VERSION
     MAX_OUTPUT_BYTES = 5_000_000
 
-    def __init__(self, timeout: float = 8.0, node_executable: str = "node", script_path: Path | None = None) -> None:
+    def __init__(self, timeout: float = 20.0, node_executable: str = "node", script_path: Path | None = None) -> None:
         self.timeout=timeout; self.node_executable=node_executable
         self.script_path=(script_path or Path(__file__).with_name("web") / "frontend" / "generators" / "tscircuit" / "generate-circuit.mjs").resolve()
 
@@ -122,7 +128,7 @@ class RepresentationService:
                 "representation-spec" if spec.kind is RepresentationType.MECHANICAL_3D else "circuit-json")  # type: ignore[attr-defined]
             if spec.kind is RepresentationType.MECHANICAL_3D:
                 self.repository.write_artifact(artifact.artifact_id,json.dumps(spec.to_dict(),separators=(",", ":")).encode(),"aura-spec","1")  # type: ignore[attr-defined]
-                updated.append(replace(record,artifact_id=artifact.artifact_id))
+                updated.append(record.transition(RepresentationStatus.GENERATING).transition(RepresentationStatus.READY,artifact_id=artifact.artifact_id,error=None))
             else: updated.append(self._generate_circuit(record,spec,artifact.artifact_id))
         return updated
 

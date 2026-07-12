@@ -132,6 +132,11 @@ class PostgresProjectRepository:
             cursor.execute("UPDATE projects SET representations_json=%s,updated_at=CURRENT_TIMESTAMP WHERE project_id=%s", (Jsonb(representations), project_id))
             if cursor.rowcount != 1: raise KeyError(f"Unknown project: {project_id}")
 
+    def update_project_status(self, project_id: str, status: str) -> None:
+        with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:
+            cursor.execute("UPDATE projects SET status=%s,updated_at=CURRENT_TIMESTAMP WHERE project_id=%s", (status, project_id))
+            if cursor.rowcount != 1: raise KeyError(f"Unknown project: {project_id}")
+
     def append_events(self, project_id: str, revision: int, events: list[dict[str, Any]]) -> list[StoredEvent]:
         now = datetime.now(timezone.utc).isoformat()
         with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:

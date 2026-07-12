@@ -5,6 +5,7 @@ from collections.abc import Callable
 from aura.engineering_graph.model import EngineeringGraph
 from aura.engineering_graph.model import EntityKind
 from aura.engineering_graph.patches import apply_patch
+from aura.engineering_graph.electrical import materialize_electrical_nets
 from aura.verification.results import VerificationResult
 
 from .events import WorkspaceEvent
@@ -44,7 +45,7 @@ class WorkspaceBridge:
             return graph
         if not graph.revisions:
             self.emit(WorkspaceEvent("project.started", graph.project_id))
-        updated = apply_patch(graph, result.patch)
+        updated = materialize_electrical_nets(apply_patch(graph, result.patch))
         kind_events = {
             EntityKind.REQUIREMENT: "requirements.created",
             EntityKind.ASSUMPTION: "assumptions.created",
@@ -83,6 +84,8 @@ class WorkspaceBridge:
             "project.created", updated.project_id,
             revision_id=updated.current_revision_id, entity_id=updated.project_id,
         ))
+        # This is graph readiness for bridge consumers. The server withholds it
+        # until required representation compilation has completed.
         self.emit(WorkspaceEvent("project.ready", updated.project_id, revision_id=updated.current_revision_id))
         return updated
 

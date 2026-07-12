@@ -24,8 +24,9 @@ class PlannerService:
             raise ValueError(capability)
         if "irrigation" in request.objective.lower() or ("soil" in request.objective.lower() and "pump" in request.objective.lower()):
             return self._irrigation_plan(request)
-        if ((not request.components and any(word in request.objective.lower() for word in ("fan","feeder","weather","humidity","pressure","tank","servo","lid")))
-                or "robotic arm" in request.objective.lower() or "robot arm" in request.objective.lower()):
+        if (not request.components and any(word in request.objective.lower() for word in
+                ("fan", "feeder", "weather", "humidity", "pressure", "tank", "servo", "lid",
+                 "robotic arm", "robot arm", "flap", "shade", "platform", "rotate", "rotating"))):
             return self._mechatronic_plan(request,capability["status"])
         project_id = self._id(request.project_name, "project")
         assembly_id = self._id(request.project_name, "assembly")
@@ -95,6 +96,10 @@ class PlannerService:
         elif any(word in text for word in ("weather","humidity","pressure")): families += ["environmental-sensor"]
         elif "tank" in text: families += ["distance-sensor","indicator","container"]
         elif "servo" in text or "lid" in text: families += ["servo","lid","hinge","mounting-plate"]
+        elif any(word in text for word in ("flap", "shade", "platform", "rotate", "rotating")):
+            if "temperature" in text: families += ["temperature-sensor"]
+            if "light" in text: families += ["light-sensor"]
+            families += ["servo", "mechanism", "mounting-plate"]
         if "robotic arm" in text or "robot arm" in text:
             families = ["controller","power","base","shoulder-servo","upper-arm","elbow-servo","forearm","end-effector"]
         specs={
@@ -102,6 +107,7 @@ class PlannerService:
           "power":("Low-voltage power source","low_voltage_power_source","power",{"voltage_v":5.0,"available_current_a":3.0,"mains_exposed":False},(48,30,18)),
           "enclosure":("Protective enclosure","enclosure","structure",{"contains":["component-controller"],"waterproofing":"splash-resistant" if "tank" in text else "basic"},(120,90,55)),
           "temperature-sensor":("Temperature sensor","temperature_sensor","sensor",{"supply_voltage_v":3.3,"signal_voltage_v":3.3,"threshold_c":26},(22,16,6)),
+          "light-sensor":("Ambient light sensor","light_sensor","sensor",{"supply_voltage_v":3.3,"signal_voltage_v":3.3},(22,16,6)),
           "environmental-sensor":("Temperature humidity pressure sensor","environmental_sensor","sensor",{"supply_voltage_v":3.3,"measurements":["temperature","humidity","pressure"]},(24,18,6)),
           "distance-sensor":("Tank level distance sensor","distance_sensor","sensor",{"supply_voltage_v":5.0,"wet_environment":True},(45,22,18)),
           "driver":("Logic-level MOSFET driver","mosfet_driver","electronics",{"logic_voltage_v":3.3,"load_voltage_v":5.0,"max_current_a":3.0,"flyback_protection":True},(32,24,8)),
@@ -113,6 +119,7 @@ class PlannerService:
           "lid":("Lightweight lid","lid","mechanical",{"mass_g":120},(120,90,6)),
           "hinge":("Lid hinge","hinge","mechanical",{"relationship":"revolute_proxy"},(80,10,10)),
           "mounting-plate":("Mounting plate","mounting_plate","structure",{},(150,100,6)),
+          "mechanism":("Driven mechanism","generic_mechanical_part","mechanical",{"validation":"conceptual"},(100,60,8)),
           "base":("Robotic arm base","mounting_plate","structure",{"validation":"conceptual mechanical assembly"},(120,100,18)),
           "shoulder-servo":("Shoulder servo","servo","actuation",{"voltage_v":5.0,"current_a":0.8,"joint":"shoulder","load_verified":False},(40,20,38)),
           "upper-arm":("Upper arm link","simple_arm","structure",{"length_mm":145,"load_verified":False},(28,145,18)),
@@ -138,11 +145,12 @@ class PlannerService:
                 right=component_interfaces(by_component[b].role,tuple(float(x.get("value",1)) for x in by_component[b].dimensions.values()))
                 pair=next(((x.name,y.name) for x in left for y in right if y.kind in x.compatible),("mechanical","mechanical"));endpoint=pair
             if a in ids and b in ids: connections.append(ConnectionSpec(f"connection-{a[10:]}-{b[10:]}-{kind}",a,b,endpoint[0],endpoint[1],kind,f"{kind.title()} connection."))
-        for sensor in ("component-temperature-sensor","component-environmental-sensor","component-distance-sensor"):connect(sensor,"component-controller","signal")
+        for sensor in ("component-temperature-sensor","component-light-sensor","component-environmental-sensor","component-distance-sensor"):connect(sensor,"component-controller","signal")
         for load in ("component-fan","component-servo"): connect("component-driver" if "component-driver" in ids else "component-controller",load,"switched-power" if "component-driver" in ids else "control")
         connect("component-controller","component-driver","control")
         for target in sorted(item.id for item in components if item.id!="component-power" and {"power","ground"}.issubset(item.interfaces)):connect("component-power",target,"power");connect("component-power",target,"ground")
         connect("component-servo","component-dispensing-mechanism","mechanical");connect("component-servo","component-lid","mechanical");connect("component-hinge","component-lid","mechanical")
+        connect("component-mounting-plate","component-servo","mechanical");connect("component-servo","component-mechanism","mechanical")
         connect("component-controller","component-shoulder-servo","control");connect("component-controller","component-elbow-servo","control")
         connect("component-base","component-shoulder-servo","mechanical");connect("component-shoulder-servo","component-upper-arm","mechanical")
         connect("component-upper-arm","component-elbow-servo","mechanical");connect("component-elbow-servo","component-forearm","mechanical");connect("component-forearm","component-end-effector","mechanical")

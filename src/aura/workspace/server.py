@@ -233,10 +233,10 @@ class WorkspaceApplication:
         now = datetime.now(timezone.utc).isoformat()
         specs = irrigation_specs(graph)
         representations = initial_records(project_id, len(graph.revisions), specs)
-        record = StoredProject(project_id, body.objective, outcome.mode, outcome.fallback_reason, "ready", graph,
+        record = StoredProject(project_id, body.objective, outcome.mode, outcome.fallback_reason, "building", graph,
             [item.to_dict() for item in representations], now, now)
         for event in bridge.events:
-            if event.type == "project.started":
+            if event.type in {"project.started", "project.ready"}:
                 continue
             event_drafts.append(self._event_draft(event, graph))
         if body.operationId:event_drafts.append({"type":"project.operation_completed","semantic_ids":[project_id],"payload":{"operationId":body.operationId,"projectId":project_id,"revision":len(graph.revisions)}})
@@ -252,6 +252,9 @@ class WorkspaceApplication:
             len(graph.revisions), representations, specs)
         record.representations = [item.to_dict() for item in completed]
         self.repository.update_representations(project_id, record.representations)
+        required_failed = any(item.status is RepresentationStatus.FALLBACK for item in completed)
+        record.status = "build_incomplete" if required_failed else ("ready_with_limitations" if capability == "SUPPORTED_WITH_LIMITATIONS" else "ready")
+        self.repository.update_project_status(project_id, record.status)
         representation_events=[]
         for item in completed:
             representation_events.append({"type":"representation.requested","semantic_ids":list(item.semantic_ids),
@@ -266,6 +269,8 @@ class WorkspaceApplication:
                     {"type":f"representation.{item.status.value}","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id,"artifactId":item.artifact_id,"error":item.error}})
         representation_committed=self.repository.append_events(project_id,len(graph.revisions),representation_events)
         await self.publish_with_narration(representation_committed,graph,record.representations)
+        ready_event=self.repository.append_events(project_id,len(graph.revisions),[{"type":"project.ready" if not required_failed else "project.build_incomplete","semantic_ids":[project_id],"payload":{"status":record.status}}])
+        await self.publish_with_narration(ready_event,graph,record.representations)
         return record
 
     async def publish_with_narration(self,committed:list[StoredEvent],graph:EngineeringGraph,
