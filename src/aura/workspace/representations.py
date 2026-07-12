@@ -93,8 +93,8 @@ class RepresentationSpecValidator:
     MAX_SECTIONS = 16
     MAX_PATH_POINTS = 64
     MAX_COMPONENTS = 100
-    OPERATIONS = {"loft", "pipe", "filleted_enclosure", "box", "cylinder"}
-    COMPONENT_KINDS = {"controller", "soil_sensor", "mosfet", "diode", "motor", "servo", "power_source"}
+    OPERATIONS = {"loft", "pipe", "filleted_enclosure", "box", "cylinder", "sphere"}
+    COMPONENT_KINDS = {"controller", "soil_sensor", "mosfet", "diode", "motor", "servo", "power_source", "generic_sensor", "generic_actuator", "generic_module"}
 
     def validate(self, spec: RepresentationSpec, graph_ids: set[str]) -> RepresentationSpec:
         if not spec.semantic_ids or any(item not in graph_ids or not item.startswith("component-") for item in spec.semantic_ids):
@@ -116,6 +116,8 @@ class RepresentationSpecValidator:
         values = list(self._numbers(geometry))
         if not values or any(not math.isfinite(value) or abs(value) > self.MAX_DIMENSION_MM for value in values):
             raise SpecValidationError("CAD values must be finite and bounded")
+        if geometry["operation"] in {"box", "cylinder", "sphere", "filleted_enclosure"} and not any(value > 0 for value in values):
+            raise SpecValidationError("CAD geometry must have non-zero bounds")
         operation = geometry["operation"]
         if operation == "loft" and not 2 <= len(geometry.get("sections", [])) <= self.MAX_SECTIONS:
             raise SpecValidationError("Loft requires 2-16 sections")
@@ -127,9 +129,13 @@ class RepresentationSpecValidator:
     def _circuit(self, payload: dict[str, Any], semantic_ids: set[str]) -> None:
         components = payload.get("components")
         connections = payload.get("connections")
+        unconnected = payload.get("unconnected", [])
+        topology = payload.get("netTopology", [])
         if not isinstance(components, list) or not 1 <= len(components) <= self.MAX_COMPONENTS:
             raise SpecValidationError("Circuit component count is invalid")
         if not isinstance(connections, list): raise SpecValidationError("Circuit connections are required")
+        if not isinstance(unconnected, list) or not isinstance(topology, list):
+            raise SpecValidationError("Circuit fidelity metadata is invalid")
         references: dict[str, set[str]] = {}
         for component in components:
             if component.get("kind") not in self.COMPONENT_KINDS or component.get("semanticId") not in semantic_ids:
@@ -143,6 +149,12 @@ class RepresentationSpecValidator:
                 if not isinstance(endpoint, str) or "." not in endpoint: raise SpecValidationError("Connection endpoint is invalid")
                 reference, pin = endpoint.split(".", 1)
                 if pin not in references.get(reference, set()): raise SpecValidationError(f"Unknown pin reference: {endpoint}")
+        for net in topology:
+            expected=net.get("expectedTerminals",[]);represented=net.get("representedTerminals",[]);missing=net.get("missingTerminals",[])
+            if not isinstance(expected,list) or not isinstance(represented,list) or not isinstance(missing,list):
+                raise SpecValidationError("Circuit net topology is invalid")
+            if set(missing) != set(expected)-set(represented):
+                raise SpecValidationError("Circuit net fidelity does not reconcile its terminals")
 
     @staticmethod
     def _contains_executable_field(value: Any) -> bool:

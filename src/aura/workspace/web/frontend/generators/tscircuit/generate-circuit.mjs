@@ -1,5 +1,5 @@
 import { performance } from "node:perf_hooks"
-import { Battery, Board, Chip, Circuit, Diode, Mosfet, Resistor, Trace } from "@tscircuit/core"
+import { Battery, Board, Chip, Circuit, Diode, Mosfet, Trace } from "@tscircuit/core"
 
 const started = performance.now()
 const readInput = async () => {
@@ -23,13 +23,19 @@ try {
   const sourceByReference = new Map()
   for (const component of request.components) {
     const common = {name:component.reference}
+    const pinLabels=Object.fromEntries(component.pins.map((pin,index)=>[index+1,pin]))
     let instance
-    if (component.kind === "controller") instance = new Chip({...common,footprint:"soic8",pinLabels:{1:"VCC",2:"GND",3:"PWM1",4:"PWM2",5:"GPIO",6:"GPIO",7:"GPIO",8:"VIN"}})
-    else if (component.kind === "soil_sensor") instance = new Resistor({...common,resistance:"10k",footprint:"0402"})
+    if (component.kind === "controller") instance = new Chip({...common,footprint:"soic8",pinLabels})
+    else if (component.kind === "generic_sensor") instance = new Chip({...common,footprint:"sot23",pinLabels})
+    else if (component.kind === "generic_actuator") instance = new Chip({...common,footprint:"sot23",pinLabels})
+    else if (component.kind === "generic_module") instance = new Chip({...common,footprint:"soic8",pinLabels})
+    // Legacy kinds remain readable for older persisted artifacts.  New graph
+    // compilation emits semantic generic blocks instead of resistor stand-ins.
+    else if (component.kind === "soil_sensor") instance = new Chip({...common,footprint:"sot23",pinLabels})
     else if (component.kind === "mosfet") instance = new Mosfet({...common,channelType:"n",mosfetMode:"enhancement",footprint:"sot23"})
     else if (component.kind === "diode") instance = new Diode({...common,footprint:"sod123"})
-    else if (component.kind === "servo") instance = new Chip({...common,footprint:"sot23",pinLabels:{1:"PWM",2:"V+",3:"GND"}})
-    else if (component.kind === "motor") instance = new Resistor({...common,resistance:"5",footprint:"1206"})
+    else if (component.kind === "servo") instance = new Chip({...common,footprint:"sot23",pinLabels})
+    else if (component.kind === "motor") instance = new Chip({...common,footprint:"sot23",pinLabels})
     else if (component.kind === "power_source") instance = new Battery({...common,capacity:"2000mAh"})
     else fail(`Unsupported component kind: ${component.kind}`)
     board.add(instance); sourceByReference.set(component.reference, component)

@@ -253,7 +253,14 @@ class WorkspaceApplication:
             len(graph.revisions), representations, specs)
         record.representations = [item.to_dict() for item in completed]
         self.repository.update_representations(project_id, record.representations)
-        required_failed = any(item.status is RepresentationStatus.FALLBACK for item in completed)
+        physical_ids={entity.id for entity in graph.find(kind=EntityKind.COMPONENT)}
+        ready_physical={semantic_id for item in completed if item.type.value=="mechanical_3d" and item.status is RepresentationStatus.READY for semantic_id in item.semantic_ids}
+        assembly=engineering_assembly(graph)
+        circuit_specs=[spec for spec in specs if spec.kind.value=="circuit_schematic"]
+        circuit_fidelity=all(spec.payload.get("fidelity",{}).get("portsComplete") and spec.payload.get("fidelity",{}).get("netsComplete") for spec in circuit_specs)
+        critical_semantic=any(item.severity=="critical" and item.state is VerificationState.FAILED for item in verified.findings)
+        physical_complete=bool(physical_ids) and physical_ids <= ready_physical and len(assembly.get("parts",())) >= len(physical_ids)
+        required_failed = any(item.status is RepresentationStatus.FALLBACK for item in completed) or not physical_complete or not circuit_fidelity or critical_semantic
         record.status = "build_incomplete" if required_failed else ("ready_with_limitations" if capability == "SUPPORTED_WITH_LIMITATIONS" else "ready")
         self.repository.update_project_status(project_id, record.status)
         representation_events=[]
@@ -270,7 +277,7 @@ class WorkspaceApplication:
                     {"type":f"representation.{item.status.value}","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id,"artifactId":item.artifact_id,"error":item.error}})
         representation_committed=self.repository.append_events(project_id,len(graph.revisions),representation_events)
         await self.publish_with_narration(representation_committed,graph,record.representations)
-        ready_event=self.repository.append_events(project_id,len(graph.revisions),[{"type":"project.ready" if not required_failed else "project.build_incomplete","semantic_ids":[project_id],"payload":{"status":record.status}}])
+        ready_event=self.repository.append_events(project_id,len(graph.revisions),[{"type":"project.ready" if not required_failed else "project.build_incomplete","semantic_ids":[project_id],"payload":{"status":record.status,"physicalComponentCount":len(physical_ids),"renderablePhysicalCount":len(ready_physical),"circuitFidelity":circuit_fidelity}}])
         await self.publish_with_narration(ready_event,graph,record.representations)
         return record
 

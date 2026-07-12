@@ -61,6 +61,10 @@ class LivePlanner:
                 plan = PlannerService().plan(planned_request)
                 plan.validate()
                 metadata=dict(self._generation_metadata);metadata["plannerLatencyMs"]=round((time.perf_counter()-started)*1000,1)
+                # Keep the model's structured intent separate from the
+                # normalized graph.  This is persisted as planner provenance,
+                # not shown as normal workspace UI noise.
+                metadata["rawPlannerOutput"]=structured.model_dump()
                 return PlanningOutcome(plan,"live_model",None,attempt,attempt==0,metadata)
             except (ValueError, json.JSONDecodeError, ValidationError) as exc:
                 errors = str(exc)

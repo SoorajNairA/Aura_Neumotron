@@ -59,6 +59,65 @@ class VerificationService:
                 findings.append(self._finding("generic-component",VerificationState.ESTIMATED,"warning",f"{c.name} is generic; exact operating values remain estimated.",(c.id,),dependency_ids=(c.id,),revision=revision))
 
         def add(check,state,severity,message,ids,**kw): findings.append(self._finding(check,state,severity,message,tuple(ids),revision=revision,**kw))
+        # The graph has to satisfy the semantic requirements that led to it, not
+        # merely be internally well-formed.  Requirements and roles are first
+        # class planner data, so this check remains independent of project names
+        # and of any particular mechanism layout.
+        project=next(entity for entity in plan.entities if entity.kind is EntityKind.PROJECT)
+        project_metadata=dict(project.metadata)
+        semantic_requirements=[]
+        for entity in plan.entities:
+            if entity.kind is not EntityKind.REQUIREMENT:
+                continue
+            metadata=dict(entity.metadata)
+            if "semantic_requirement" in metadata:
+                semantic_requirements.append((entity.id, entity.name, metadata))
+        role_index={component.id:set(component.parameters.get("functional_roles", ())) for component in components.values()}
+        for requirement_id,label,metadata in semantic_requirements:
+            required=set(metadata.get("required_roles", ()))
+            matches=[component for component in components.values() if required & role_index[component.id]]
+            if not matches:
+                check="REQ_121" if "feedback" in str(metadata.get("semantic_requirement", "")) else "REQ_101"
+                add(check,VerificationState.FAILED,"critical",f"No graph component satisfies required {label.lower()}.",(requirement_id,),expected={"roles":sorted(required)},actual={"componentIds":[]})
+                continue
+            qualities={str(component.parameters.get("resolution_quality", "UNRESOLVED")) for component in matches}
+            conceptual=qualities <= {"CONCEPTUAL", "UNRESOLVED"}
+            add("REQ_110",VerificationState.CONCEPTUAL if conceptual else VerificationState.TOOL_VERIFIED,
+                "warning" if conceptual else "info",
+                f"{label} is implemented by {', '.join(component.name for component in matches)}" + (" as a conceptual role." if conceptual else "."),
+                (requirement_id,*[component.id for component in matches]),
+                expected={"roles":sorted(required)},actual={"componentIds":[component.id for component in matches],"resolutionQualities":sorted(qualities)})
+        for trace in project_metadata.get("plannerIntentTrace", ()):
+            if trace.get("resolutionQuality") == "UNRESOLVED":
+                add("FAMILY_104",VerificationState.CONCEPTUAL,"warning",
+                    f"Planner intent '{trace.get('plannerIntent')}' was preserved as unresolved: {trace.get('reason')}.",
+                    (project.id,),expected={"plannerIntent":trace.get("plannerIntent")},actual={"normalizedFamily":None,"resolutionQuality":"UNRESOLVED"})
+
+        mechanical=[connection for connection in connections if connection.connection_type == "mechanical"]
+        adjacency={component_id:set() for component_id in components}
+        for connection in mechanical:
+            adjacency[connection.source_id].add(connection.target_id)
+            adjacency[connection.target_id].add(connection.source_id)
+        moving={component_id for component_id,roles in role_index.items() if {"moving_surface","moving_body"} & roles}
+        actuators=[component for component in components.values() if "controlled_motion" in role_index[component.id]]
+        for actuator in actuators:
+            seen={actuator.id}; pending=[actuator.id]
+            while pending:
+                current=pending.pop()
+                for target in adjacency[current]-seen:
+                    seen.add(target); pending.append(target)
+            driven=sorted((seen & moving)-{actuator.id})
+            if not driven:
+                add("MECH_301",VerificationState.FAILED,"critical",f"Actuator {actuator.name} is not mechanically connected to a required moving component.",(actuator.id,),actual={"mechanicalReach":sorted(seen)})
+        for requirement_id,label,metadata in semantic_requirements:
+            axes=int(metadata.get("required_axes", 0) or 0)
+            if not axes:
+                continue
+            resolved_dof=sum(int(component.parameters.get("controlled_dof", 0) or 0) for component in actuators)
+            if resolved_dof < axes:
+                add("MECH_310",VerificationState.FAILED,"critical",f"Controlled mechanism provides {resolved_dof} resolved DOF while {label.lower()} expects {axes}.",(requirement_id,*[component.id for component in actuators]),expected={"controlledDof":axes},actual={"controlledDof":resolved_dof})
+            else:
+                add("MECH_310",VerificationState.TOOL_VERIFIED,"info",f"Controlled mechanism provides {resolved_dof} resolved DOF for {label.lower()}.",(requirement_id,*[component.id for component in actuators]),expected={"controlledDof":axes},actual={"controlledDof":resolved_dof})
         controllers=[c for c in components.values() if c.id=="component-esp32" or c.role=="microcontroller_board"]
         loads=[c for c in components.values() if c.role in {"fan","small_dc_motor","small_dc_pump","servo"} or c.id=="component-pump"]
         drivers=[c for c in components.values() if c.role in {"mosfet_driver","relay_module","motor_driver"} or c.id=="component-driver"]
@@ -77,6 +136,27 @@ class VerificationService:
             source,target=components[connection.source_id],components[connection.target_id]
             if connection.source_interface not in source.interfaces or connection.target_interface not in target.interfaces:
                 add("connection-endpoint",VerificationState.FAILED,"critical",f"Connection {connection.id} references an undefined interface.",(source.id,target.id),machine_result={"sourceInterfaceExists":connection.source_interface in source.interfaces,"targetInterfaceExists":connection.target_interface in target.interfaces})
+        # New semantic plans have normalized interface roles, which makes a
+        # strict port-completeness check meaningful.  Retained legacy fixtures
+        # deliberately use historical pin names and retain their prior checks.
+        if project_metadata.get("semanticRequirements"):
+            connected_ports={component_id:set() for component_id in components}
+            for connection in connections:
+                if connection.connection_type in {"power","ground","control","signal","switched-power","regulated-power"}:
+                    connected_ports[connection.source_id].add(connection.source_interface)
+                    connected_ports[connection.target_id].add(connection.target_interface)
+            for component in components.values():
+                roles=role_index[component.id]
+                expected={port for port in ("power","ground") if port in component.interfaces}
+                if ("feedback_" in " ".join(roles) or {"controlled_motion","light_output"} & roles) and "signal" in component.interfaces:
+                    expected.add("signal")
+                if component.role in {"mosfet_driver","motor_driver","relay_module"} and "load-output" in component.interfaces:
+                    expected.add("load-output")
+                missing=expected-connected_ports[component.id]
+                if missing:
+                    add("ELEC_411",VerificationState.FAILED,"critical",
+                        f"{component.name} expects electrical ports {', '.join(sorted(missing))} that have no graph connection.",(component.id,),
+                        expected={"ports":sorted(expected)},actual={"connectedPorts":sorted(connected_ports[component.id])})
         if drivers and controllers:
             dv=float(drivers[0].parameters.get("logic_voltage_v",3.3)); cv=float(controllers[0].parameters.get("logic_voltage_v",3.3))
             add("logic-compatibility",VerificationState.CROSS_CHECKED if dv==cv else VerificationState.FAILED,"info" if dv==cv else "critical","Driver logic is compatible with controller logic." if dv==cv else "Driver logic is incompatible with controller logic.",(controllers[0].id,drivers[0].id),expected={"value":cv,"unit":"V"},actual={"value":dv,"unit":"V"},machine_result={"equal":dv==cv})

@@ -26,17 +26,28 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
     for entity in components:
         family=entity.metadata.get("family",entity.metadata.get("role",""));dims=entity.metadata.get("dimensions",{})
         value=lambda key,default:float(dims.get(key,{}).get("value",default))
-        geometry=None
+        # Every physical semantic component receives a bounded, non-zero proxy.
+        # A record alone is not considered physical coverage; its geometry is
+        # validated below and the renderer receives the same semantic id.
         if family in {"enclosure","mounting_plate"} or entity.id=="component-enclosure": geometry={"operation":"filleted_enclosure","width":value("width",100),"depth":value("length",80),"height":value("height",40),"radius":4}
         elif family in {"container","reservoir"}:
             w,h=value("width",80),value("height",120);geometry={"operation":"loft","sections":[{"z":0,"radius":w*.4},{"z":h*.5,"radius":w*.5},{"z":h,"radius":w*.42}]}
         elif family in {"tube"} or entity.id=="component-tubing": geometry={"operation":"pipe","radius":5,"path":[[0,0,0],[30,0,15],[55,20,45],[85,25,80]]}
-        elif family in {"lid","generic_mechanical_part"}: geometry={"operation":"box","width":value("width",60),"depth":value("length",40),"height":value("height",8)}
-        if geometry: mechanical.append(RepresentationSpec(RepresentationType.MECHANICAL_3D,(entity.id,),{"units":"mm","coordinateSystem":coordinate,"geometry":geometry}))
-    categories={"microcontroller_board":("U","controller",["VCC","GND","PWM1","PWM2"]),"controller":("U","controller",["VCC","GND","PWM1","PWM2"]),"temperature_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"environmental_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"distance_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"moisture_sensor":("S","soil_sensor",["VCC","GND","OUT"]),"mosfet_driver":("Q","mosfet",["G","D","S"]),"pump switching":("Q","mosfet",["G","D","S"]),"fan":("M","motor",["+","-"]),"servo":("M","servo",["PWM","V+","GND"]),"small_dc_pump":("M","motor",["+","-"]),"water delivery":("M","motor",["+","-"]),"low_voltage_power_source":("BT","power_source",["+","-"]),"system power":("BT","power_source",["+","-"]),"indicator":("R","soil_sensor",["VCC","GND","OUT"]),"soil sensing":("S","soil_sensor",["VCC","GND","OUT"])}
+        elif family=="tracked_object": geometry={"operation":"sphere","radius":max(value("width",24)/2,1)}
+        else: geometry={"operation":"box","width":value("width",45),"depth":value("length",30),"height":value("height",18)}
+        mechanical.append(RepresentationSpec(RepresentationType.MECHANICAL_3D,(entity.id,),{"units":"mm","coordinateSystem":coordinate,"geometry":geometry,"semanticCoverage":{"componentId":entity.id,"proxy":True}}))
+    categories={
+        "microcontroller_board":("U","controller",["VCC","GND",*[f"IO{i}" for i in range(1,9)]]),"controller":("U","controller",["VCC","GND",*[f"IO{i}" for i in range(1,9)]]),
+        "temperature_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"light_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"environmental_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"distance_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"conceptual_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"moisture_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"soil sensing":("S","generic_sensor",["VCC","GND","SIGNAL"]),
+        "mosfet_driver":("Q","generic_module",["VCC","GND","CONTROL","OUT"]),"pump switching":("Q","generic_module",["VCC","GND","CONTROL","OUT"]),
+        "fan":("A","generic_actuator",["V+","GND","CONTROL"]),"small_dc_motor":("A","generic_actuator",["V+","GND","CONTROL"]),"small_dc_pump":("A","generic_actuator",["V+","GND","CONTROL"]),"water delivery":("A","generic_actuator",["V+","GND","CONTROL"]),"indicator":("A","generic_actuator",["V+","GND","CONTROL"]),
+        "servo":("M","servo",["PWM","V+","GND"]),"low_voltage_power_source":("BT","power_source",["V+","GND"]),"system power":("BT","power_source",["V+","GND"]),
+    }
     counts={};circuit_components=[];references={}
     for entity in components:
         family=entity.metadata.get("family",entity.metadata.get("role",""));category=categories.get(family)
+        electrical_ports=set(entity.metadata.get("interfaces",())) & {"power","ground","signal","load-output"}
+        if not category and electrical_ports: category=("X","generic_module",["VCC","GND","IO1","IO2"])
         if not category: continue
         prefix,kind,pins=category;counts[prefix]=counts.get(prefix,0)+1;ref=f"{prefix}{counts[prefix]}";references[entity.id]=ref
         circuit_components.append({"reference":ref,"semanticId":entity.id,"kind":kind,"pins":pins})
@@ -45,12 +56,12 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
         materialize_electrical_nets(graph)  # migration path for persisted pre-net graphs
     connections=[];unconnected=[];signal_counts={}
     pin_alias={
-        "controller":{"power":"VCC","5v":"VCC","3v3":"VCC","ground":"GND","gnd":"GND","signal":"PWM1","gpio-pump":"PWM1","gpio-sensor":"PWM2"},
+        "controller":{"power":"VCC","5v":"VCC","3v3":"VCC","ground":"GND","gnd":"GND","signal":"IO1","gpio-pump":"IO1","gpio-sensor":"IO2"},
         "servo":{"power":"V+","ground":"GND","signal":"PWM"},
-        "power_source":{"power":"+","5v":"+","ground":"-"},
-        "motor":{"power":"+","power+":"+","ground":"-"},
-        "mosfet":{"logic-in":"G","logic-gnd":"S","load-in":"D","load-out":"D"},
-        "soil_sensor":{"power":"VCC","vcc":"VCC","ground":"GND","gnd":"GND","signal":"OUT"},
+        "power_source":{"power":"V+","5v":"V+","ground":"GND"},
+        "generic_sensor":{"power":"VCC","vcc":"VCC","ground":"GND","gnd":"GND","signal":"SIGNAL"},
+        "generic_actuator":{"power":"V+","power+":"V+","ground":"GND","signal":"CONTROL"},
+        "generic_module":{"power":"VCC","ground":"GND","signal":"CONTROL","load-output":"OUT"},
     }
     by_reference={item["reference"]:item for item in circuit_components}
     for net in electrical_nets(graph):
@@ -59,17 +70,34 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
             component_id,interface=terminal["componentId"],terminal["interfaceId"]
             reference=references.get(component_id);component=by_reference.get(reference or "")
             pin=pin_alias.get(component["kind"],{}).get(interface) if component else None
-            if component and component["kind"]=="controller" and net["role"] in {"control","signal"}:
-                signal_counts[reference]=signal_counts.get(reference,0)+1;pin=f"PWM{signal_counts[reference]}"
+            if component and component["kind"]=="controller" and interface.startswith("signal-"):
+                pin=f"IO{interface.removeprefix('signal-')}"
+            elif component and component["kind"]=="controller" and interface=="signal" and net["role"] in {"control","signal"}:
+                signal_counts[reference]=signal_counts.get(reference,0)+1;pin=f"IO{signal_counts[reference]}"
             if reference and component and pin in component["pins"]: resolved.append((reference,pin,component_id))
             else: unconnected.append({"netId":net["netId"],"sourceSemanticId":component_id,"interfaceId":interface,"reason":"terminal has no compatible schematic pin"})
         if len(resolved)>1:
             origin=resolved[0]
             for target in resolved[1:]: connections.append({"from":f"{origin[0]}.{origin[1]}","to":f"{target[0]}.{target[1]}","netId":net["netId"],"graphConnectionId":net["connectionIds"][0],"role":net["role"],"displayStyle":net["displayStyle"]})
     graph_ids = {entity.id for entity in graph.find(kind=EntityKind.COMPONENT)}
+    topology=[]
+    for net in electrical_nets(graph):
+        expected=[f"{terminal['componentId']}:{terminal['interfaceId']}" for terminal in net["terminals"]]
+        represented=[]
+        for terminal in net["terminals"]:
+            component=by_reference.get(references.get(terminal["componentId"],""));pin=pin_alias.get(component["kind"],{}).get(terminal["interfaceId"]) if component else None
+            if component and component["kind"]=="controller" and terminal["interfaceId"].startswith("signal-"):
+                pin=f"IO{terminal['interfaceId'].removeprefix('signal-')}"
+            if component and component["kind"]=="controller" and terminal["interfaceId"]=="signal": pin=None  # legacy shared output is assigned deterministically above
+            if component and component["kind"]=="controller" and terminal["interfaceId"]=="signal":
+                matching=[item for item in connections if item["netId"]==net["netId"] and item["from"].startswith(f"{references[terminal['componentId']]}.") or item["netId"]==net["netId"] and item["to"].startswith(f"{references[terminal['componentId']]}")]
+                if matching: pin=(matching[0]["from"] if matching[0]["from"].startswith(f"{references[terminal['componentId']]}") else matching[0]["to"]).split(".",1)[1]
+            if component and pin in component["pins"]: represented.append(f"{terminal['componentId']}:{terminal['interfaceId']}")
+        topology.append({"netId":net["netId"],"expectedTerminals":expected,"representedTerminals":represented,"missingTerminals":sorted(set(expected)-set(represented))})
     circuit = RepresentationSpec(RepresentationType.CIRCUIT_SCHEMATIC,
         tuple(dict.fromkeys(item["semanticId"] for item in circuit_components)),
-        {"components": circuit_components, "connections": connections, "unconnected":unconnected})
+        {"components": circuit_components, "connections": connections, "unconnected":unconnected,"netTopology":topology,
+         "fidelity":{"portsComplete":not unconnected,"netsComplete":not any(item["missingTerminals"] for item in topology)}})
     validator = RepresentationSpecValidator()
     return [validator.validate(spec, graph_ids) for spec in [*mechanical, circuit] if spec.semantic_ids]
 
