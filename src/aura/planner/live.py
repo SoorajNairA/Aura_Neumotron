@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from aura.infrastructure.llm.provider import ModelProvider
 from aura.capabilities import compact_capability_context
 from .schemas import ProjectPlan, ProjectRequest
-from .service import PlannerService
+from .service import PlannerRepairAttempt, PlannerService
 
 
 class StructuredPlannerResponse(BaseModel):
@@ -74,6 +74,33 @@ class LivePlanner:
                 return self._fallback(request, f"live model unavailable: {exc}")
         return self._fallback(request, f"structured response invalid after repair: {errors}")
 
+    def repair(self, plan: ProjectPlan, verification: Any) -> PlannerRepairAttempt:
+        """Ask the same live provider for exactly one graph-aware correction.
+
+        A failed correction intentionally returns the original rejected plan.
+        The workspace then records ``build_incomplete`` instead of making a
+        second planner attempt or silently accepting an unsafe graph.
+        """
+        context, additions=PlannerService().repair_context(plan,verification)
+        started=time.perf_counter()
+        try:
+            raw=self._generate(self._repair_prompt(plan.request,context))
+            structured=StructuredPlannerResponse.model_validate(json.loads(raw))
+            repaired_request=ProjectRequest(
+                structured.projectName,plan.request.objective,tuple(structured.requirements),
+                components=tuple(structured.components),
+                assumptions=tuple(structured.assumptions),representation=plan.request.representation,
+            )
+            repaired=PlannerService().plan(repaired_request)
+            metadata={"repairAttempted":True,"repairProvider":"live_model","repairAdditionsRequested":additions,
+                "repairPlannerLatencyMs":round((time.perf_counter()-started)*1000,1),
+                "rawRepairPlannerOutput":structured.model_dump()}
+            return PlannerRepairAttempt(repaired,context,metadata)
+        except Exception as exc:
+            return PlannerRepairAttempt(plan,context,{"repairAttempted":True,"repairProvider":"live_model",
+                "repairAdditionsRequested":additions,"repairPlannerLatencyMs":round((time.perf_counter()-started)*1000,1),
+                "repairFailure":str(exc)})
+
     def _generate(self, prompt: str) -> str:
         executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="aura-planner")
         if hasattr(self.provider,"generate_structured"):
@@ -98,6 +125,14 @@ class LivePlanner:
                 " Return JSON with exactly projectName, objective, requirements, assumptions, components. "
                 "Use semantic component roles, record necessary assumptions, and do not claim unsupported verification. "
                 f"Objective: {request.objective}.{repair}")
+
+    @staticmethod
+    def _repair_prompt(request: ProjectRequest, context: dict[str,Any]) -> str:
+        return ("Repair this rejected engineering-plan candidate exactly once. " + compact_capability_context() +
+                " Return JSON with exactly projectName, objective, requirements, assumptions, components. "
+                "Preserve the objective; use only compatible component families and interface-level connections. "
+                "Do not invent unsupported components or claim verification. "
+                f"Original objective: {request.objective}. Repair context: {json.dumps(context,sort_keys=True)}")
 
     @staticmethod
     def _fallback(request: ProjectRequest, reason: str) -> PlanningOutcome:

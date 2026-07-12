@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
+from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
 from aura.engineering_graph.model import EngineeringEntity, EntityKind, Relationship
@@ -12,6 +14,14 @@ from .schemas import (
     ComponentSpec, ConnectionSpec, PlannedEntity, PlannedRelationship, ProjectPlan, ProjectRequest, SubsystemSpec,
     RepresentationRequest, VerificationRequest, WorkspaceEventProposal,
 )
+
+
+@dataclass(frozen=True)
+class PlannerRepairAttempt:
+    """A single, graph-aware replan.  The candidate itself is never committed."""
+    plan: ProjectPlan
+    context: dict[str, Any]
+    metadata: dict[str, Any]
 
 
 class PlannerService:
@@ -92,22 +102,28 @@ class PlannerService:
         templates.  A useful unknown is kept as a conceptual component, with the
         original Planner intent and resolution class carried into the graph.
         """
-        text=request.objective.lower();project_id=self._id(request.objective,"project")
+        text=request.objective.lower();planner_labels=" ".join(request.components).lower();project_id=self._id(request.objective,"project")
         semantic_requirements=[]
         def require(key,label,roles,*,axes=0):
             if not any(item["key"]==key for item in semantic_requirements):
                 semantic_requirements.append({"key":key,"label":label,"roles":list(roles),"axes":axes,"critical":True})
         require("controller","Control logic",("controller",))
         require("power","Low-voltage power",("power",))
-        motion_words=("move","rotate","turn","lift","tilt","pan","balance","conveyor","dispens","arm")
+        motion_words=("move","rotate","turn","lift","tilt","pan","balance","conveyor","dispens","arm","drive")
         # "Drawer opened" is a sensed state, not necessarily an instruction to
         # actuate the drawer.  Open/close only imply motion for a moving closure.
         non_indicator_motion=("turn" in text and "turn on" not in text and "turns on" not in text)
-        needs_motion=any(word in text for word in motion_words if word != "turn") or non_indicator_motion or (any(word in text for word in ("lid","flap","shade")) and any(word in text for word in ("open","close")))
+        needs_motion=any(word in text for word in motion_words if word != "turn") or non_indicator_motion or any(word in planner_labels for word in ("motor","servo","actuator")) or (any(word in text for word in ("lid","flap","shade")) and any(word in text for word in ("open","close")))
+        mobile_drive=any(re.search(rf"\b{re.escape(word)}\b", text) or re.search(rf"\b{re.escape(word)}\b", planner_labels) for word in ("wheel","drive","vehicle","car","chassis"))
         if any(word in text for word in ("plate","platform","surface","conveyor")): require("moving-surface","Moving surface or platform",("moving_surface",))
         if any(word in text for word in ("ball","object","drawer","lid","camera")): require("moving-body","Required moving body",("moving_body",))
         if any(word in text for word in ("support","plate","platform","conveyor","lid","drawer","camera")): require("support","Stationary support",("support",))
         if needs_motion: require("controlled-motion","Controlled actuation",("controlled_motion",))
+        if mobile_drive:
+            require("drive-output","Driven moving component",("drive_output",))
+            require("support","Stationary support",("support",))
+        if any(re.search(rf"\b{re.escape(word)}\b", text) or re.search(rf"\b{re.escape(word)}\b", planner_labels) for word in ("remote","wireless","receiver","bluetooth")):
+            require("remote-control-input","Remote control input",("remote_control_input",))
         multi_axis=2 if "two-axis" in text or ("pan" in text and "tilt" in text) or "balanc" in text else 0
         if multi_axis: require("controlled-axes",f"{multi_axis}-axis controlled motion",("controlled_motion",),axes=multi_axis)
         if any(word in text for word in ("position","balanc","track")): require("position-feedback","Position/state feedback",("feedback_position",))
@@ -129,6 +145,8 @@ class PlannerService:
         if "drawer" in text: include("drawer");include("open-state-sensor")
         if "light" in text and any(word in text for word in ("turn on","turns on","output","illuminate")): include("indicator")
         if "conveyor" in text or "belt" in text: include("conveyor");include("motor");include("driver");include("support")
+        if mobile_drive: include("chassis");include("drive-wheel",2);include("motor");include("motor-driver")
+        if any(re.search(rf"\b{re.escape(word)}\b", text) or re.search(rf"\b{re.escape(word)}\b", planner_labels) for word in ("remote","wireless","receiver","bluetooth")): include("wireless-control")
         if "camera" in text: include("camera-platform");include("support")
         if any(word in text for word in ("plate","platform")): include("controlled-platform");include("support")
         if "ball" in text or "object" in text: include("tracked-object")
@@ -148,9 +166,13 @@ class PlannerService:
           "position-sensor":("Conceptual position sensor","conceptual_sensor","sensor",{"supply_voltage_v":5.0,"signal_voltage_v":3.3,"functional_roles":["feedback_position"],"measures":["position"],"resolution_quality":"CONCEPTUAL","research_required":True},(35,24,12)),
           "open-state-sensor":("Conceptual open-state sensor","conceptual_sensor","sensor",{"supply_voltage_v":5.0,"signal_voltage_v":3.3,"functional_roles":["feedback_open_state"],"measures":["open_state"],"resolution_quality":"CONCEPTUAL"},(24,18,8)),
           "driver":("Logic-level MOSFET driver","mosfet_driver","electronics",{"logic_voltage_v":3.3,"load_voltage_v":5.0,"max_current_a":3.0,"flyback_protection":True,"functional_roles":["actuator_driver"],"resolution_quality":"EXACT"},(32,24,8)),
+          "motor-driver":("Generic motor driver","motor_driver","electronics",{"logic_voltage_v":3.3,"load_voltage_v":5.0,"max_current_a":1.2,"flyback_protection":True,"functional_roles":["actuator_driver"],"resolution_quality":"COMPATIBLE_GENERIC"},(32,24,8)),
           "fan":("Desk fan","fan","actuator",{"voltage_v":5.0,"current_a":0.5,"inductive_load":True,"functional_roles":["airflow_output"],"resolution_quality":"EXACT"},(90,30,90)),
           "servo":("Small servo","servo","actuator",{"voltage_v":5.0,"current_a":0.8,"inductive_load":False,"functional_roles":["controlled_motion"],"controlled_dof":1,"resolution_quality":"EXACT"},(40,20,38)),
           "motor":("Small DC motor","small_dc_motor","actuator",{"voltage_v":5.0,"current_a":0.6,"inductive_load":True,"functional_roles":["controlled_motion","conveyor_drive"],"controlled_dof":1,"resolution_quality":"COMPATIBLE_GENERIC"},(30,45,30)),
+          "chassis":("Structural chassis","mounting_plate","structure",{"functional_roles":["support"],"resolution_quality":"CONCEPTUAL"},(180,110,18)),
+          "drive-wheel":("Drive wheel","drive_wheel","mechanical",{"functional_roles":["moving_body","drive_output"],"resolution_quality":"CONCEPTUAL"},(52,52,18)),
+          "wireless-control":("Conceptual wireless control module","wireless_module","electronics",{"functional_roles":["remote_control_input"],"resolution_quality":"CONCEPTUAL"},(32,20,8)),
           "container":("Container","container","mechanical",{"capacity_l":1.5,"wet_environment":any(word in text for word in ("water","liquid","soil","pump")),"functional_roles":["moving_body"],"resolution_quality":"COMPATIBLE_GENERIC"},(110,100,150)),
           "dispensing-mechanism":("Conceptual dispensing wheel","generic_mechanical_part","mechanical",{"functional_roles":["moving_surface"],"resolution_quality":"CONCEPTUAL"},(55,55,25)),
           "indicator":("Low-voltage light output","indicator","electronics",{"voltage_v":5.0,"functional_roles":["light_output"],"resolution_quality":"COMPATIBLE_GENERIC"},(18,12,8)),
@@ -167,7 +189,7 @@ class PlannerService:
           "tube":("Fluid tube","tube","mechanical",{"resolution_quality":"CONCEPTUAL"},(10,150,10)),
           "pump":("Low-voltage pump","small_dc_pump","actuator",{"voltage_v":5.0,"current_a":0.8,"inductive_load":True,"functional_roles":["fluid_drive"],"resolution_quality":"COMPATIBLE_GENERIC"},(40,60,40)),
         }
-        curated={"controller":"esp32-devkit-v1","temperature-sensor":"bme280-i2c-module","environmental-sensor":"bme280-breakout","distance-sensor":"vl53l0x-module","fan":"dc-fan-5v","servo":"sg90-servo","driver":"logic-mosfet-module","power":"supply-usb-5v-2a"}
+        curated={"controller":"esp32-devkit-v1","temperature-sensor":"bme280-i2c-module","environmental-sensor":"bme280-breakout","distance-sensor":"vl53l0x-module","fan":"dc-fan-5v","servo":"sg90-servo","driver":"logic-mosfet-module","motor-driver":"drv8833-module","power":"supply-usb-5v-2a"}
         raw_trace=[];raw_counts={}
         for raw in request.components:
             resolved=self._resolve_component_intent(raw,text)
@@ -185,6 +207,7 @@ class PlannerService:
                 if family in curated: params["component_definition_id"]=curated[family]
                 if index<len(matching):
                     params["planner_intent"]=matching[index]["plannerIntent"];params["resolution_quality"]=matching[index]["resolutionQuality"];params["resolution_reason"]=matching[index]["reason"]
+                    if matching[index]["resolutionQuality"] != "EXACT": params.pop("component_definition_id",None)
                 else: params["planner_intent"]=name
                 physical=component_interfaces(kind,tuple(float(value) for value in dims));interface_names=tuple(dict.fromkeys(item.name for item in physical))
                 components.append(ComponentSpec(cid,name,kind,f"subsystem-{role}",f"{name} for the requested low-voltage system.",params,interface_names,{key:{"value":value,"unit":"mm"} for key,value in zip(("width","length","height"),dims)},assumption_refs=(f"assumption-{family}",)))
@@ -212,11 +235,15 @@ class PlannerService:
         controller=component_by_family["controller"][0];power=component_by_family["power"][0]
         sensors=[c.id for c in components if any(str(role).startswith("feedback_") for role in c.parameters.get("functional_roles",[]))]
         for sensor in sensors: connect(sensor,controller,"signal")
-        drivers=component_by_family.get("driver",[]);actuators=[c.id for c in components if "controlled_motion" in c.parameters.get("functional_roles",[]) or c.role in {"fan","small_dc_pump"}]
+        for remote in component_by_family.get("wireless-control",[]): connect(remote,controller,"signal")
+        drivers=component_by_family.get("driver",[])+component_by_family.get("motor-driver",[]);actuators=[c.id for c in components if "controlled_motion" in c.parameters.get("functional_roles",[]) or c.role in {"fan","small_dc_pump"}]
         for actuator in actuators: connect(drivers[0] if drivers and by_component[actuator].role!="servo" else controller,actuator,"switched-power" if drivers and by_component[actuator].role!="servo" else "control")
         for indicator in component_by_family.get("indicator",[]): connect(controller,indicator,"control")
         if drivers: connect(controller,drivers[0],"control")
-        for target in sorted(item.id for item in components if item.id!=power and {"power","ground"}.issubset(item.interfaces)): connect(power,target,"power");connect(power,target,"ground")
+        driver_controlled={actuator for actuator in actuators if drivers and by_component[actuator].role!="servo"}
+        for target in sorted(item.id for item in components if item.id!=power and {"power","ground"}.issubset(item.interfaces)):
+            if target not in driver_controlled: connect(power,target,"power")
+            connect(power,target,"ground")
         servos=component_by_family.get("servo",[]);mechanisms=component_by_family.get("mechanism",[]);platforms=component_by_family.get("controlled-platform",[])+component_by_family.get("camera-platform",[])+component_by_family.get("conveyor",[])+component_by_family.get("lid",[])+component_by_family.get("dispensing-mechanism",[])
         mounts=component_by_family.get("mounting-plate",[])+component_by_family.get("support",[])
         if servos and mounts: connect(mounts[0],servos[0],"mechanical")
@@ -229,6 +256,11 @@ class PlannerService:
         elif servos and mechanisms: connect(servos[0],mechanisms[0],"mechanical")
         if component_by_family.get("hinge",[]) and component_by_family.get("lid",[]): connect(component_by_family["hinge"][0],component_by_family["lid"][0],"mechanical")
         if component_by_family.get("motor",[]) and component_by_family.get("conveyor",[]): connect(component_by_family["motor"][0],component_by_family["conveyor"][0],"mechanical")
+        motors=component_by_family.get("motor",[]);wheels=component_by_family.get("drive-wheel",[]);chassis=component_by_family.get("chassis",[])
+        if motors and chassis:
+            for index,motor in enumerate(motors): connect(chassis[min(index,len(chassis)-1)],motor,"mechanical")
+        if motors and wheels:
+            for index,motor in enumerate(motors): connect(motor,wheels[min(index,len(wheels)-1)],"mechanical")
         entities=[PlannedEntity(project_id,EntityKind.PROJECT,request.project_name,metadata=(("objective",request.objective),("capability_status",capability_status),("plannerIntentTrace",raw_trace),("semanticRequirements",semantic_requirements)))]
         entities += [PlannedEntity(s.id,EntityKind.SUBSYSTEM,s.name,project_id,(("role",s.role),)) for s in subsystems]
         entities += [PlannedEntity(f"requirement-{item['key']}",EntityKind.REQUIREMENT,item["label"],project_id,tuple({"semantic_requirement":item["key"],"required_roles":item["roles"],"required_axes":item["axes"],"critical":item["critical"]}.items())) for item in semantic_requirements]
@@ -242,6 +274,51 @@ class PlannerService:
         plan=ProjectPlan(request,tuple(entities),relationships,patch,(RepresentationRequest(project_id,"system_diagram"),),VerificationRequest(patch.id,("structure","electrical","physical","safety","objective_coverage")),(WorkspaceEventProposal("project.started",project_id),),subsystems,tuple(components),tuple(connections),("Use low-voltage DC only","Unsupported certification remains explicit"))
         plan.validate();return plan
 
+    def repair_context(self, plan: ProjectPlan, verification: Any) -> tuple[dict[str, Any], list[str]]:
+        """Extract the bounded, provider-neutral context for one graph repair."""
+        critical=[finding for finding in verification.findings if finding.severity=="critical" and finding.state.value=="failed"]
+        component_by_id={component.id:component for component in plan.components}
+        implicated={entity_id for finding in critical for entity_id in finding.entity_ids if entity_id in component_by_id}
+        relevant=[]
+        for component_id in sorted(implicated):
+            component=component_by_id[component_id]
+            dimensions=tuple(float(value.get("value",1)) for value in component.dimensions.values())
+            relevant.append({"id":component.id,"family":component.role,"interfaces":[{"name":item.name,"type":item.kind,"compatible":list(item.compatible)} for item in component_interfaces(component.role,dimensions)]})
+        checks={finding.check for finding in critical}
+        additions=[]
+        roles={role for component in plan.components for role in component.parameters.get("functional_roles",())}
+        has_motor=any(component.role=="small_dc_motor" for component in plan.components)
+        has_servo=any(component.role=="servo" for component in plan.components)
+        has_inductive=any(component.role in {"small_dc_motor","small_dc_pump","fan"} for component in plan.components)
+        has_driver=any(component.role in {"mosfet_driver","motor_driver","relay_module"} for component in plan.components)
+        if has_inductive and not has_driver and ({"direct-pump-gpio","missing-driver","ELEC_411","connection-endpoint"}&checks): additions.append("compatible motor driver")
+        if has_motor and ({"MECH_301","connection-endpoint"}&checks): additions.extend(("structural chassis","drive wheel"))
+        if has_servo and ({"MECH_301","connection-endpoint"}&checks): additions.extend(("structural support","driven mechanism"))
+        if {"power-connection","common-ground","ELEC_411"}&checks: additions.append("low-voltage power supply")
+        if "remote_control_input" in roles: additions.append("wireless control module")
+        additions=list(dict.fromkeys(additions))
+        context={
+            "originalObjective":plan.request.objective,
+            "normalizedGraph":{"components":[{"id":component.id,"family":component.role,"interfaces":list(component.interfaces),"roles":component.parameters.get("functional_roles",[])} for component in plan.components],"connections":[{"id":connection.id,"type":connection.connection_type,"source":connection.source_id,"sourceInterface":connection.source_interface,"target":connection.target_id,"targetInterface":connection.target_interface} for connection in plan.connections]},
+            "criticalFindings":[{"code":finding.check,"message":finding.message,"entityIds":list(finding.entity_ids),"expected":finding.expected,"actual":finding.actual} for finding in critical],
+            "relevantComponentInterfaces":relevant,
+            "repairRules":["Use only declared compatible interfaces.","Place a driver between controller GPIO and a high-current inductive actuator.","Attach actuator bodies to support and rotating outputs to driven components.","Recompile and reverify exactly once."],
+        }
+        return context, additions
+
+    def repair(self, plan: ProjectPlan, verification: Any) -> PlannerRepairAttempt:
+        """Perform one deterministic, interface-aware replan after graph rejection.
+
+        This deliberately recompiles a new candidate through ``plan`` rather
+        than mutating an invalid graph.  It uses only families implicated by
+        the rejected connections/findings, so it is bounded and auditable.
+        """
+        context, additions=self.repair_context(plan,verification)
+        repaired_request=ProjectRequest(plan.request.project_name,plan.request.objective,plan.request.requirements,
+            components=tuple(dict.fromkeys((*plan.request.components,*additions))),assumptions=tuple(dict.fromkeys((*plan.request.assumptions,"One bounded semantic repair was applied"))),representation=plan.request.representation)
+        repaired=self.plan(repaired_request)
+        return PlannerRepairAttempt(repaired,context,{"repairAttempted":True,"repairProvider":"deterministic_semantic_repair","repairAdditions":additions,"criticalFindingCountBefore":len(context["criticalFindings"])})
+
     @staticmethod
     def _resolve_component_intent(intent:str,objective:str)->dict[str,str|None]:
         """Resolve a Planner label only when its functional language is retained."""
@@ -249,12 +326,12 @@ class PlannerService:
         if ("tank" in label or "level" in label) and any(word in objective for word in ("position","balanc","track")) and not any(word in objective for word in ("tank","level")):
             return {"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"level sensing does not preserve the objective's position-feedback intent"}
         rules=(
-            (("controller","esp32","microcontroller"),"controller","EXACT"),(("power","battery","supply"),"power","EXACT"),
+            (("arduino","nano"),"controller","COMPATIBLE_GENERIC"),(("controller","esp32","microcontroller"),"controller","EXACT"),(("power","battery","supply"),"power","EXACT"),
             (("servo",),"servo","EXACT"),(("temperature",),"temperature-sensor","EXACT"),(("ambient light","light sensor"),"light-sensor","COMPATIBLE_GENERIC"),
             (("humidity","pressure","environmental"),"environmental-sensor","EXACT"),(("distance","range","level sensor"),"distance-sensor","COMPATIBLE_GENERIC"),
             (("position","tracking","camera-based"),"position-sensor","CONCEPTUAL"),(("drawer","open-state","reed"),"open-state-sensor","CONCEPTUAL"),
-            (("conveyor","belt"),"conveyor","CONCEPTUAL"),(("motor",),"motor","COMPATIBLE_GENERIC"),(("fan",),"fan","EXACT"),(("pump",),"pump","COMPATIBLE_GENERIC"),
-            (("driver","mosfet","relay"),"driver","EXACT"),(("container","reservoir"),"container","COMPATIBLE_GENERIC"),(("tube","tubing"),"tube","COMPATIBLE_GENERIC"),
+            (("conveyor","belt"),"conveyor","CONCEPTUAL"),(("motor driver","h-bridge"),"motor-driver","COMPATIBLE_GENERIC"),(("motor",),"motor","COMPATIBLE_GENERIC"),(("fan",),"fan","EXACT"),(("pump",),"pump","COMPATIBLE_GENERIC"),
+            (("driver","mosfet","relay"),"driver","EXACT"),(("wheel",),"drive-wheel","CONCEPTUAL"),(("chassis",),"chassis","CONCEPTUAL"),(("remote","wireless","receiver","bluetooth"),"wireless-control","CONCEPTUAL"),(("container","reservoir"),"container","COMPATIBLE_GENERIC"),(("tube","tubing"),"tube","COMPATIBLE_GENERIC"),
             (("lid",),"lid","COMPATIBLE_GENERIC"),(("hinge",),"hinge","COMPATIBLE_GENERIC"),(("plate","platform"),"controlled-platform","CONCEPTUAL"),
             (("ball","object"),"tracked-object","CONCEPTUAL"),(("camera",),"camera-platform","CONCEPTUAL"),(("arm","link","mechanism"),"mechanism","CONCEPTUAL"),
         )

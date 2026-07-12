@@ -39,7 +39,7 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
     categories={
         "microcontroller_board":("U","controller",["VCC","GND",*[f"IO{i}" for i in range(1,9)]]),"controller":("U","controller",["VCC","GND",*[f"IO{i}" for i in range(1,9)]]),
         "temperature_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"light_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"environmental_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"distance_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"conceptual_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"moisture_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"soil sensing":("S","generic_sensor",["VCC","GND","SIGNAL"]),
-        "mosfet_driver":("Q","generic_module",["VCC","GND","CONTROL","OUT"]),"pump switching":("Q","generic_module",["VCC","GND","CONTROL","OUT"]),
+        "mosfet_driver":("Q","generic_module",["VCC","GND","SIGNAL","OUT"]),"motor_driver":("Q","generic_module",["VCC","GND","SIGNAL","OUT"]),"pump switching":("Q","generic_module",["VCC","GND","SIGNAL","OUT"]),"wireless_module":("W","generic_module",["VCC","GND","SIGNAL"]),
         "fan":("A","generic_actuator",["V+","GND","CONTROL"]),"small_dc_motor":("A","generic_actuator",["V+","GND","CONTROL"]),"small_dc_pump":("A","generic_actuator",["V+","GND","CONTROL"]),"water delivery":("A","generic_actuator",["V+","GND","CONTROL"]),"indicator":("A","generic_actuator",["V+","GND","CONTROL"]),
         "servo":("M","servo",["PWM","V+","GND"]),"low_voltage_power_source":("BT","power_source",["V+","GND"]),"system power":("BT","power_source",["V+","GND"]),
     }
@@ -47,7 +47,7 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
     for entity in components:
         family=entity.metadata.get("family",entity.metadata.get("role",""));category=categories.get(family)
         electrical_ports=set(entity.metadata.get("interfaces",())) & {"power","ground","signal","load-output"}
-        if not category and electrical_ports: category=("X","generic_module",["VCC","GND","IO1","IO2"])
+        if not category and electrical_ports: category=("X","generic_module",["VCC","GND","CONTROL","OUT","SIGNAL"])
         if not category: continue
         prefix,kind,pins=category;counts[prefix]=counts.get(prefix,0)+1;ref=f"{prefix}{counts[prefix]}";references[entity.id]=ref
         circuit_components.append({"reference":ref,"semanticId":entity.id,"kind":kind,"pins":pins})
@@ -61,7 +61,7 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
         "power_source":{"power":"V+","5v":"V+","ground":"GND"},
         "generic_sensor":{"power":"VCC","vcc":"VCC","ground":"GND","gnd":"GND","signal":"SIGNAL"},
         "generic_actuator":{"power":"V+","power+":"V+","ground":"GND","signal":"CONTROL"},
-        "generic_module":{"power":"VCC","ground":"GND","signal":"CONTROL","load-output":"OUT"},
+        "generic_module":{"power":"VCC","ground":"GND","signal":"SIGNAL","load-output":"OUT"},
     }
     by_reference={item["reference"]:item for item in circuit_components}
     for net in electrical_nets(graph):

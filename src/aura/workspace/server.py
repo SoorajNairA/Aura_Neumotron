@@ -20,7 +20,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
-from aura.engineering_graph.model import EngineeringGraph, EntityKind
+from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
+from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation, apply_patch
 from aura.capabilities import CAPABILITY_MANIFEST, classify_objective
 from aura.engineering_graph.serialization import graph_to_dict
 from aura.engineering_graph.serialization import patch_to_dict
@@ -196,6 +197,41 @@ class WorkspaceApplication:
         except RuntimeError:raise
         except Exception as exc:raise RuntimeError(f"Could not initialize Planner provider: {exc}") from exc
 
+    @staticmethod
+    def _friendly_finding(finding: Any) -> str:
+        check=str(getattr(finding,"check","")).lower()
+        message=str(getattr(finding,"message","")).lower()
+        if check in {"mech_301","mech_310"} or "mechanically connected" in message:
+            return "Drive motor is not connected to the wheel or mechanism."
+        if check=="direct-pump-gpio" or "directly from controller gpio" in message:
+            return "Motor requires a driver between the controller and motor."
+        if check in {"connection-endpoint","elec_411"} or "undefined interface" in message:
+            return "A required component connection could not be resolved."
+        if check in {"power-connection","common-ground"}:
+            return "Required low-voltage power or ground connection is incomplete."
+        if check.startswith("req_"):
+            return "A required function of this design is still missing."
+        return "A required engineering connection remains unresolved."
+
+    def _store_build_incomplete(self, body: CreateProjectBody, outcome: PlanningOutcome, plan, verification, planner_metadata: dict[str, Any],
+                                event_drafts: list[dict[str, Any]], repair_metadata: dict[str, Any]) -> StoredProject:
+        """Persist only a safe diagnostic project, never the rejected graph."""
+        project_id=plan.entities[0].id;now=datetime.now(timezone.utc).isoformat()
+        user_issues=list(dict.fromkeys(self._friendly_finding(finding) for finding in verification.findings if finding.severity=="critical" and finding.state is VerificationState.FAILED))
+        user_message="AURA couldn't resolve this engineering architecture reliably."
+        project=EngineeringEntity(project_id,EntityKind.PROJECT,plan.request.project_name,metadata={"objective":body.objective,"generationStatus":"build_incomplete","userMessage":user_message,"userIssues":user_issues},verification_status=VerificationState.FAILED.value)
+        findings=[EngineeringEntity(finding.id,EntityKind.VERIFICATION_RESULT,finding.message,project_id,
+            finding.to_dict()|{"userMessage":self._friendly_finding(finding)},verification_status=finding.state.value) for finding in verification.findings]
+        patch=GraphPatch(f"incomplete-{uuid4().hex}",tuple([GraphOperation(PatchOperation.ADD_ENTITY,entity=project),*[GraphOperation(PatchOperation.ADD_ENTITY,entity=finding) for finding in findings]]),"Record incomplete engineering build")
+        graph=apply_patch(EngineeringGraph(project_id),patch)
+        record=StoredProject(project_id,body.objective,outcome.mode,outcome.fallback_reason,"build_incomplete",graph,[],now,now)
+        event_drafts.append({"type":"project.build_incomplete","semantic_ids":[project_id],"payload":{"status":"build_incomplete","message":user_message,"issues":user_issues}})
+        if body.operationId:event_drafts.append({"type":"project.operation_completed","semantic_ids":[project_id],"payload":{"operationId":body.operationId,"projectId":project_id,"revision":len(graph.revisions)}})
+        verification_payload={"state":verification.state.value,"decision":verification.decision.value,"reasons":list(verification.reasons),"findings":[finding.__dict__|{"state":finding.state.value,"userMessage":self._friendly_finding(finding)} for finding in verification.findings],"repair":repair_metadata}
+        committed=self.repository.save_commit(record,patch,verification_payload,event_drafts)
+        self.broker.reset(project_id)
+        return record
+
     async def create(self, body: CreateProjectBody) -> StoredProject:
         if body.operationId:
             completed=self.find_operation("project.operation_completed",body.operationId)
@@ -226,9 +262,25 @@ class WorkspaceApplication:
             event_drafts.append({"type": "planning.live_model", "payload": {"message": "Planning with live model"}, "semantic_ids": []})
         elif outcome.mode == "deterministic_fallback":
             event_drafts.append({"type": "task.fallback_used", "payload": {"reason": outcome.fallback_reason}, "semantic_ids": []})
-        verified = VerificationService().verify(plan)
+        verifier=VerificationService();verified = verifier.verify(plan)
+        repair_metadata={"repairAttempted":False,"repairProvider":None,"repairLatencyMs":0.0,"verificationFindingsBefore":[],"verificationFindingsAfter":[],"repairSucceeded":False}
         if not verified.accepted:
-            raise HTTPException(422, detail=list(verified.reasons))
+            before=[finding.to_dict() for finding in verified.findings if finding.severity=="critical" and finding.state is VerificationState.FAILED]
+            started=time.perf_counter()
+            attempt=(LivePlanner(self.provider,self.planner_timeout).repair(plan,verified)
+                     if outcome.mode=="live_model" and self.provider is not None
+                     else PlannerService().repair(plan,verified))
+            plan=attempt.plan
+            project_id=plan.entities[0].id
+            verified=verifier.verify(plan)
+            after=[finding.to_dict() for finding in verified.findings if finding.severity=="critical" and finding.state is VerificationState.FAILED]
+            repair_metadata=attempt.metadata|{"repairLatencyMs":round((time.perf_counter()-started)*1000,1),"verificationFindingsBefore":before,"verificationFindingsAfter":after,"repairSucceeded":verified.accepted,"repairContext":attempt.context}
+            planner_metadata["repair"]=repair_metadata
+            event_drafts.append({"type":"planning.repair_attempted","semantic_ids":[],"payload":{"repairAttempted":True,"findingCount":len(before)}})
+            if not verified.accepted:
+                incomplete=self._store_build_incomplete(body,outcome,plan,verified,planner_metadata,event_drafts,repair_metadata)
+                await self.publish_with_narration(self.repository.get_events_after(incomplete.project_id,0),incomplete.graph,incomplete.representations)
+                return incomplete
         bridge = WorkspaceBridge()
         graph = bridge.commit(EngineeringGraph(project_id), verified)
         now = datetime.now(timezone.utc).isoformat()
@@ -677,11 +729,14 @@ def _record(application: WorkspaceApplication, project_id: str) -> StoredProject
 
 def _project_payload(record: StoredProject, concise: bool = False) -> dict[str, Any]:
     graph = record.graph
+    project=graph.entities.get(graph.project_id)
+    generation=project.metadata if project else {}
     return {"projectId": graph.project_id, "objective": record.objective,
             "capability": classify_objective(record.objective),
             "planningMode": record.planning_mode, "fallbackReason": record.fallback_reason,
             "revision": len(graph.revisions), "status": record.status,
             "createdAt": record.created_at, "updatedAt": record.updated_at,
+            "generationMessage":generation.get("userMessage"),"userIssues":generation.get("userIssues",[]),
             **({} if concise else {"representations": record.representations})}
 
 

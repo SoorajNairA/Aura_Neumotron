@@ -34,6 +34,8 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float]) ->
         "small_dc_motor": (("power", "electrical_power_in"), ("ground", "electrical_ground")),
         "small_dc_pump": (("power", "electrical_power_in"), ("ground", "electrical_ground")),
         "mosfet_driver": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "control_input"), ("load-output", "electrical_power_out")),
+        "motor_driver": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "control_input"), ("load-output", "electrical_power_out")),
+        "wireless_module": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")),
     }
     result = [InterfaceDefinition(name, kind, compatible=("electrical_connector",)) for name, kind in electrical.get(family, ())]
     if family in {"servo", "small_dc_motor"}:
@@ -42,6 +44,8 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float]) ->
             InterfaceDefinition(output_name, "rotating_output", (0, -length / 2 - 3, 0), axis=(0, -1, 0), compatible=("rotating_input",)),
             InterfaceDefinition("body-mount", "fixed_mount", (0, 0, -height / 2), axis=(0, 0, -1), compatible=("structural_face",)),
         ]
+    elif family == "drive_wheel":
+        result.append(InterfaceDefinition("hub-input", "rotating_input", (0, 0, 0), axis=(0, 1, 0), compatible=("rotating_output",)))
     elif family in {"simple_arm", "lid", "dispensing-mechanism", "generic_mechanical_part", "tracked_object"}:
         result += [
             InterfaceDefinition("joint-input", "rotating_input", (0, 0, -length / 2), axis=(0, 1, 0), compatible=("rotating_output", "hinge_axis")),
