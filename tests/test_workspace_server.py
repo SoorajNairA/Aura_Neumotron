@@ -64,7 +64,7 @@ def test_project_graph_revision_and_frontend_apis() -> None:
         assert project["planningMode"] == "deterministic_test"
         project_id = project["projectId"]
         graph = client.get(f"/api/projects/{project_id}/graph").json()
-        assert any(item["id"] == "component-esp32" for item in graph["entities"])
+        assert any(dict(item["metadata"]).get("family") == "microcontroller_board" for item in graph["entities"])
         assert len(client.get(f"/api/projects/{project_id}/revisions").json()) == 1
         assert client.get("/").status_code == 200
         assert client.get("/assets/app.js").status_code == 200

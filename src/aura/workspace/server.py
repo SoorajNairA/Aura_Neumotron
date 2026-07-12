@@ -35,9 +35,9 @@ from aura.verification.service import VerificationService
 from aura.verification.catalogue import CATALOGUE, search as search_catalogue
 from aura.verification.results import VerificationState
 from .bridge import WorkspaceBridge
-from .assembly import irrigation_assembly
+from .assembly import engineering_assembly
 from .events import WorkspaceEvent
-from .representation_service import RepresentationService, initial_records, irrigation_specs
+from .representation_service import RepresentationService, initial_records, representation_specs
 from .representations import RepresentationRecord, RepresentationStatus
 from .modifications import LiveModificationPlanner,ModificationProposal,inverse_proposal,propose
 from .narration import NarrationService
@@ -155,7 +155,6 @@ class WorkspaceApplication:
     def _request(self, objective: str) -> ProjectRequest:
         words=[word.capitalize() for word in objective.strip().rstrip(".").split() if word.lower() not in {"design","build","make","a","an","the","small"}]
         name=" ".join(words[:7]) or "Low-voltage Mechatronic Project"
-        if "irrigation" in objective.lower(): name="Automatic Irrigation System"
         return ProjectRequest(name,objective,("Use isolated low-voltage DC power","Provide the requested sensing or actuation behavior"),assumptions=("Exact component selection and mechanical fit require implementation validation",))
 
     def plan(self, body: CreateProjectBody) -> PlanningOutcome:
@@ -220,7 +219,9 @@ class WorkspaceApplication:
         existing=self.repository.get_project(project_id)
         if body.planningMode=="deterministic_test" and existing is not None:
             return existing
-        event_drafts = [{"type": "project.started", "payload": {"planningMode": outcome.mode,"operationId":body.operationId}, "semantic_ids": []}]
+        planner_metadata = dict(outcome.provider_metadata or {})
+        planner_metadata.update({"provider": "vertex" if outcome.mode == "live_model" else "deterministic", "fallbackUsed": outcome.mode != "live_model", "planId": plan.patch.id, "componentCount": len(plan.components), "relationshipCount": len(plan.relationships)})
+        event_drafts = [{"type": "project.started", "payload": {"planningMode": outcome.mode,"operationId":body.operationId,"planner":planner_metadata}, "semantic_ids": []}]
         if outcome.mode == "live_model":
             event_drafts.append({"type": "planning.live_model", "payload": {"message": "Planning with live model"}, "semantic_ids": []})
         elif outcome.mode == "deterministic_fallback":
@@ -231,7 +232,7 @@ class WorkspaceApplication:
         bridge = WorkspaceBridge()
         graph = bridge.commit(EngineeringGraph(project_id), verified)
         now = datetime.now(timezone.utc).isoformat()
-        specs = irrigation_specs(graph)
+        specs = representation_specs(graph)
         representations = initial_records(project_id, len(graph.revisions), specs)
         record = StoredProject(project_id, body.objective, outcome.mode, outcome.fallback_reason, "building", graph,
             [item.to_dict() for item in representations], now, now)
@@ -428,6 +429,12 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     def get_graph(project_id: str) -> dict[str, Any]:
         return graph_to_dict(_record(application, project_id).graph)
 
+    @app.get("/api/projects/{project_id}/provenance")
+    def get_provenance(project_id: str) -> dict[str, Any]:
+        _record(application, project_id)
+        event=next((item for item in application.repository.get_events_after(project_id,0) if item.type=="project.started"),None)
+        return {"projectId":project_id,"planner":dict(event.payload.get("planner",{})) if event else {}}
+
     @app.get("/api/projects/{project_id}/verification")
     def get_verification(project_id: str) -> dict[str, Any]:
         graph=_record(application,project_id).graph
@@ -488,7 +495,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.get("/api/projects/{project_id}/assembly")
     def get_assembly(project_id: str) -> dict[str, Any]:
-        return irrigation_assembly(_record(application, project_id).graph)
+        return engineering_assembly(_record(application, project_id).graph)
 
     @app.post("/api/projects/{project_id}/representations/{representation_id}/status")
     async def update_representation(project_id: str, representation_id: str, body: RepresentationUpdateBody) -> dict[str, Any]:

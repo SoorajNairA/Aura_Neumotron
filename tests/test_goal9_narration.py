@@ -89,9 +89,11 @@ def test_verification_evidence_and_modification_preview_narrations():
         history=client.get(f"/api/projects/{pid}/narrations").json()
         sourced=[x for x in history if x["kind"]=="verification_explanation" and x["evidenceIds"]]
         assert sourced and sourced[0]["semanticIds"]
-        body={"projectId":pid,"baseRevision":1,"selectedSemanticIds":["component-reservoir"],"request":"Increase capacity by 40% but keep height","mode":"parameter_change"}
+        graph=client.get(f"/api/projects/{pid}/graph").json()
+        target=next(item["id"] for item in graph["entities"] if dict(item["metadata"]).get("family") in {"container","reservoir"})
+        body={"projectId":pid,"baseRevision":1,"selectedSemanticIds":[target],"request":"Increase capacity by 40% but keep height","mode":"parameter_change"}
         proposal=client.post(f"/api/projects/{pid}/modification-proposals",json=body)
         assert proposal.status_code==201
         preview=client.get(f"/api/projects/{pid}/narrations").json()[-1]
-        assert preview["kind"]=="modification_summary" and "component-reservoir" in preview["semanticIds"]
+        assert preview["kind"]=="modification_summary" and target in preview["semanticIds"]
         assert "electronics unchanged" in preview["text"].lower()

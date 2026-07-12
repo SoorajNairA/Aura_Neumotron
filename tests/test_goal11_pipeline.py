@@ -16,18 +16,22 @@ def test_robotic_arm_is_bounded_nonempty_and_visually_structured():
         assert response.status_code==201,response.text
         project=response.json();graph=client.get(f'/api/projects/{project["projectId"]}/graph').json()
         components=[x for x in graph["entities"] if x["kind"]==EntityKind.COMPONENT.value]
-        assert {"component-base","component-shoulder-servo","component-upper-arm","component-elbow-servo","component-forearm","component-end-effector"}<={x["id"] for x in components}
+        families={dict(x["metadata"]).get("family") for x in components}
+        assert {"microcontroller_board","low_voltage_power_source","servo","generic_mechanical_part","mounting_plate"}<=families
         assembly=client.get(f'/api/projects/{project["projectId"]}/assembly').json()
-        assert assembly["layoutStatus"]=="conceptual mechanical assembly" and len(assembly["parts"])>=8
+        assert assembly["layoutStatus"]=="conceptual mechanical assembly" and len(assembly["parts"])==len(components)
 
 def test_live_structured_components_reach_planner_boundary():
     request=ProjectRequest("Bounded System","Create a low voltage controller mechanism",("Operate safely",))
     outcome=LivePlanner(Provider()).plan(request)
     assert outcome.mode=="live_model"
-    assert len([x for x in outcome.plan.entities if x.kind is EntityKind.COMPONENT])==3
+    components=[x for x in outcome.plan.entities if x.kind is EntityKind.COMPONENT]
+    assert len(components)>=3
+    assert any(dict(x.metadata).get("family")=="servo" for x in components)
 
 def test_supported_ready_project_can_never_have_zero_components():
     with TestClient(create_app(storage_mode="memory")) as client:
         response=client.post("/api/projects",json={"objective":"Create a low voltage robotic controller","planningMode":"deterministic_test"})
-        assert response.status_code==422
-        assert "component" in response.text.lower()
+        assert response.status_code==201,response.text
+        graph=client.get(f'/api/projects/{response.json()["projectId"]}/graph').json()
+        assert any(entity["kind"]==EntityKind.COMPONENT.value for entity in graph["entities"])

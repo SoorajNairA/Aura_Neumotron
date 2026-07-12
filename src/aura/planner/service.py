@@ -22,12 +22,9 @@ class PlannerService:
         capability=classify_objective(request.objective)
         if capability["status"] in {CapabilityStatus.UNSUPPORTED.value,CapabilityStatus.NEEDS_CLARIFICATION.value}:
             raise ValueError(capability)
-        if "irrigation" in request.objective.lower() or ("soil" in request.objective.lower() and "pump" in request.objective.lower()):
-            return self._irrigation_plan(request)
-        if (not request.components and any(word in request.objective.lower() for word in
-                ("fan", "feeder", "weather", "humidity", "pressure", "tank", "servo", "lid",
-                 "robotic arm", "robot arm", "flap", "shade", "platform", "rotate", "rotating"))):
-            return self._mechatronic_plan(request,capability["status"])
+        # Normal production always compiles semantic intent.  It never selects a
+        # complete project graph by matching a demo or benchmark phrase.
+        return self._semantic_plan(request, capability["status"])
         project_id = self._id(request.project_name, "project")
         assembly_id = self._id(request.project_name, "assembly")
         planned = [
@@ -88,20 +85,21 @@ class PlannerService:
         plan.validate()
         return plan
 
-    def _mechatronic_plan(self,request:ProjectRequest,capability_status:str)->ProjectPlan:
+    def _semantic_plan(self,request:ProjectRequest,capability_status:str)->ProjectPlan:
         text=request.objective.lower();project_id=self._id(request.objective,"project")
+        requested=" ".join((*request.components, text)).lower()
         families=["controller","power","enclosure"]
-        if "fan" in text: families += ["temperature-sensor","driver","fan"]
-        elif "feeder" in text: families += ["servo","container","dispensing-mechanism"]
-        elif any(word in text for word in ("weather","humidity","pressure")): families += ["environmental-sensor"]
-        elif "tank" in text: families += ["distance-sensor","indicator","container"]
-        elif "servo" in text or "lid" in text: families += ["servo","lid","hinge","mounting-plate"]
-        elif any(word in text for word in ("flap", "shade", "platform", "rotate", "rotating")):
-            if "temperature" in text: families += ["temperature-sensor"]
-            if "light" in text: families += ["light-sensor"]
-            families += ["servo", "mechanism", "mounting-plate"]
-        if "robotic arm" in text or "robot arm" in text:
-            families = ["controller","power","base","shoulder-servo","upper-arm","elbow-servo","forearm","end-effector"]
+        def include(family:str)->None:
+            if family not in families: families.append(family)
+        # These are reusable intent-to-family rules, not named-project fixtures.
+        if any(word in requested for word in ("warm","temperature","thermal")): include("temperature-sensor")
+        if any(word in requested for word in ("bright","light","illumination")): include("light-sensor")
+        if any(word in requested for word in ("humidity","pressure","weather","environment")): include("environmental-sensor")
+        if any(word in requested for word in ("distance","level","height","range")): include("distance-sensor")
+        if any(word in requested for word in ("airflow","fan","ventilation")): include("fan");include("driver")
+        if any(word in requested for word in ("water","liquid","soil","pump","fluid","irrigation")): include("container");include("tube");include("pump");include("driver")
+        if any(word in requested for word in ("dispense","dispensing","food","portion")): include("container");include("servo");include("dispensing-mechanism");include("mounting-plate")
+        if any(word in requested for word in ("move","open","close","rotate","turn","lift","position","shade","flap","hinge","servo","arm","lid","mechanism")): include("servo");include("mechanism");include("mounting-plate")
         specs={
           "controller":("Controller board","microcontroller_board","electronics",{"logic_voltage_v":3.3,"gpio_max_current_ma":12},(52,28,8)),
           "power":("Low-voltage power source","low_voltage_power_source","power",{"voltage_v":5.0,"available_current_a":3.0,"mains_exposed":False},(48,30,18)),
@@ -113,19 +111,15 @@ class PlannerService:
           "driver":("Logic-level MOSFET driver","mosfet_driver","electronics",{"logic_voltage_v":3.3,"load_voltage_v":5.0,"max_current_a":3.0,"flyback_protection":True},(32,24,8)),
           "fan":("Desk fan","fan","actuator",{"voltage_v":5.0,"current_a":0.5,"inductive_load":True},(90,30,90)),
           "servo":("Small servo","servo","actuator",{"voltage_v":5.0,"current_a":0.8,"inductive_load":False},(40,20,38)),
-          "container":("Container","container","mechanical",{"capacity_l":1.5,"wet_environment":"tank" in text},(110,100,150)),
+          "container":("Container","container","mechanical",{"capacity_l":1.5,"wet_environment":any(word in requested for word in ("water","liquid","soil","pump"))},(110,100,150)),
           "dispensing-mechanism":("Conceptual dispensing wheel","generic_mechanical_part","mechanical",{"validation":"conceptual"},(55,55,25)),
           "indicator":("Low-voltage indicator","indicator","electronics",{"voltage_v":3.3},(18,12,8)),
           "lid":("Lightweight lid","lid","mechanical",{"mass_g":120},(120,90,6)),
           "hinge":("Lid hinge","hinge","mechanical",{"relationship":"revolute_proxy"},(80,10,10)),
           "mounting-plate":("Mounting plate","mounting_plate","structure",{},(150,100,6)),
           "mechanism":("Driven mechanism","generic_mechanical_part","mechanical",{"validation":"conceptual"},(100,60,8)),
-          "base":("Robotic arm base","mounting_plate","structure",{"validation":"conceptual mechanical assembly"},(120,100,18)),
-          "shoulder-servo":("Shoulder servo","servo","actuation",{"voltage_v":5.0,"current_a":0.8,"joint":"shoulder","load_verified":False},(40,20,38)),
-          "upper-arm":("Upper arm link","simple_arm","structure",{"length_mm":145,"load_verified":False},(28,145,18)),
-          "elbow-servo":("Elbow servo","servo","actuation",{"voltage_v":5.0,"current_a":0.8,"joint":"elbow","load_verified":False},(40,20,38)),
-          "forearm":("Forearm link","simple_arm","structure",{"length_mm":125,"load_verified":False},(24,125,16)),
-          "end-effector":("Conceptual gripper","generic_mechanical_part","structure",{"precision_kinematics_verified":False},(65,45,22)),
+          "tube":("Fluid tube","tube","mechanical",{"validation":"conceptual"},(10,150,10)),
+          "pump":("Low-voltage pump","small_dc_pump","actuator",{"voltage_v":5.0,"current_a":0.8,"inductive_load":True},(40,60,40)),
         }
         subsystems=tuple(SubsystemSpec(f"subsystem-{role}",role.title(),role,"Deterministic semantic subsystem.") for role in dict.fromkeys(specs[f][2] for f in families))
         components=[]
@@ -146,14 +140,11 @@ class PlannerService:
                 pair=next(((x.name,y.name) for x in left for y in right if y.kind in x.compatible),("mechanical","mechanical"));endpoint=pair
             if a in ids and b in ids: connections.append(ConnectionSpec(f"connection-{a[10:]}-{b[10:]}-{kind}",a,b,endpoint[0],endpoint[1],kind,f"{kind.title()} connection."))
         for sensor in ("component-temperature-sensor","component-light-sensor","component-environmental-sensor","component-distance-sensor"):connect(sensor,"component-controller","signal")
-        for load in ("component-fan","component-servo"): connect("component-driver" if "component-driver" in ids else "component-controller",load,"switched-power" if "component-driver" in ids else "control")
+        for load in ("component-fan","component-servo","component-pump"): connect("component-driver" if "component-driver" in ids else "component-controller",load,"switched-power" if "component-driver" in ids else "control")
         connect("component-controller","component-driver","control")
         for target in sorted(item.id for item in components if item.id!="component-power" and {"power","ground"}.issubset(item.interfaces)):connect("component-power",target,"power");connect("component-power",target,"ground")
         connect("component-servo","component-dispensing-mechanism","mechanical");connect("component-servo","component-lid","mechanical");connect("component-hinge","component-lid","mechanical")
         connect("component-mounting-plate","component-servo","mechanical");connect("component-servo","component-mechanism","mechanical")
-        connect("component-controller","component-shoulder-servo","control");connect("component-controller","component-elbow-servo","control")
-        connect("component-base","component-shoulder-servo","mechanical");connect("component-shoulder-servo","component-upper-arm","mechanical")
-        connect("component-upper-arm","component-elbow-servo","mechanical");connect("component-elbow-servo","component-forearm","mechanical");connect("component-forearm","component-end-effector","mechanical")
         entities=[PlannedEntity(project_id,EntityKind.PROJECT,request.project_name,metadata=(("objective",request.objective),("capability_status",capability_status)))]
         entities += [PlannedEntity(s.id,EntityKind.SUBSYSTEM,s.name,project_id,(("role",s.role),)) for s in subsystems]
         entities += [PlannedEntity(c.id,EntityKind.COMPONENT,c.name,c.subsystem_id,tuple({"role":c.role,"family":c.role,"parameters":c.parameters,"interfaces":list(c.interfaces),"dimensions":c.dimensions,"representation_status":"placeholder","assumption_refs":list(c.assumption_refs)}.items())) for c in components]
@@ -166,7 +157,8 @@ class PlannerService:
         plan=ProjectPlan(request,tuple(entities),relationships,patch,(RepresentationRequest(project_id,"system_diagram"),),VerificationRequest(patch.id,("structure","electrical","physical","safety")),(WorkspaceEventProposal("project.started",project_id),),subsystems,tuple(components),tuple(connections),("Use low-voltage DC only","Unsupported certification remains explicit"))
         plan.validate();return plan
 
-    def _irrigation_plan(self, request: ProjectRequest) -> ProjectPlan:
+    def irrigation_benchmark_plan(self, request: ProjectRequest) -> ProjectPlan:
+        """Legacy fixture retained only for test/demo reset tooling, never `plan`."""
         project_id = "project-auto-irrigation-v1"
         subsystems = (
             SubsystemSpec("subsystem-controller", "Controller subsystem", "sense and control", "Reads moisture and controls water delivery."),
@@ -228,16 +220,22 @@ class PlannerService:
         return plan
 
     def propose_mosfet_replacement(self, graph):
-        driver = graph.get("component-driver")
+        driver = next((entity for entity in graph.find(kind=EntityKind.COMPONENT)
+                       if entity.metadata.get("family", entity.metadata.get("role")) in {"mosfet_driver", "motor_driver", "relay"}
+                       or "driver" in str(entity.metadata.get("role", "")).lower()
+                       or "driver_type" in entity.metadata.get("parameters", {})), None)
+        if driver is None:
+            raise ValueError("no compatible driver component")
         metadata = dict(driver.metadata)
         metadata.update({"role": "pump switching", "parameters": {"logic_voltage_v": 3.3, "load_voltage_v": 5.0, "max_current_a": 3.0, "driver_type": "logic-level-mosfet", "flyback_protection": True}, "description": "Logic-level MOSFET driver with flyback diode."})
         operations = [GraphOperation(PatchOperation.UPDATE_ENTITY, target_id=driver.id, changes={"name": "Logic-level MOSFET driver", "metadata": metadata, "verification_status": "conceptual"})]
-        for relationship_id in ("connection-esp32-driver-edge", "connection-driver-pump-edge"):
-            relationship = graph.relationships[relationship_id]
+        for relationship in graph.relationships.values():
+            if driver.id not in {relationship.source_id, relationship.target_id}:
+                continue
             relationship_metadata = dict(relationship.metadata)
             relationship_metadata["driver_type"] = "logic-level-mosfet"
-            operations.append(GraphOperation(PatchOperation.UPDATE_RELATIONSHIP, target_id=relationship_id, changes={"metadata": relationship_metadata}))
-        return GraphPatch("patch-relay-to-mosfet", tuple(operations), "Relay driver -> Logic-level MOSFET driver (stable component-driver)", graph.current_revision_id)
+            operations.append(GraphOperation(PatchOperation.UPDATE_RELATIONSHIP, target_id=relationship.id, changes={"metadata": relationship_metadata}))
+        return GraphPatch("patch-relay-to-mosfet", tuple(operations), f"Upgrade {driver.name} to a logic-level MOSFET driver", graph.current_revision_id)
 
     @staticmethod
     def _id(project_name: str, role: str) -> str:

@@ -28,7 +28,7 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
         value=lambda key,default:float(dims.get(key,{}).get("value",default))
         geometry=None
         if family in {"enclosure","mounting_plate"} or entity.id=="component-enclosure": geometry={"operation":"filleted_enclosure","width":value("width",100),"depth":value("length",80),"height":value("height",40),"radius":4}
-        elif family in {"container","reservoir"} or entity.id=="component-reservoir":
+        elif family in {"container","reservoir"}:
             w,h=value("width",80),value("height",120);geometry={"operation":"loft","sections":[{"z":0,"radius":w*.4},{"z":h*.5,"radius":w*.5},{"z":h,"radius":w*.42}]}
         elif family in {"tube"} or entity.id=="component-tubing": geometry={"operation":"pipe","radius":5,"path":[[0,0,0],[30,0,15],[55,20,45],[85,25,80]]}
         elif family in {"lid","generic_mechanical_part"}: geometry={"operation":"box","width":value("width",60),"depth":value("length",40),"height":value("height",8)}
@@ -67,21 +67,18 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
             origin=resolved[0]
             for target in resolved[1:]: connections.append({"from":f"{origin[0]}.{origin[1]}","to":f"{target[0]}.{target[1]}","netId":net["netId"],"graphConnectionId":net["connectionIds"][0],"role":net["role"],"displayStyle":net["displayStyle"]})
     graph_ids = {entity.id for entity in graph.find(kind=EntityKind.COMPONENT)}
-    if "component-reservoir" in graph_ids:
-        order={"component-reservoir":0,"component-tubing":1,"component-enclosure":2};mechanical.sort(key=lambda spec:order.get(spec.semantic_ids[0],9))
     circuit = RepresentationSpec(RepresentationType.CIRCUIT_SCHEMATIC,
         tuple(dict.fromkeys(item["semanticId"] for item in circuit_components)),
         {"components": circuit_components, "connections": connections, "unconnected":unconnected})
     validator = RepresentationSpecValidator()
     return [validator.validate(spec, graph_ids) for spec in [*mechanical, circuit] if spec.semantic_ids]
 
-irrigation_specs=representation_specs
 
 
 def initial_records(project_id: str, revision: int, specs: list[RepresentationSpec]) -> list[RepresentationRecord]:
     records=[]
     for spec in specs:
-        suffix = spec.semantic_ids[0].removeprefix("component-") if len(spec.semantic_ids)==1 else ("irrigation" if {"component-esp32","component-pump"}.issubset(spec.semantic_ids) else "system")
+        suffix = spec.semantic_ids[0].removeprefix("component-") if len(spec.semantic_ids)==1 else "system"
         generator, version = ("cascade-core", CAD_VERSION) if spec.kind is RepresentationType.MECHANICAL_3D else ("tscircuit", TSCIRCUIT_VERSION)
         records.append(RepresentationRecord(f"repr-{suffix}-{'3d' if spec.kind is RepresentationType.MECHANICAL_3D else 'schematic'}",
             project_id, revision, spec.semantic_ids, spec.kind, generator=generator, generator_version=version,
@@ -142,7 +139,7 @@ class RepresentationService:
             return generating.transition(RepresentationStatus.FAILED,error=str(exc)).transition(RepresentationStatus.FALLBACK)
 
     def regenerate_circuit(self, graph: EngineeringGraph, record: RepresentationRecord) -> RepresentationRecord:
-        spec=next(spec for spec in irrigation_specs(graph) if spec.kind is RepresentationType.CIRCUIT_SCHEMATIC)
+        spec=next(spec for spec in representation_specs(graph) if spec.kind is RepresentationType.CIRCUIT_SCHEMATIC)
         stale=record.transition(RepresentationStatus.STALE) if record.status is RepresentationStatus.READY else replace(record,status=RepresentationStatus.STALE)
         artifact=self.repository.create_artifact(record.project_id,len(graph.revisions),list(spec.semantic_ids),spec.kind.value,"circuit-json")  # type: ignore[attr-defined]
         return replace(self._generate_circuit(replace(stale,operation_id=f"representation-{uuid4().hex}",generation=record.generation+1), spec, artifact.artifact_id),revision=len(graph.revisions))
@@ -151,7 +148,7 @@ class RepresentationService:
         """Regenerate one graph-derived representation, retaining a usable fallback on failure."""
         if record.type is RepresentationType.CIRCUIT_SCHEMATIC:
             return self.regenerate_circuit(graph, record)
-        spec = next(spec for spec in irrigation_specs(graph) if spec.kind is record.type and spec.semantic_ids == record.semantic_ids)
+        spec = next(spec for spec in representation_specs(graph) if spec.kind is record.type and spec.semantic_ids == record.semantic_ids)
         stale = record.transition(RepresentationStatus.STALE) if record.status is RepresentationStatus.READY else replace(record,status=RepresentationStatus.STALE)
         generating = replace(stale.transition(RepresentationStatus.GENERATING),operation_id=f"representation-{uuid4().hex}",generation=record.generation+1)
         artifact = self.repository.create_artifact(record.project_id,len(graph.revisions),list(spec.semantic_ids),spec.kind.value,"representation-spec")  # type: ignore[attr-defined]

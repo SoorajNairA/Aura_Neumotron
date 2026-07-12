@@ -16,7 +16,9 @@ def create(client, operation="create-1"):
 
 
 def propose(client, project, operation="proposal-1"):
-    response=client.post(f'/api/projects/{project["projectId"]}/modification-proposals',json={"projectId":project["projectId"],"baseRevision":project["revision"],"selectedSemanticIds":["component-reservoir"],"request":"Increase capacity by 40% but keep height","mode":"parameter_change","operationId":operation})
+    graph=client.get(f'/api/projects/{project["projectId"]}/graph').json()
+    target=next(entity["id"] for entity in graph["entities"] if dict(entity["metadata"]).get("family") in {"container","reservoir"})
+    response=client.post(f'/api/projects/{project["projectId"]}/modification-proposals',json={"projectId":project["projectId"],"baseRevision":project["revision"],"selectedSemanticIds":[target],"request":"Increase capacity by 40% but keep height","mode":"parameter_change","operationId":operation})
     assert response.status_code==201,response.text
     return response.json()
 

@@ -28,35 +28,6 @@ class PhysicalPart:
             "verificationState":self.verification,"family":self.family}
 
 
-CONNECTORS = [
-    ("reservoir-outlet","component-reservoir","fluid_outlet",[0,32,20],[1,0,0],["fluid_inlet"]),
-    ("pump-inlet","component-pump","fluid_inlet",[-18,0,8],[-1,0,0],["fluid_outlet","tube_end"]),
-    ("pump-outlet","component-pump","fluid_outlet",[18,0,8],[1,0,0],["tube_end"]),
-    ("tube-inlet","component-tubing","tube_end",[0,0,0],[-1,0,0],["fluid_outlet"]),
-    ("tube-outlet","component-tubing","tube_end",[85,25,80],[1,0,0],["fluid_inlet"]),
-    ("controller-mount","component-esp32","board_mount",[0,0,-3],[0,0,1],["electrical_mount"]),
-    ("driver-mount","component-driver","board_mount",[0,0,-3],[0,0,1],["electrical_mount"]),
-    ("power-mount","component-power","electrical_mount",[0,0,-8],[0,0,1],["structural_mount"]),
-    ("enclosure-controller","component-enclosure","electrical_mount",[-25,5,25],[0,0,1],["board_mount"]),
-    ("enclosure-driver","component-enclosure","electrical_mount",[20,-20,25],[0,0,1],["board_mount"]),
-    ("enclosure-power","component-enclosure","structural_mount",[20,25,20],[0,0,1],["electrical_mount"]),
-    ("enclosure-cable-exit","component-enclosure","cable_exit",[-50,0,10],[-1,0,0],["cable_exit"]),
-]
-
-
-RELATIONSHIPS = [
-    ("reservoir-outlet","pump-inlet","fluid"),("pump-outlet","tube-inlet","fluid"),
-    ("controller-mount","enclosure-controller","structural"),("driver-mount","enclosure-driver","structural"),
-    ("power-mount","enclosure-power","structural"),
-    ("component-esp32","component-driver","electrical"),("component-driver","component-pump","electrical"),
-]
-
-
-def irrigation_assembly(graph: EngineeringGraph) -> dict[str, Any]:
-    if "component-reservoir" not in graph.entities or "component-pump" not in graph.entities:
-        return engineering_assembly(graph)
-    return _irrigation_assembly(graph)
-
 def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
     components=graph.find(kind=EntityKind.COMPONENT);groups:dict[str,list[EngineeringEntity]]={}
     for entity in components:groups.setdefault(entity.parent_id or "conceptual",[]).append(entity)
@@ -94,35 +65,6 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
     from dataclasses import replace
     parts=[replace(part,assembled=tuple(positions[part.semantic_id]),exploded=tuple(positions[part.semantic_id][i]+(part.exploded[i]-part.assembled[i]) for i in range(3))) for part in parts]
     return {"assemblyId":f"assembly-{graph.project_id}","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"hierarchy":hierarchy,"parts":[p.to_dict() for p in _resolve_exploded_collisions(parts)],"interfaces":interfaces,"connectors":interfaces,"relationships":mated,"revision":len(graph.revisions),"layoutStatus":"conceptual mechanical assembly","placementMethod":"interface-frame-mating"}
-
-def _irrigation_assembly(graph: EngineeringGraph) -> dict[str, Any]:
-    graph_ids={entity.id for entity in graph.find(kind=EntityKind.COMPONENT)}
-    reservoir_meta=graph.get("component-reservoir").metadata
-    dimensions=reservoir_meta.get("dimensions", {})
-    reservoir_dimensions=tuple(float(dimensions.get(key, {}).get("value", fallback)) for key,fallback in (("width",70),("length",70),("height",150)))
-    pump_offset=tuple(float(value) for value in graph.get("component-pump").metadata.get("assembly_offset_mm",[0,0,0]))
-    pump_position=tuple(value+offset for value,offset in zip((-25,15,12),pump_offset))
-    parts=[
-        PhysicalPart("component-enclosure","Electronics enclosure","electronics","electronics-subsystem","parametric CAD",(120,100,60),(75,55,0),(145,105,45),"conceptual"),
-        PhysicalPart("component-esp32","ESP32 controller","electronics","component-enclosure","conceptual proxy",(52,28,8),(50,50,34),(30,50,115)),
-        PhysicalPart("component-driver","MOSFET driver","electronics","component-enclosure","conceptual proxy",(32,24,8),(95,25,34),(115,0,105)),
-        PhysicalPart("component-power","Low-voltage power","electronics","component-enclosure","conceptual proxy",(48,30,18),(95,80,30),(145,125,90)),
-        PhysicalPart("component-reservoir","Reservoir","water","water-subsystem","parametric CAD",reservoir_dimensions,(-105,15,0),(-210,40,20),"conceptual"),
-        PhysicalPart("component-pump","DC pump","water","water-subsystem","conceptual proxy",(55,35,35),pump_position,tuple(value+offset for value,offset in zip((-35,-70,55),pump_offset))),
-        PhysicalPart("component-tubing","Inlet and outlet tubing","water","water-subsystem","parametric CAD",(95,40,85),(-70,35,22),(-95,105,75),"conceptual"),
-        PhysicalPart("component-sensor","Soil-moisture sensor","sensor","sensor-subsystem","conceptual proxy",(22,8,95),(175,-35,0),(235,-85,35)),
-    ]
-    parts=_resolve_exploded_collisions([part for part in parts if part.semantic_id in graph_ids])
-    connectors=[{"connectorId":cid,"semanticId":sid,"type":kind,"localPosition":position,
-        "localRotation":[0,0,0,1],"axis":axis,"withdrawalAxis":axis,"compatibleTypes":compatible}
-        for cid,sid,kind,position,axis,compatible in CONNECTORS if sid in graph_ids]
-    return {"assemblyId":"irrigation-system","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},
-        "hierarchy":{"electronics-subsystem":["component-enclosure","component-esp32","component-driver","component-power"],
-            "water-subsystem":["component-reservoir","component-pump","component-tubing"],
-            "sensor-subsystem":["component-sensor"]},"parts":[part.to_dict() for part in parts],
-        "connectors":connectors,"relationships":[{"from":a,"to":b,"type":kind} for a,b,kind in RELATIONSHIPS],
-        "revision":len(graph.revisions)}
-
 
 def _resolve_exploded_collisions(parts: list[PhysicalPart]) -> list[PhysicalPart]:
     """Deterministically extend withdrawal vectors until exploded AABBs clear."""

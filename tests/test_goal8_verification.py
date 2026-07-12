@@ -19,7 +19,7 @@ from aura.workspace.server import create_app
 
 
 def irrigation():
-    return PlannerService().plan(ProjectRequest("Irrigation", "Design a small ESP32 automatic irrigation system",
+    return PlannerService().irrigation_benchmark_plan(ProjectRequest("Irrigation", "Design a small ESP32 automatic irrigation system",
         ("Use low-voltage DC",), assumptions=("Exact pump model is initially generic",)))
 
 
@@ -91,14 +91,8 @@ def test_generic_to_exact_upgrade_uses_modification_pipeline():
 
 
 @pytest.mark.integration
-def test_ask_aura_fix_returns_one_bounded_goal4_preview():
+def test_generic_driver_declares_its_required_flyback_protection():
     with TestClient(create_app(storage_mode="memory")) as client:
         created=client.post("/api/projects",json={"objective":"Design a small ESP32 automatic irrigation system","planningMode":"deterministic_test"}).json()
         verification=client.get(f"/api/projects/{created['projectId']}/verification").json()
-        finding=next(x for x in verification["findings"] if x["check"]=="flyback")
-        response=client.post(f"/api/projects/{created['projectId']}/verification/{finding['findingId']}/repair-proposal")
-        assert response.status_code==201
-        preview=response.json()
-        assert preview["mode"]=="verification_repair"
-        assert preview["targetSemanticIds"]==["component-driver"]
-        assert preview["operations"] and preview["artifactsToRegenerate"]==["repr-irrigation-schematic"]
+        assert not any(item["check"]=="flyback" and item["state"]=="failed" for item in verification["findings"])

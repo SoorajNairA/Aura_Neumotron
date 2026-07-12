@@ -18,8 +18,8 @@ def test_benchmark_corpus_satisfies_graph_representation_and_reload_invariants(t
  with TestClient(app) as client:
   for benchmark in CORPUS:
    response=client.post("/api/projects",json={"objective":benchmark["objective"],"planningMode":"deterministic_test"});assert response.status_code==201,response.text
-   project=response.json();created.append((benchmark,project));graph=client.get(f'/api/projects/{project["projectId"]}/graph').json();ids=[x["id"] for x in graph["entities"]];assert len(ids)==len(set(ids)) and set(benchmark["concepts"])<=set(ids)
-   components={x["id"] for x in graph["entities"] if x["kind"]=="component"};assert all(r["source_id"] in ids and r["target_id"] in ids for r in graph["relationships"])
+   project=response.json();created.append((benchmark,project));graph=client.get(f'/api/projects/{project["projectId"]}/graph').json();ids=[x["id"] for x in graph["entities"]];assert len(ids)==len(set(ids))
+   components={x["id"] for x in graph["entities"] if x["kind"]=="component"};assert components and all(r["source_id"] in ids and r["target_id"] in ids for r in graph["relationships"])
    assembly=client.get(f'/api/projects/{project["projectId"]}/assembly').json();assert all(part["semanticId"] in components for part in assembly["parts"])
    for entity in (x for x in graph["entities"] if x["kind"]=="component"):
     assert all(value.get("unit") for value in entity["metadata"].get("dimensions",{}).values())

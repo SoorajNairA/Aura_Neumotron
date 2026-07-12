@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from dataclasses import dataclass
 from threading import Event
@@ -43,6 +44,7 @@ class LivePlanner:
 
     def plan(self, request: ProjectRequest, cancel: Event | None = None) -> PlanningOutcome:
         cancel = cancel or Event()
+        started = time.perf_counter()
         errors = ""
         for attempt in range(2):
             if cancel.is_set():
@@ -51,19 +53,15 @@ class LivePlanner:
             try:
                 raw = self._generate(prompt)
                 structured = StructuredPlannerResponse.model_validate(json.loads(raw))
-                # Known bounded product families use their richer deterministic
-                # semantic templates after Vertex has supplied requirements and
-                # assumptions. Novel supported objectives retain model-proposed
-                # components for the generic planner.
-                known_template=any(word in request.objective.lower() for word in ("fan","feeder","weather","humidity","pressure","tank","servo","lid","robotic arm","robot arm"))
                 planned_request = ProjectRequest(
                     structured.projectName, request.objective,
-                    tuple(structured.requirements), components=() if known_template else tuple(structured.components),
+                    tuple(structured.requirements), components=tuple(structured.components),
                     assumptions=tuple(structured.assumptions),
                 )
                 plan = PlannerService().plan(planned_request)
                 plan.validate()
-                return PlanningOutcome(plan,"live_model",None,attempt,attempt==0,dict(self._generation_metadata))
+                metadata=dict(self._generation_metadata);metadata["plannerLatencyMs"]=round((time.perf_counter()-started)*1000,1)
+                return PlanningOutcome(plan,"live_model",None,attempt,attempt==0,metadata)
             except (ValueError, json.JSONDecodeError, ValidationError) as exc:
                 errors = str(exc)
             except FutureTimeout:

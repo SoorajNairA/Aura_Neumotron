@@ -17,7 +17,12 @@ def test_robotic_arm_has_graph_owned_complete_servo_nets():
     assert electrical_nets(graph)
     assert not check_engineering_invariants(graph)
     terminals = {f'{item["componentId"]}:{item["interfaceId"]}' for net in electrical_nets(graph) for item in net["terminals"]}
-    for servo in ("component-shoulder-servo", "component-elbow-servo"):
+    servo_ids = [
+        entity.id for entity in graph.find()
+        if dict(entity.metadata).get("family") == "servo"
+    ]
+    assert servo_ids
+    for servo in servo_ids:
         assert {f"{servo}:power", f"{servo}:ground", f"{servo}:signal"} <= terminals
 
 
