@@ -16,7 +16,8 @@ def test_semantic_assembly_is_complete_and_semantically_unique():
     ids=[part["semanticId"] for part in parts]
     assert len(ids)==len(set(ids))==len(parts)
     assert assembly["hierarchy"]
-    assert {part["representationSource"] for part in parts}=={"parametric CAD","conceptual proxy"}
+    assert {part["representationSource"] for part in parts}=={"family-aware procedural representation"}
+    assert all(part["generatorFamily"].endswith("-proxy") for part in parts)
 
 
 def test_connector_references_and_compatibility_are_valid():

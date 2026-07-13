@@ -35,7 +35,10 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
         elif family in {"tube"} or entity.id=="component-tubing": geometry={"operation":"pipe","radius":5,"path":[[0,0,0],[30,0,15],[55,20,45],[85,25,80]]}
         elif family=="tracked_object": geometry={"operation":"sphere","radius":max(value("width",24)/2,1)}
         else: geometry={"operation":"box","width":value("width",45),"depth":value("length",30),"height":value("height",18)}
-        mechanical.append(RepresentationSpec(RepresentationType.MECHANICAL_3D,(entity.id,),{"units":"mm","coordinateSystem":coordinate,"geometry":geometry,"semanticCoverage":{"componentId":entity.id,"proxy":True}}))
+        resolution=str(entity.metadata.get("parameters",{}).get("resolution_quality","CONCEPTUAL"))
+        mechanical.append(RepresentationSpec(RepresentationType.MECHANICAL_3D,(entity.id,),{"units":"mm","coordinateSystem":coordinate,"geometry":geometry,
+            "semanticCoverage":{"componentId":entity.id,"family":family,"proxy":True,"renderStrategy":"family_proxy",
+                "representationClass":"exact" if resolution=="EXACT" else "generic" if resolution=="COMPATIBLE_GENERIC" else "conceptual"}}))
     categories={
         "microcontroller_board":("U","controller",["VCC","GND",*[f"IO{i}" for i in range(1,9)]]),"controller":("U","controller",["VCC","GND",*[f"IO{i}" for i in range(1,9)]]),
         "temperature_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"light_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"environmental_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"distance_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"conceptual_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"moisture_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"soil sensing":("S","generic_sensor",["VCC","GND","SIGNAL"]),

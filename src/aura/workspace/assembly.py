@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import sqrt
+from math import acos, cos, degrees, radians, sin, sqrt
 from typing import Any
 
 from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
@@ -22,13 +22,21 @@ class PhysicalPart:
     verification: str = "estimated"
     family: str = ""
     transform_source: str = "INDEPENDENT_LAYOUT"
+    functional_roles: tuple[str, ...] = ()
+    generator_family: str = "family-aware-proxy"
+    representation_class: str = "conceptual"
+    output_axis: tuple[float, float, float] | None = None
+    visual_kind: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {"semanticId":self.semantic_id,"label":self.label,"subsystem":self.subsystem,
             "parentAssembly":self.parent,"representationSource":self.source,"dimensions":list(self.dimensions),
             "assembledTransform":{"position":list(self.assembled),"rotation":list(self.rotation)},
             "explodedTransform":{"position":list(self.exploded),"rotation":list(self.rotation)},
-            "verificationState":self.verification,"family":self.family,"transformSource":self.transform_source}
+            "verificationState":self.verification,"family":self.family,"functionalRoles":list(self.functional_roles),
+            "transformSource":self.transform_source,"generatorFamily":self.generator_family,
+            "representationClass":self.representation_class,"representationFeatures":list(_representation_features(self.family)),
+            "outputAxis":list(self.output_axis) if self.output_axis else None,"visualKind":self.visual_kind or self.family}
 
 
 def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
@@ -46,8 +54,12 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
             # interface-mated transforms.
             ordinal=len(parts);assembled=(220.0+(ordinal%3)*70.0,(ordinal//3)*55.0,dimensions[2]/2)
             exploded=(assembled[0]+45+(ordinal%3)*20,assembled[1]*1.35,assembled[2]+55)
-            source="parametric CAD" if family in {"enclosure","container","reservoir","tube","mounting_plate","base","lid","generic_mechanical_part"} else "conceptual proxy"
-            parts.append(PhysicalPart(entity.id,entity.name,role,parent,source,dimensions,assembled,exploded,(0,0,0,1),"conceptual",family))
+            resolution=str(meta.get("parameters",{}).get("resolution_quality","CONCEPTUAL"));representation_class="exact" if resolution=="EXACT" else "generic" if resolution=="COMPATIBLE_GENERIC" else "conceptual"
+            source="family-aware procedural representation"
+            roles=tuple(str(value) for value in meta.get("parameters",{}).get("functional_roles",()))
+            output_axis=tuple(float(value) for value in meta.get("parameters",{}).get("output_axis",())) or None
+            visual_kind=str(meta.get("parameters",{}).get("surface_kind",family))
+            parts.append(PhysicalPart(entity.id,entity.name,role,parent,source,dimensions,assembled,exploded,(0,0,0,1),"conceptual",family,"INDEPENDENT_LAYOUT",roles,f"{family or 'unknown'}-proxy",representation_class,output_axis,visual_kind))
     by_id={part.semantic_id:part for part in parts};interfaces=[];by_owner={}
     for entity in components:
         part=by_id[entity.id];family=entity.metadata.get("family",entity.metadata.get("role",""))
@@ -90,7 +102,7 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
             for neighbor in sorted(undirected[current] & unseen):
                 unseen.remove(neighbor);group.add(neighbor);pending.append(neighbor)
         connected_groups.append(group)
-    placed=set()
+    placed=set();visualization_pose=[];joint_pose_index=0
     for group_index,group in enumerate(sorted(connected_groups,key=lambda item:min(item))):
         roots=sorted(component_id for component_id in group if incoming[component_id]==0)
         if not roots:
@@ -106,7 +118,7 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
         pending=list(roots)
         while pending:
             source_owner=pending.pop(0)
-            for _,_,source,target_owner,target in sorted(outgoing[source_owner],key=lambda item:item[0]):
+            for relationship_id,_source_owner,source,target_owner,target in sorted(outgoing[source_owner],key=lambda item:item[0]):
                 if target_owner in placed:
                     continue
                 source_offset=_rotate(rotations[source_owner],source.position)
@@ -115,6 +127,10 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
                     source_axis=_rotate(rotations[source_owner],source.axis)
                     desired=source_axis if source.kind in {"rotating_output","hinge_axis","linear_output"} else tuple(-value for value in source_axis)
                     rotations[target_owner]=_from_to(target.axis,desired)
+                    if source.kind in {"rotating_output","hinge_axis"}:
+                        angle=(18.,-24.,22.,-16.)[joint_pose_index%4];joint_pose_index+=1
+                        rotations[target_owner]=_quat_multiply(_axis_angle(source_axis,radians(angle)),rotations[target_owner])
+                        visualization_pose.append({"componentId":target_owner,"relationshipId":relationship_id,"jointType":"revolute","angleDegrees":angle,"source":"DETERMINISTIC_DEFAULT"})
                 clearance=max(source.clearance_mm,target.clearance_mm)
                 target_offset=_rotate(rotations[target_owner],target.position)
                 positions[target_owner]=[source_world[i]-target_offset[i]+(source_axis[i] if source.axis else 0)*clearance for i in range(3)]
@@ -130,21 +146,121 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
     moving_ids={component_id for component_id,roles in role_index.items() if {"moving_surface","moving_body","drive_output","motion_transmission"}&roles}
     axis_ids={component_id for component_id,parameters in parameter_index.items() if parameters.get("controlled_axis_ids") or parameters.get("driven_axis_ids")}
     primary_ids=set(axis_ids)
+    primary_role_ids={component_id for component_id,roles in role_index.items() if {"support","controlled_motion","moving_surface","moving_body","drive_output","motion_transmission","tool_mount"}&roles}
     for group in connected_groups:
         if (group & actuator_ids and group & moving_ids) or group & axis_ids:
-            primary_ids.update(group)
+            primary_ids.update(group & primary_role_ids)
     # A disconnected controlled actuator is still a primary-mechanism defect,
     # not a secondary item eligible for independent layout.
     primary_ids.update(actuator_ids)
+    # Secondary electronics and auxiliary components may use a bounded layout,
+    # but that layout is anchored to a real support instead of a remote global
+    # subsystem grid.  This does not invent a graph mate or change topology.
+    support_ids=sorted((component_id for component_id,roles in role_index.items() if "support" in roles and placement[component_id] in {"FIXED_ROOT","MATE_SOLVED"}),key=lambda item:(placement[item]!="FIXED_ROOT",item))
+    independent_mounts={};secondary_index=0
+    if support_ids:
+        anchor_id=support_ids[0];anchor=by_id[anchor_id]
+        for component_id in sorted(placement):
+            if component_id in primary_ids or placement[component_id]!="INDEPENDENT_LAYOUT": continue
+            part=by_id[component_id];column=secondary_index%3;row=secondary_index//3;secondary_index+=1
+            positions[component_id]=[positions[anchor_id][0]-anchor.dimensions[0]*.3+column*max(anchor.dimensions[0]*.3,part.dimensions[0]+8),positions[anchor_id][1]-anchor.dimensions[1]*.3+row*max(28.,part.dimensions[1]+8),positions[anchor_id][2]+anchor.dimensions[2]/2+part.dimensions[2]/2]
+            independent_mounts[component_id]=anchor_id
     unresolved_primary=[]
     for component_id in sorted(primary_ids):
         if placement[component_id] in {"INDEPENDENT_LAYOUT","CONCEPTUAL_TOPOLOGY"}:
             unresolved_primary.append({"componentId":component_id,"reason":"primary mechanism lacks a root-to-mate transform"})
     from dataclasses import replace
     parts=[replace(part,assembled=tuple(positions[part.semantic_id]),exploded=tuple(positions[part.semantic_id][i]+(part.exploded[i]-part.assembled[i]) for i in range(3)),rotation=rotations[part.semantic_id],transform_source=placement[part.semantic_id]) for part in parts]
-    sources=("MATE_SOLVED","FIXED_ROOT","INDEPENDENT_LAYOUT","CONCEPTUAL_TOPOLOGY","CACHED_ARTIFACT")
+    by_id={part.semantic_id:part for part in parts}
+    mechanical_parents={part.semantic_id:[] for part in parts};mechanical_children={part.semantic_id:[] for part in parts}
+    mate_diagnostics=[]
+    for relationship,constraint in zip(mated,constraints):
+        _,source_owner,source,target_owner,target=constraint
+        mechanical_children[source_owner].append(target_owner);mechanical_parents[target_owner].append(source_owner)
+        source_position=_world_point(by_id[source_owner],source.position);target_position=_world_point(by_id[target_owner],target.position)
+        distance=sqrt(sum((a-b)**2 for a,b in zip(source_position,target_position)))
+        source_axis=_world_axis(by_id[source_owner],source.axis);target_axis=_world_axis(by_id[target_owner],target.axis)
+        alignment=None
+        if source_axis and target_axis:
+            dot=max(-1.,min(1.,abs(sum(a*b for a,b in zip(source_axis,target_axis)))))
+            alignment=degrees(acos(dot))
+        mate_diagnostics.append({**relationship,"originDistanceMm":distance,"axisAlignmentDegrees":alignment,
+            "originWithinTolerance":distance<=.5,"orientationWithinTolerance":alignment is None or alignment<=1.0})
+    part_dicts=[]
+    for part in _resolve_exploded_collisions(parts):
+        value=part.to_dict();value["mechanicalParents"]=sorted(mechanical_parents[part.semantic_id]);value["mechanicalChildren"]=sorted(mechanical_children[part.semantic_id])
+        value["mateInterfaces"]=[item for item in mated if item["from"].startswith(part.semantic_id+":") or item["to"].startswith(part.semantic_id+":")]
+        if part.semantic_id in primary_ids or (any(role.startswith("feedback_") for role in part.functional_roles) and mechanical_parents[part.semantic_id]): value["placementClass"]="MATED"
+        elif placement[part.semantic_id] in {"FIXED_ROOT","MATE_SOLVED"} or part.semantic_id in independent_mounts: value["placementClass"]="MOUNTED_INDEPENDENTLY"
+        elif placement[part.semantic_id]=="CONCEPTUAL_TOPOLOGY": value["placementClass"]="CONCEPTUAL_FREE"
+        else: value["placementClass"]="UNRESOLVED"
+        half=[dimension/2 for dimension in part.dimensions];value["representationBounds"]={"min":[part.assembled[i]-half[i] for i in range(3)],"max":[part.assembled[i]+half[i] for i in range(3)]}
+        value["independentMountAnchor"]=independent_mounts.get(part.semantic_id)
+        part_dicts.append(value)
+    world_interfaces=[]
+    for item in interfaces:
+        owner=by_id[item["semanticId"]];world=dict(item);world["worldPosition"]=list(_world_point(owner,tuple(item["localPosition"])))
+        world["worldAxis"]=list(_world_axis(owner,tuple(item["axis"]))) if item.get("axis") else None;world_interfaces.append(world)
+    severe_intersections=[]
+    mated_pairs={frozenset((item["from"].rsplit(":",1)[0],item["to"].rsplit(":",1)[0])) for item in mated}
+    for index,left in enumerate(parts):
+        for right in parts[index+1:]:
+            if frozenset((left.semantic_id,right.semantic_id)) in mated_pairs: continue
+            ratio=_overlap_ratio(left,right)
+            if ratio>=.8: severe_intersections.append({"a":left.semantic_id,"b":right.semantic_id,"smallerVolumeOverlap":ratio})
+    sources=("MATE_SOLVED","FIXED_ROOT","INDEPENDENT_LAYOUT","CONCEPTUAL_TOPOLOGY","FALLBACK")
     source_counts={source:sum(part.transform_source==source for part in parts) for source in sources}
-    return {"assemblyId":f"assembly-{graph.project_id}","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"hierarchy":hierarchy,"parts":[p.to_dict() for p in _resolve_exploded_collisions(parts)],"interfaces":interfaces,"connectors":interfaces,"relationships":mated,"unresolvedMechanicalRelations":unresolved,"primaryMechanismIds":sorted(primary_ids),"unresolvedPrimaryMechanism":unresolved_primary,"transformSourceCounts":source_counts,"revision":len(graph.revisions),"layoutStatus":"conceptual mechanical assembly","placementMethod":"interface-frame-mating"}
+    physical_limitations=[{"componentId":part["semanticId"],"reason":"physical component lacks a resolved structural placement"} for part in part_dicts if part["placementClass"] in {"CONCEPTUAL_FREE","UNRESOLVED"}]
+    return {"assemblyId":f"assembly-{graph.project_id}","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"hierarchy":hierarchy,"parts":part_dicts,"interfaces":world_interfaces,"connectors":world_interfaces,"relationships":mated,"mateDiagnostics":mate_diagnostics,"visualizationPose":visualization_pose,"visualConnectivity":{"allMateOriginsWithinTolerance":all(item["originWithinTolerance"] for item in mate_diagnostics),"allMateAxesWithinTolerance":all(item["orientationWithinTolerance"] for item in mate_diagnostics),"severeIntersections":severe_intersections},"physicalRepresentationLimitations":physical_limitations,"unresolvedMechanicalRelations":unresolved,"primaryMechanismIds":sorted(primary_ids),"unresolvedPrimaryMechanism":unresolved_primary,"transformSourceCounts":source_counts,"revision":len(graph.revisions),"layoutStatus":"conceptual mechanical assembly","placementMethod":"interface-frame-mating"}
+
+def _world_point(part:PhysicalPart,local:tuple[float,float,float])->tuple[float,float,float]:
+    rotated=_rotate(part.rotation,local);return tuple(part.assembled[i]+rotated[i] for i in range(3))
+
+def _world_axis(part:PhysicalPart,axis:tuple[float,float,float]|None)->tuple[float,float,float]|None:
+    if not axis:return None
+    rotated=_rotate(part.rotation,axis);length=max(sqrt(sum(value*value for value in rotated)),1e-9);return tuple(value/length for value in rotated)
+
+def _overlap_ratio(left:PhysicalPart,right:PhysicalPart)->float:
+    overlap=1.
+    for a,b,ad,bd in zip(left.assembled,right.assembled,left.dimensions,right.dimensions):
+        overlap*=max(0.,min(a+ad/2,b+bd/2)-max(a-ad/2,b-bd/2))
+    smaller=min(_volume(left.dimensions),_volume(right.dimensions));return overlap/max(smaller,1e-9)
+
+def _volume(dimensions:tuple[float,float,float])->float:return dimensions[0]*dimensions[1]*dimensions[2]
+
+def _representation_features(family:str)->tuple[str,...]:
+    features={
+        "servo":("body","mounting_ears","output_shaft","cross_horn","cable_exit"),
+        "microcontroller_board":("pcb","usb_connector","header_rows","module_blocks"),
+        "controller":("pcb","connector","header_rows","module_blocks"),
+        "small_dc_motor":("motor_body","output_shaft","rear_cap"),
+        "drive_wheel":("tire","hub"),
+        "light_sensor":("sensor_pcb","four_quadrant_head","divider_cross"),
+        "temperature_sensor":("sensor_pcb","sensing_element","header"),
+        "environmental_sensor":("sensor_pcb","sensing_element","header"),
+        "distance_sensor":("sensor_pcb","ranging_head","header"),
+        "conceptual_sensor":("sensor_pcb","conceptual_sensing_head","header"),
+        "panel":("thin_surface","backing_frame","rear_mount","cell_grid"),
+        "articulated_link":("beam","proximal_joint","distal_joint"),
+        "rotating_platform":("platform","hub","mounting_surface"),
+        "camera_platform":("platform","hub","camera_body","lens_cue"),
+        "tool_platform":("platform","hub","tool_mount"),
+        "linear_drive":("drive_body","lead_screw","carriage"),
+        "sliding_panel":("moving_panel","guide_rollers"),
+        "low_voltage_power_source":("battery_pack","terminals","cell_cues"),
+        "base":("base_plate","central_mount","fasteners"),
+        "mounting_plate":("base_plate","mounting_face","fasteners"),
+        "structural_frame":("stationary_frame","side_rails","top_rail","mounting_face"),
+    }
+    return features.get(family,("family_aware_body",))
+
+def _axis_angle(axis:tuple[float,float,float],angle:float)->tuple[float,float,float,float]:
+    length=max(sqrt(sum(value*value for value in axis)),1e-9);scale=sin(angle/2)/length
+    return (axis[0]*scale,axis[1]*scale,axis[2]*scale,cos(angle/2))
+
+def _quat_multiply(left:tuple[float,float,float,float],right:tuple[float,float,float,float])->tuple[float,float,float,float]:
+    ax,ay,az,aw=left;bx,by,bz,bw=right
+    return (aw*bx+ax*bw+ay*bz-az*by,aw*by-ax*bz+ay*bw+az*bx,aw*bz+ax*by-ay*bx+az*bw,aw*bw-ax*bx-ay*by-az*bz)
 
 def _resolve_exploded_collisions(parts: list[PhysicalPart]) -> list[PhysicalPart]:
     """Deterministically extend withdrawal vectors until exploded AABBs clear."""

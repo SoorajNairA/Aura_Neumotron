@@ -65,9 +65,9 @@ class PlannerService:
         mobile_drive=(any(has_term(text,word) or has_term(planner_labels,word) for word in ("wheel","vehicle","car","chassis"))
                       or bool(re.search(r"\bdrive(?:s|n|ing)?\b",text))
                       or bool(re.search(r"\bdrive(?:s|n|ing)?\b",planner_labels)))
-        if any(word in text for word in ("plate","platform","surface","conveyor")): require("moving-surface","Moving surface or platform",("moving_surface",))
+        if any(word in text for word in ("plate","panel","platform","surface","conveyor")): require("moving-surface","Moving surface or platform",("moving_surface",))
         if any(word in text for word in ("ball","object","drawer","lid","camera")): require("moving-body","Required moving body",("moving_body",))
-        if needs_motion and any(word in text for word in ("support","plate","platform","conveyor","lid","drawer","camera")): require("support","Stationary support",("support",))
+        if needs_motion and any(word in text for word in ("support","plate","panel","platform","conveyor","lid","drawer","camera")): require("support","Stationary support",("support",))
         if needs_motion: require("controlled-motion","Controlled actuation",("controlled_motion",))
         if mobile_drive:
             require("drive-output","Driven moving component",("drive_output",))
@@ -92,7 +92,7 @@ class PlannerService:
         count_roles={"fan":"airflow_output","pump":"fluid_drive","temperature-sensor":"feedback_temperature","environmental-sensor":"feedback_environment","distance-sensor":"feedback_distance","drive-wheel":"drive_output"}
         for family,count in requested_counts.items():
             require(f"{family}-count",f"{count} independently represented {family.replace('-',' ')} instances",(count_roles[family],),quantity=count)
-        if any(word in text for word in ("position","balanc","track")): require("position-feedback","Position/state feedback",("feedback_position",))
+        if any(word in text for word in ("position","balanc")): require("position-feedback","Position/state feedback",("feedback_position",))
         if "temperature" in text or "thermal" in text or "warm" in text: require("temperature-feedback","Temperature feedback",("feedback_temperature",))
         if "drawer" in text and any(word in text for word in ("detect","opened","open state")): require("open-state-feedback","Open-state feedback",("feedback_open_state",))
         if "light" in text and any(word in text for word in ("turn on","turns on","output","illuminate")): require("light-output","Light output",("light_output",))
@@ -118,8 +118,9 @@ class PlannerService:
         if "camera" in text: include("camera-platform")
         if any(word in text for word in ("plate","platform")): include("controlled-platform");include("support")
         if "ball" in text or "object" in text: include("tracked-object")
-        if any(word in text for word in ("position","balanc","track")): include("position-sensor")
+        if any(word in text for word in ("position","balanc")): include("position-sensor")
         sliding_system="slid" in text and any(word in text for word in ("door","panel","drawer"))
+        if "panel" in text and not sliding_system: include("panel");include("support")
         if axis_count: include("servo",axis_count);include("mechanism",axis_count)
         if servo_count:
             include("servo",servo_count)
@@ -130,7 +131,7 @@ class PlannerService:
         if motor_count: include("motor",motor_count)
         for family,count in requested_counts.items(): include(family,count)
         if sliding_system:
-            include("sliding-panel");include("linear-mechanism");include("support")
+            include("sliding-panel");include("linear-mechanism");include("frame")
 
         specs={
           "controller":("Controller board","microcontroller_board","electronics",{"logic_voltage_v":3.3,"gpio_max_current_ma":12,"functional_roles":["controller"],"resolution_quality":"EXACT"},(52,28,8)),
@@ -158,11 +159,14 @@ class PlannerService:
           "hinge":("Hinge","hinge","mechanical",{"functional_roles":["support"],"resolution_quality":"COMPATIBLE_GENERIC"},(80,10,10)),
           "mounting-plate":("Mounting plate","mounting_plate","structure",{"functional_roles":["support"],"resolution_quality":"COMPATIBLE_GENERIC"},(150,100,6)),
           "support":("Structural base","base","structure",{"functional_roles":["support"],"resolution_quality":"CONCEPTUAL"},(150,100,12)),
+          "frame":("Structural frame","structural_frame","structure",{"functional_roles":["support"],"resolution_quality":"CONCEPTUAL"},(200,24,120)),
           "mechanism":("Driven link","articulated_link","mechanical",{"functional_roles":["moving_surface","moving_body"],"joint_type":"revolute","resolution_quality":"CONCEPTUAL"},(18,18,90)),
           "linear-mechanism":("Rotary-to-linear drive","linear_drive","mechanical",{"functional_roles":["motion_transmission"],"joint_type":"prismatic","resolution_quality":"CONCEPTUAL"},(100,36,18)),
           "sliding-panel":("Sliding panel","sliding_panel","mechanical",{"functional_roles":["moving_surface","moving_body"],"joint_type":"prismatic","resolution_quality":"CONCEPTUAL"},(160,12,90)),
           "controlled-platform":("Controlled platform","rotating_platform","mechanical",{"functional_roles":["moving_surface","moving_body"],"joint_type":"revolute","resolution_quality":"CONCEPTUAL"},(140,100,8)),
-          "camera-platform":("Camera platform","rotating_platform","mechanical",{"functional_roles":["moving_surface","moving_body"],"joint_type":"revolute","resolution_quality":"CONCEPTUAL"},(80,60,18)),
+          "camera-platform":("Camera platform","camera_platform","mechanical",{"functional_roles":["moving_surface","moving_body"],"joint_type":"revolute","resolution_quality":"CONCEPTUAL"},(80,60,18)),
+          "panel":("Tracked panel","panel","mechanical",{"functional_roles":["moving_surface","moving_body"],"joint_type":"revolute","surface_kind":"energy_collection" if "solar" in text else "generic_panel","resolution_quality":"CONCEPTUAL"},(180,120,8)),
+          "tool-platform":("End platform","tool_platform","mechanical",{"functional_roles":["moving_surface","moving_body","tool_mount"],"joint_type":"revolute","resolution_quality":"CONCEPTUAL"},(58,44,10)),
           "conveyor":("Conveyor surface","generic_mechanical_part","mechanical",{"functional_roles":["moving_surface","moving_body"],"resolution_quality":"CONCEPTUAL"},(180,70,20)),
           "tracked-object":("Tracked object","tracked_object","mechanical",{"functional_roles":["moving_body"],"resolution_quality":"CONCEPTUAL"},(24,24,24)),
           "tube":("Fluid tube","tube","mechanical",{"resolution_quality":"CONCEPTUAL"},(10,150,10)),
@@ -195,11 +199,12 @@ class PlannerService:
         if families.get("motor"): include("motor-driver",families["motor"])
         if families.get("motor") and not (families.get("fan") or families.get("pump")):
             families.pop("driver",None)
-        moving_families={"mechanism","linear-mechanism","sliding-panel","controlled-platform","camera-platform","conveyor","lid","dispensing-mechanism","drive-wheel"}
+        moving_families={"mechanism","linear-mechanism","sliding-panel","controlled-platform","camera-platform","panel","tool-platform","conveyor","lid","dispensing-mechanism","drive-wheel"}
         actuator_families={"servo","motor","fan","pump"}
-        support_families={"support","mounting-plate","chassis","hinge","enclosure"}
+        support_families={"support","mounting-plate","chassis","frame","hinge","enclosure"}
         if needs_motion and not moving_families.intersection(families): include("mechanism")
         if actuator_families.intersection(families) and not support_families.intersection(families): include("support")
+        if axis_count >= 3 and not {"controlled-platform","camera-platform","panel","tool-platform"}.intersection(families): include("tool-platform")
         order=list(families);roles=tuple(dict.fromkeys(specs[family][2] for family in order));subsystems=tuple(SubsystemSpec(f"subsystem-{role}",role.title(),role,"Deterministic semantic subsystem.") for role in roles)
         components=[];component_by_family={}
         for family in order:
@@ -255,7 +260,9 @@ class PlannerService:
                 left=component_interfaces(by_component[a].role,tuple(float(x.get("value",1)) for x in by_component[a].dimensions.values()),by_component[a].parameters);right=component_interfaces(by_component[b].role,tuple(float(x.get("value",1)) for x in by_component[b].dimensions.values()),by_component[b].parameters)
                 # A downstream actuator body is fixed to the prior link.  Its
                 # rotating output remains available for the next driven link.
-                preferred=((x,y) for x in left for y in right if by_component[a].role in {"articulated_link","generic_mechanical_part","linear_drive"} and by_component[b].role=="servo" and x.name=="end-face" and y.name=="body-mount")
+                preferred=((x,y) for x in left for y in right if
+                    (by_component[a].role in {"articulated_link","generic_mechanical_part","linear_drive"} and by_component[b].role=="servo" and x.name=="end-face" and y.name=="body-mount")
+                    or (by_component[a].role in {"panel","rotating_platform","camera_platform","tool_platform"} and "sensor" in by_component[b].role and x.name=="sensor-mount" and y.name=="body-mount"))
                 compatible=((x,y) for x in left for y in right if y.kind in x.compatible)
                 pair=next((pair for pair in (*preferred,*compatible) if f"{a}:{pair[0].name}" not in mechanical_interfaces_used and f"{b}:{pair[1].name}" not in mechanical_interfaces_used),None)
                 if pair:
@@ -283,8 +290,8 @@ class PlannerService:
         for target in sorted(item.id for item in components if item.id!=power and {"power","ground"}.issubset(item.interfaces)):
             if target not in driver_controlled: connect(power,target,"power")
             connect(power,target,"ground")
-        servos=component_by_family.get("servo",[]);mechanisms=component_by_family.get("mechanism",[]);platforms=component_by_family.get("controlled-platform",[])+component_by_family.get("camera-platform",[])+component_by_family.get("conveyor",[])+component_by_family.get("lid",[])+component_by_family.get("dispensing-mechanism",[])
-        mounts=component_by_family.get("mounting-plate",[])+component_by_family.get("support",[])
+        servos=component_by_family.get("servo",[]);mechanisms=component_by_family.get("mechanism",[]);platforms=component_by_family.get("controlled-platform",[])+component_by_family.get("camera-platform",[])+component_by_family.get("panel",[])+component_by_family.get("tool-platform",[])+component_by_family.get("conveyor",[])+component_by_family.get("lid",[])+component_by_family.get("dispensing-mechanism",[])
+        mounts=component_by_family.get("mounting-plate",[])+component_by_family.get("support",[])+component_by_family.get("frame",[])
         if servos and mounts: connect(mounts[0],servos[0],"mechanical")
         linear_drives=component_by_family.get("linear-mechanism",[]);sliding_panels=component_by_family.get("sliding-panel",[])
         if servos and linear_drives and sliding_panels:
@@ -297,6 +304,10 @@ class PlannerService:
             if platforms: connect(mechanisms[min(len(servos)-1,len(mechanisms)-1)],platforms[0],"mechanical")
         elif servos and platforms: connect(servos[0],platforms[0],"mechanical")
         elif servos and mechanisms: connect(servos[0],mechanisms[0],"mechanical")
+        if platforms and sensors: connect(platforms[0],sensors[0],"mechanical")
+        if mounts:
+            connect(mounts[0],controller,"mechanical")
+            connect(mounts[0],power,"mechanical")
         if component_by_family.get("hinge",[]) and component_by_family.get("lid",[]): connect(component_by_family["hinge"][0],component_by_family["lid"][0],"mechanical")
         if component_by_family.get("motor",[]) and component_by_family.get("conveyor",[]):
             connect(component_by_family["motor"][0],component_by_family["conveyor"][0],"mechanical")

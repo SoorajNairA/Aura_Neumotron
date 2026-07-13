@@ -101,10 +101,11 @@ def test_distinct_mechanical_projects_keep_graphs_artifacts_and_assemblies_isola
         axis_ids = {axis for entity in components for axis in entity["metadata"]["parameters"].get("controlled_axis_ids", [])}
         driven_axis_ids = {axis for entity in components for axis in entity["metadata"]["parameters"].get("driven_axis_ids", [])}
         assert axis_ids == driven_axis_ids == {"axis-1", "axis-2", "axis-3", "axis-4"}
-        assert len(manipulator["assembly"]["relationships"]) == 8
-        assert manipulator["assembly"]["transformSourceCounts"]["MATE_SOLVED"] == 8
+        primary_mates=[mate for mate in manipulator["assembly"]["relationships"] if mate["from"].rsplit(":",1)[0] in manipulator["assembly"]["primaryMechanismIds"] and mate["to"].rsplit(":",1)[0] in manipulator["assembly"]["primaryMechanismIds"]]
+        assert len(primary_mates) == 9  # four body mounts, four rotary outputs, one end platform
+        assert manipulator["assembly"]["transformSourceCounts"]["MATE_SOLVED"] == 11
         assert all(part["transformSource"] in {"FIXED_ROOT", "MATE_SOLVED"} for part in manipulator["assembly"]["parts"] if part["semanticId"] in manipulator["assembly"]["primaryMechanismIds"])
-        assert len({tuple(part["assembledTransform"]["position"]) for part in manipulator["assembly"]["parts"] if part["semanticId"] in manipulator["assembly"]["primaryMechanismIds"]}) == 9
+        assert len({tuple(part["assembledTransform"]["position"]) for part in manipulator["assembly"]["parts"] if part["semanticId"] in manipulator["assembly"]["primaryMechanismIds"]}) == 10
         assert not manipulator["assembly"]["unresolvedMechanicalRelations"]
         assert not manipulator["assembly"]["unresolvedPrimaryMechanism"]
 
@@ -116,11 +117,12 @@ def test_distinct_mechanical_projects_keep_graphs_artifacts_and_assemblies_isola
 
         turntable = states["turntable"]
         turntable_families={part["family"] for part in turntable["assembly"]["parts"]}
-        assert {"base", "servo", "rotating_platform"} <= turntable_families
+        assert {"base", "servo", "camera_platform"} <= turntable_families
         assert "mounting_plate" not in turntable_families
         assert "enclosure" not in turntable_families
         assert "articulated_link" not in turntable_families
-        assert len(turntable["assembly"]["relationships"]) == 2
+        turntable_primary_mates=[mate for mate in turntable["assembly"]["relationships"] if mate["from"].rsplit(":",1)[0] in turntable["assembly"]["primaryMechanismIds"] and mate["to"].rsplit(":",1)[0] in turntable["assembly"]["primaryMechanismIds"]]
+        assert len(turntable_primary_mates) == 2
         assert not turntable["assembly"]["unresolvedPrimaryMechanism"]
 
         # A reusable template may recur, but no universal project-level bundle

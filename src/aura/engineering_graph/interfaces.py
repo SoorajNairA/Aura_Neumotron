@@ -37,7 +37,21 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
         "motor_driver": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "control_input"), ("load-output", "electrical_power_out")),
         "wireless_module": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")),
     }
-    result = [InterfaceDefinition(name, kind, compatible=("electrical_connector",)) for name, kind in electrical.get(family, ())]
+    electrical_ports = electrical.get(family, ())
+    result = []
+    for index, (name, kind) in enumerate(electrical_ports):
+        # Electrical ports live on a visible edge/cable exit rather than at the
+        # component centre.  Exact pin pitch remains conceptual, but every port
+        # has a deterministic world-resolvable location for future wire routing.
+        if family == "servo":
+            position = (width / 2, -length / 2, -height * .25 + index * 2)
+        elif family in {"controller", "microcontroller_board", "mosfet_driver", "motor_driver", "wireless_module"}:
+            position = (-width / 2 + min(index, 4) * width / 4, -length / 2, height / 2)
+        elif family in {"low_voltage_power_source", "system power"}:
+            position = ((-1 if index else 1) * width * .22, -length / 2, height / 2)
+        else:
+            position = (-width / 2 + index * max(width / max(len(electrical_ports), 1), 2), -length / 2, height / 2)
+        result.append(InterfaceDefinition(name, kind, position, compatible=("electrical_connector",)))
     if family in {"servo", "small_dc_motor"}:
         output_name = "output" if family == "servo" else "shaft"
         output_axis = tuple((parameters or {}).get("output_axis", (0, 0, 1))) if family == "servo" else (0, -1, 0)
@@ -47,6 +61,8 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
             InterfaceDefinition(output_name, "rotating_output", output_position, axis=output_axis, compatible=("rotating_input",)),
             InterfaceDefinition("body-mount", "fixed_mount", (0, 0, -height / 2), axis=(0, 0, -1), compatible=("structural_face",)),
         ]
+        if family == "servo":
+            result.append(InterfaceDefinition("cable-exit", "cable_exit", (width / 2, -length / 2, -height * .25), axis=(1, 0, 0), compatible=("cable_exit",)))
     elif family == "drive_wheel":
         result.append(InterfaceDefinition("hub-input", "rotating_input", (0, 0, 0), axis=(0, 1, 0), compatible=("rotating_output",)))
     elif family == "linear_drive":
@@ -60,19 +76,29 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
         ]
     elif family == "sliding_panel":
         result += [
-            InterfaceDefinition("linear-input", "linear_input", (0, -length / 2, 0), axis=(0, 1, 0), compatible=("linear_output",)),
+            InterfaceDefinition("linear-input", "linear_input", (0, -length / 2, height / 2), axis=(0, 1, 0), compatible=("linear_output",)),
             InterfaceDefinition("end-face", "structural_face", (0, length / 2, 0), axis=(0, 0, 1), compatible=("fixed_mount", "structural_face")),
         ]
     elif family == "articulated_link":
         result += [
-            InterfaceDefinition("joint-input", "rotating_input", (0, 0, -height / 2), axis=(0, 0, 1), compatible=("rotating_output", "hinge_axis")),
+            # The joint axis crosses the proximal end of the beam; it is not
+            # collinear with the beam length.  This gives rotary mechanisms a
+            # readable arm/frame rather than a stack along the shaft axis.
+            InterfaceDefinition("joint-input", "rotating_input", (0, 0, -height / 2), axis=(0, 1, 0), compatible=("rotating_output", "hinge_axis")),
             InterfaceDefinition("end-face", "structural_face", (0, 0, height / 2), axis=(0, 0, 1), compatible=("fixed_mount", "structural_face")),
         ]
-    elif family == "rotating_platform":
+    elif family in {"rotating_platform", "camera_platform"}:
         result += [
             InterfaceDefinition("joint-input", "rotating_input", (0, 0, -height / 2), axis=(0, 0, 1), compatible=("rotating_output", "hinge_axis")),
             InterfaceDefinition("fixed-input", "fixed_mount", (0, 0, -height / 2), axis=(0, 0, -1), compatible=("structural_face",)),
             InterfaceDefinition("top-face", "structural_face", (0, 0, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)),
+            InterfaceDefinition("sensor-mount", "structural_face", (width * .32, length * .28, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)),
+        ]
+    elif family in {"panel", "tool_platform"}:
+        result += [
+            InterfaceDefinition("fixed-input", "fixed_mount", (0, 0, -height / 2), axis=(0, 0, -1), compatible=("structural_face",)),
+            InterfaceDefinition("front-face", "structural_face", (0, 0, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)),
+            InterfaceDefinition("sensor-mount", "structural_face", (width * .34, length * .32, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)),
         ]
     elif family in {"simple_arm", "lid", "dispensing-mechanism", "generic_mechanical_part", "tracked_object"}:
         result += [
@@ -84,15 +110,17 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
             # A driven lid can use one rotary interface for the actuator and a
             # distinct hinge interface for its stationary support.
             result.append(InterfaceDefinition("hinge-input", "rotating_input", (width / 2, 0, -length / 2), axis=(0, 1, 0), compatible=("hinge_axis",)))
-    elif family in {"mounting_plate", "base", "enclosure", "container"}:
+    elif family in {"mounting_plate", "base", "structural_frame", "enclosure", "container"}:
         # A support may carry more than one component.  These are distinct,
         # stable interfaces rather than an implicitly reusable component centre.
         result.append(InterfaceDefinition("mount-face", "structural_face", (0, 0, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)))
-        if family in {"mounting_plate", "base"}:
+        if family in {"mounting_plate", "base", "structural_frame"}:
             for index, (x, y) in enumerate(((-.28, -.28), (-.28, .28), (.28, -.28), (.28, .28)), 1):
                 result.append(InterfaceDefinition(f"mount-face-{index}", "structural_face", (width * x, length * y, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)))
     elif family == "hinge":
         result.append(InterfaceDefinition("axis", "hinge_axis", (0, 0, 0), axis=(0, 1, 0), compatible=("rotating_input",)))
+    if family in {"controller", "microcontroller_board", "low_voltage_power_source", "system power", "temperature_sensor", "light_sensor", "environmental_sensor", "distance_sensor", "conceptual_sensor", "mosfet_driver", "motor_driver", "wireless_module", "indicator"}:
+        result.append(InterfaceDefinition("body-mount", "fixed_mount", (0, 0, -height / 2), axis=(0, 0, -1), compatible=("structural_face",)))
     return tuple(result)
 
 
