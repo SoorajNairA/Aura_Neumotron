@@ -16,6 +16,9 @@ async function createWindow(){
  mainWindow=new BrowserWindow({width:1600,height:960,minWidth:1080,minHeight:680,backgroundColor:"#02070d",show:false,title:"AURA Engineering Workspace",webPreferences:{preload:path.join(__dirname,"preload.cjs"),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}});
  mainWindow.removeMenu();mainWindow.webContents.setWindowOpenHandler(({url})=>{if(/^https:\/\//.test(url))shell.openExternal(url);return{action:"deny"}});
  mainWindow.webContents.on("will-navigate",(event,url)=>{if(!url.startsWith(apiUrl))event.preventDefault()});
+ mainWindow.webContents.on("did-fail-load",(_event,code,description,url,isMainFrame)=>{if(isMainFrame)console.error(`AURA_ELECTRON_LOAD_FAILED ${code} ${description} ${url}`)});
+ mainWindow.webContents.on("render-process-gone",(_event,details)=>console.error(`AURA_ELECTRON_RENDERER_GONE ${details.reason} ${details.exitCode}`));
+ mainWindow.webContents.on("console-message",(_event,level,message)=>{if(level>=3)console.error(`AURA_ELECTRON_RENDERER_ERROR ${message}`)});
  mainWindow.once("ready-to-show",()=>mainWindow.show());
  mainWindow.webContents.on("did-finish-load",()=>{const online=mainWindow.webContents.getURL().startsWith(apiUrl);if(process.argv.includes("--smoke-recovery")){if(online){console.log("AURA_ELECTRON_RECOVERY_PASS");setTimeout(()=>app.quit(),250)}else console.log("AURA_ELECTRON_OFFLINE_SHELL")}else if(process.argv.includes("--smoke")){console.log("AURA_ELECTRON_SMOKE_PASS");setTimeout(()=>app.quit(),250)}});
  const projectId=process.env.AURA_PROJECT_ID;

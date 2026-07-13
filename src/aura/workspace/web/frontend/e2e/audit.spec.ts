@@ -78,3 +78,15 @@ test("WebGL context loss is visible and restoration is reported",async({page})=>
  await page.locator("canvas").dispatchEvent("webglcontextlost");await expect(page.locator(".narration-card")).toContainText("3D representation interrupted");
  await page.locator("canvas").dispatchEvent("webglcontextrestored");await expect(page.locator(".narration-card")).toContainText("3D renderer restored");
 });
+
+test("a missing restored project recovers to the launcher without a blank renderer",async({page})=>{
+ const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
+ await page.route("**/api/projects/project-stale**",route=>route.fulfill({status:404,json:{detail:"Project not found"}}));
+ await page.route("**/api/projects",route=>route.fulfill({json:[]}));
+ await page.goto("/?projectId=project-stale");
+ await expect(page.getByText("What do you want to build?")).toBeVisible();
+ await expect(page.getByText("That saved project is no longer available. Start a new design.")).toBeVisible();
+ await expect(page.locator("#root")).not.toBeEmpty();
+ expect(errors).toEqual([]);
+ expect(new URL(page.url()).search).toBe("");
+});
