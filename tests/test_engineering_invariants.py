@@ -74,3 +74,13 @@ def test_component_definition_version_mismatch_is_detected():
     result=VerificationService().verify(replace(plan,components=tuple(components)))
     assert not result.accepted
     assert any(f.check=="component-definition-version" and f.state.value=="failed" for f in result.findings)
+
+
+def test_requested_motor_turntable_does_not_inherit_a_phantom_default_servo():
+    objective="Build a rotating camera turntable"
+    plan=PlannerService().plan(ProjectRequest(objective,objective,("Use low voltage",),components=("controller","motor","motor driver","camera platform","mounting plate","power source")))
+    roles=[component.role for component in plan.components]
+    assert "small_dc_motor" in roles and "servo" not in roles
+    assert VerificationService().verify(plan).accepted
+    mechanical=[connection for connection in plan.connections if connection.connection_type=="mechanical"]
+    assert any(connection.source_id=="component-motor" and connection.target_id=="component-camera-platform" for connection in mechanical)

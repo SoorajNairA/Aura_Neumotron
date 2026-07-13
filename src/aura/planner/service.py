@@ -62,7 +62,9 @@ class PlannerService:
         non_indicator_motion=(has_term(text,"turn") and "turn on" not in text and "turns on" not in text)
         explicit_motion=bool(re.search(r"\b(?:move|moves|moving|rotate|rotates|rotating|lift|lifts|lifting|tilt|tilts|tilting|pan|pans|panning|balance|balances|balancing|conveyor|dispens\w*|arm|arms|drive|drives|driving|slid\w*)\b",text))
         needs_motion=explicit_motion or non_indicator_motion or any(has_term(planner_labels,word) for word in ("motor","servo","actuator")) or (any(has_term(text,word) for word in ("lid","flap","shade")) and any(has_term(text,word) for word in ("open","close")))
-        mobile_drive=any(has_term(text,word) or has_term(planner_labels,word) for word in ("wheel","drive","vehicle","car","chassis"))
+        mobile_drive=(any(has_term(text,word) or has_term(planner_labels,word) for word in ("wheel","vehicle","car","chassis"))
+                      or bool(re.search(r"\bdrive(?:s|n|ing)?\b",text))
+                      or bool(re.search(r"\bdrive(?:s|n|ing)?\b",planner_labels)))
         if any(word in text for word in ("plate","platform","surface","conveyor")): require("moving-surface","Moving surface or platform",("moving_surface",))
         if any(word in text for word in ("ball","object","drawer","lid","camera")): require("moving-body","Required moving body",("moving_body",))
         if needs_motion and any(word in text for word in ("support","plate","platform","conveyor","lid","drawer","camera")): require("support","Stationary support",("support",))
@@ -117,7 +119,6 @@ class PlannerService:
         if any(word in text for word in ("plate","platform")): include("controlled-platform");include("support")
         if "ball" in text or "object" in text: include("tracked-object")
         if any(word in text for word in ("position","balanc","track")): include("position-sensor")
-        if needs_motion and not any(family in families for family in ("servo","motor")): include("servo")
         sliding_system="slid" in text and any(word in text for word in ("door","panel","drawer"))
         if axis_count: include("servo",axis_count);include("mechanism",axis_count)
         if servo_count:
@@ -175,6 +176,10 @@ class PlannerService:
             family=resolved.get("normalizedFamily")
             if family: raw_counts[family]=raw_counts.get(family,0)+1
         for family,count in raw_counts.items(): include(family,count)
+        # Choose a fallback actuator only after structured Planner intent has
+        # been normalized. Otherwise a valid requested motor architecture also
+        # inherits a phantom default servo (or vice versa).
+        if needs_motion and not any(family in families for family in ("servo","motor")): include("servo")
         if raw_counts.get("mounting-plate") and "support" in families:
             families.pop("support")
         if (families.get("motor-driver") and not families.get("motor")
@@ -297,6 +302,9 @@ class PlannerService:
             connect(component_by_family["motor"][0],component_by_family["conveyor"][0],"mechanical")
             if component_by_family.get("support",[]): connect(component_by_family["support"][0],component_by_family["motor"][0],"mechanical")
         motors=component_by_family.get("motor",[]);wheels=component_by_family.get("drive-wheel",[]);chassis=component_by_family.get("chassis",[])
+        if motors and platforms:
+            connect(motors[0],platforms[0],"mechanical")
+            if mounts: connect(mounts[0],motors[0],"mechanical")
         if motors and chassis:
             for index,motor in enumerate(motors): connect(chassis[min(index,len(chassis)-1)],motor,"mechanical")
         if motors and wheels:
@@ -393,7 +401,7 @@ class PlannerService:
             (("conveyor","belt"),"conveyor","CONCEPTUAL"),(("motor driver","h-bridge"),"motor-driver","COMPATIBLE_GENERIC"),(("motor",),"motor","COMPATIBLE_GENERIC"),(("fan",),"fan","EXACT"),(("pump",),"pump","COMPATIBLE_GENERIC"),
             (("driver","mosfet","relay"),"driver","EXACT"),(("wheel",),"drive-wheel","CONCEPTUAL"),(("chassis",),"chassis","CONCEPTUAL"),(("remote","wireless","receiver","bluetooth"),"wireless-control","CONCEPTUAL"),(("container","reservoir"),"container","COMPATIBLE_GENERIC"),(("tube","tubing"),"tube","COMPATIBLE_GENERIC"),
             (("enclosure","housing"),"enclosure","COMPATIBLE_GENERIC"),(("lid",),"lid","COMPATIBLE_GENERIC"),(("hinge",),"hinge","COMPATIBLE_GENERIC"),
-            (("mounting plate","mount plate","bracket","structural support"),"mounting-plate","COMPATIBLE_GENERIC"),(("plate","platform"),"controlled-platform","CONCEPTUAL"),
+            (("mounting plate","mount plate","bracket","structural support"),"mounting-plate","COMPATIBLE_GENERIC"),(("camera platform","camera mount"),"camera-platform","CONCEPTUAL"),(("plate","platform"),"controlled-platform","CONCEPTUAL"),
             (("ball","object"),"tracked-object","CONCEPTUAL"),(("camera",),"camera-platform","CONCEPTUAL"),(("arm","link","mechanism","shaft"),"mechanism","CONCEPTUAL"),
         )
         for terms,family,quality in rules:
