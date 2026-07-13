@@ -29,9 +29,9 @@ test("six-project committed-runtime rehearsal",async({page,request})=>{
   await page.getByRole("button",{name:"SPLIT",exact:true}).click();await page.getByRole("button",{name:"ASSEMBLY",exact:true}).click();
   await page.locator(".semantic-parts button").first().click();await expect(page.getByTestId("selected")).not.toHaveText("");
   if(index===4){
-   const sensor=page.getByRole("button",{name:/Temperature sensor component-temperature-sensor/});await sensor.click();await page.getByTestId("modification-request").fill("Turn the vent on at a lower temperature");await page.getByTestId("preview-change").click();await expect(page.getByTestId("proposal-preview")).toBeVisible();await page.getByTestId("apply-change").click();await expect(page.getByText("Revision 2")).toBeAttached({timeout:45_000});
-  }
-  results.push({objective,projectId,revision:body.revision,status:body.status,planningMode:body.planningMode,metrics,components:assembly.parts.length});
+   const sensor=page.getByRole("button",{name:/Temperature sensor component-temperature-sensor/});await sensor.click();await page.getByTestId("modification-request").fill("Turn the vent on at a lower temperature");await page.getByTestId("preview-change").click();await expect(page.getByTestId("proposal-preview")).toBeVisible();await page.getByTestId("apply-change").click();await expect(page.getByText("Revision 2",{exact:true})).toBeAttached({timeout:45_000});
+   }
+  const finalProject=await request.get(`${base}/api/projects/${projectId}`).then(r=>r.json());results.push({objective,projectId,revision:finalProject.revision,status:finalProject.status,planningMode:finalProject.planningMode,metrics,components:assembly.parts.length});
   if(index<objectives.length-1){await page.getByRole("button",{name:"AURA",exact:true}).click();await expect(page.getByText("What do you want to build?")).toBeVisible()}
  }
  await page.getByRole("button",{name:/PROJECT/}).click();await page.getByTestId("projects-panel").getByRole("button",{name:new RegExp(objectives[0],"i")}).click();
