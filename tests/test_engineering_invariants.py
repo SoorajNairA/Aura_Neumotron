@@ -1,6 +1,10 @@
 from aura.engineering_graph.electrical import electrical_nets
 from aura.engineering_graph.invariants import check_engineering_invariants
-from aura.engineering_graph.model import EngineeringGraph
+import pytest
+from dataclasses import replace
+
+from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
+from aura.engineering_graph.serialization import graph_from_dict, graph_to_dict
 from aura.planner.schemas import ProjectRequest
 from aura.planner.service import PlannerService
 from aura.verification.service import VerificationService
@@ -30,3 +34,43 @@ def test_servo_lid_uses_same_net_compiler():
     graph = build("make a servo lid mechanism")
     assert electrical_nets(graph)
     assert not check_engineering_invariants(graph)
+
+
+@pytest.mark.parametrize("objective,family,quantity",[
+    ("make two independently controlled fans","fan",2),
+    ("make three temperature sensors","temperature_sensor",3),
+    ("make three pumps controlled independently","small_dc_pump",3),
+    ("make a rover with four independently driven wheels","drive_wheel",4),
+])
+def test_objective_quantities_survive_normalization(objective: str, family: str, quantity: int):
+    plan=PlannerService().plan(ProjectRequest(objective,objective,("low voltage",)))
+    matching=[component for component in plan.components if component.role==family]
+    assert len(matching)==quantity
+    assert len({component.id for component in matching})==quantity
+    assert VerificationService().verify(plan).accepted
+
+
+def test_graph_deserialization_rejects_unknown_schema_duplicates_cycles_and_bad_dimensions():
+    project=EngineeringEntity("project",EntityKind.PROJECT,"Project")
+    graph=EngineeringGraph("project",entities={"project":project})
+    payload=graph_to_dict(graph)
+    payload["schema_version"]="99"
+    with pytest.raises(ValueError,match="schema version"): graph_from_dict(payload)
+    payload=graph_to_dict(graph);payload["entities"].append(dict(payload["entities"][0]))
+    with pytest.raises(ValueError,match="duplicate entity"): graph_from_dict(payload)
+    a=EngineeringEntity("a",EntityKind.COMPONENT,"A","b")
+    b=EngineeringEntity("b",EntityKind.COMPONENT,"B","a")
+    with pytest.raises(ValueError,match="parent cycle"): EngineeringGraph("project",entities={"project":project,"a":a,"b":b}).validate()
+    bad=EngineeringEntity("bad",EntityKind.COMPONENT,"Bad","project",{"dimensions":{"width":{"value":float("inf"),"unit":"mm"}}})
+    with pytest.raises(ValueError,match="NaN or Infinity"): EngineeringGraph("project",entities={"project":project,"bad":bad}).validate()
+
+
+def test_component_definition_version_mismatch_is_detected():
+    objective="make a temperature-controlled fan"
+    plan=PlannerService().plan(ProjectRequest(objective,objective,("low voltage",)))
+    index=next(i for i,c in enumerate(plan.components) if c.parameters.get("component_definition_id"))
+    components=list(plan.components);parameters=dict(components[index].parameters);parameters["component_definition_version"]="catalogue-obsolete"
+    components[index]=replace(components[index],parameters=parameters)
+    result=VerificationService().verify(replace(plan,components=tuple(components)))
+    assert not result.accepted
+    assert any(f.check=="component-definition-version" and f.state.value=="failed" for f in result.findings)

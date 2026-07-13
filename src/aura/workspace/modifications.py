@@ -7,6 +7,7 @@ import json
 from pydantic import BaseModel,ConfigDict,Field
 from aura.engineering_graph.model import EngineeringGraph
 from aura.engineering_graph.patches import GraphOperation,GraphPatch,PatchOperation
+from aura.verification.catalogue import CATALOGUE, CATALOGUE_VERSION
 
 class ModificationIntent(BaseModel):
     model_config=ConfigDict(extra="forbid")
@@ -44,14 +45,13 @@ def propose(graph:EngineeringGraph,base:int,ids:list[str],request:str,mode:str="
     if len(ids)!=1 or ids[0] not in graph.entities: raise ValueError("unsupported_target")
     target=graph.get(ids[0]);meta=dict(target.metadata);lower=request.lower();ops=[];unaffected=("unrelated subsystems",)
     family=meta.get("family",meta.get("role",""))
-    from aura.verification.catalogue import CATALOGUE
     exact=next((item for item in CATALOGUE if item.component_definition_id.lower() in lower),None)
     if exact:
         if family not in {exact.family,"controller" if exact.family=="microcontroller_board" else exact.family,
                           "water delivery" if exact.family=="small_dc_pump" else exact.family,
                           "soil sensing" if exact.family=="soil_moisture_sensor" else exact.family}: raise ValueError("incompatible_component_definition")
-        old=meta.get("component_definition_id");meta["component_definition_id"]=exact.component_definition_id
-        params=dict(meta.get("parameters",{}));params["component_definition_id"]=exact.component_definition_id;meta["parameters"]=params
+        old=meta.get("component_definition_id");meta["component_definition_id"]=exact.component_definition_id;meta["component_definition_version"]=CATALOGUE_VERSION
+        params=dict(meta.get("parameters",{}));params["component_definition_id"]=exact.component_definition_id;params["component_definition_version"]=CATALOGUE_VERSION;meta["parameters"]=params
         dims=exact.properties.get("dimensions")
         if dims:
             values=dims.value;meta["dimensions"]={key:{"value":value,"unit":dims.unit} for key,value in zip(("width","length","height"),values)}

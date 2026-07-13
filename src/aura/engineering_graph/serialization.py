@@ -20,6 +20,14 @@ def graph_to_dict(graph: EngineeringGraph) -> dict[str, Any]:
 
 
 def graph_from_dict(payload: dict[str, Any]) -> EngineeringGraph:
+    entity_items=payload.get("entities", [])
+    relationship_items=payload.get("relationships", [])
+    entity_ids=[item.get("id") for item in entity_items]
+    relationship_ids=[item.get("id") for item in relationship_items]
+    if len(entity_ids)!=len(set(entity_ids)):
+        raise ValueError("Serialized graph contains duplicate entity ids")
+    if len(relationship_ids)!=len(set(relationship_ids)):
+        raise ValueError("Serialized graph contains duplicate relationship ids")
     entities = {
         item["id"]: EngineeringEntity(
             id=item["id"], kind=EntityKind(item["kind"]), name=item["name"],
@@ -28,14 +36,14 @@ def graph_from_dict(payload: dict[str, Any]) -> EngineeringGraph:
             verification_status=item.get("verification_status", "conceptual"),
             representation_refs=tuple(item.get("representation_refs", ())),
         )
-        for item in payload.get("entities", [])
+        for item in entity_items
     }
     relationships = {
         item["id"]: Relationship(
             id=item["id"], source_id=item["source_id"], target_id=item["target_id"],
             type=item["type"], metadata=dict(item.get("metadata", {})),
         )
-        for item in payload.get("relationships", [])
+        for item in relationship_items
     }
     graph = EngineeringGraph(
         project_id=payload["project_id"], schema_version=payload.get("schema_version", "1.0"),

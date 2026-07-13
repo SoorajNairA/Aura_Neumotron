@@ -118,6 +118,42 @@ def test_live_mode_metadata_and_fallback_event() -> None:
         assert "task.fallback_used" in types
 
 
+@pytest.mark.integration
+def test_repeated_live_create_reuses_persisted_project_without_replanning() -> None:
+    provider=FakeProvider([VALID])
+    app=create_app(provider=provider,storage_mode="memory")
+    with TestClient(app) as client:
+        first=client.post("/api/projects",json={"objective":OBJECTIVE,"planningMode":"live_model"})
+        prompts_after_first=len(provider.prompts)
+        second=client.post("/api/projects",json={"objective":OBJECTIVE,"planningMode":"live_model"})
+        assert first.status_code==second.status_code==201
+        assert first.json()["projectId"]==second.json()["projectId"]
+        assert len(provider.prompts)==prompts_after_first
+        assert len(client.get(f"/api/projects/{first.json()['projectId']}/revisions").json())==1
+
+
+@pytest.mark.integration
+def test_pathological_and_malformed_create_inputs_fail_boundedly() -> None:
+    app=create_app(storage_mode="memory")
+    with TestClient(app) as client:
+        assert client.post("/api/projects",json={"objective":"make a 99999-axis robot","planningMode":"deterministic_test"}).status_code==422
+        assert client.post("/api/projects",json={"objective":"x"*2001,"planningMode":"deterministic_test"}).status_code==422
+        assert client.post("/api/projects",json={"objective":"make a desk fan","planningMode":"unknown"}).status_code==422
+
+
+@pytest.mark.integration
+def test_concurrent_duplicate_create_commits_one_revision() -> None:
+    from concurrent.futures import ThreadPoolExecutor
+    app=create_app(storage_mode="memory")
+    with TestClient(app) as client, ThreadPoolExecutor(max_workers=2) as pool:
+        create=lambda:client.post("/api/projects",json={"objective":OBJECTIVE,"planningMode":"deterministic_test"})
+        responses=[future.result() for future in (pool.submit(create),pool.submit(create))]
+        assert all(response.status_code==201 for response in responses)
+        ids={response.json()["projectId"] for response in responses}
+        assert len(ids)==1
+        assert len(client.get(f"/api/projects/{ids.pop()}/revisions").json())==1
+
+
 @pytest.mark.unit
 def test_server_import_does_not_load_heavy_optional_systems() -> None:
     import subprocess, sys

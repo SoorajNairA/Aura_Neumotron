@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
+import math
 from typing import Any, Iterable
 
 
@@ -95,6 +96,8 @@ class EngineeringGraph:
         return self.find(parent_id=entity_id)
 
     def validate(self) -> None:
+        if self.schema_version != "1.0":
+            raise ValueError(f"Unsupported Engineering Graph schema version: {self.schema_version}")
         if self.project_id not in self.entities:
             raise ValueError("Graph project_id must reference a project entity")
         if self.entities[self.project_id].kind != EntityKind.PROJECT:
@@ -102,6 +105,35 @@ class EngineeringGraph:
         for entity in self.entities.values():
             if entity.parent_id is not None and entity.parent_id not in self.entities:
                 raise ValueError(f"Entity {entity.id} has missing parent {entity.parent_id}")
+            if not _finite_values(entity.metadata):
+                raise ValueError(f"Entity {entity.id} metadata contains NaN or Infinity")
+            dimensions=entity.metadata.get("dimensions")
+            if dimensions is not None:
+                if not isinstance(dimensions,dict) or not dimensions:
+                    raise ValueError(f"Entity {entity.id} dimensions must be a non-empty mapping")
+                scale={"mm":1.0,"cm":10.0,"m":1000.0,"in":25.4,"inch":25.4,"inches":25.4}
+                for dimension in dimensions.values():
+                    if not isinstance(dimension,dict) or dimension.get("unit") not in scale:
+                        raise ValueError(f"Entity {entity.id} has unsupported dimension units")
+                    millimetres=float(dimension.get("value",0))*scale[dimension["unit"]]
+                    if not math.isfinite(millimetres) or not 0<millimetres<=10_000:
+                        raise ValueError(f"Entity {entity.id} dimensions must be finite, positive, and at most 10000 mm")
+        parents={entity.id:entity.parent_id for entity in self.entities.values()}
+        for entity_id in parents:
+            seen:set[str]=set();current: str | None=entity_id
+            while current is not None:
+                if current in seen:
+                    raise ValueError(f"Graph hierarchy contains a parent cycle at {current}")
+                seen.add(current);current=parents.get(current)
         for relationship in self.relationships.values():
             if relationship.source_id not in self.entities or relationship.target_id not in self.entities:
                 raise ValueError(f"Relationship {relationship.id} has a missing endpoint")
+            if not _finite_values(relationship.metadata):
+                raise ValueError(f"Relationship {relationship.id} metadata contains NaN or Infinity")
+
+
+def _finite_values(value: Any) -> bool:
+    if isinstance(value,float): return math.isfinite(value)
+    if isinstance(value,dict): return all(_finite_values(item) for item in value.values())
+    if isinstance(value,(list,tuple)): return all(_finite_values(item) for item in value)
+    return True

@@ -35,65 +35,6 @@ class PlannerService:
         # Normal production always compiles semantic intent.  It never selects a
         # complete project graph by matching a demo or benchmark phrase.
         return self._semantic_plan(request, capability["status"])
-        project_id = self._id(request.project_name, "project")
-        assembly_id = self._id(request.project_name, "assembly")
-        planned = [
-            PlannedEntity(project_id, EntityKind.PROJECT, request.project_name.strip()),
-            PlannedEntity(assembly_id, EntityKind.ASSEMBLY, "Primary Assembly", project_id),
-        ]
-        for index, requirement in enumerate(request.requirements, 1):
-            planned.append(PlannedEntity(
-                self._id(request.project_name, f"requirement-{index}"), EntityKind.REQUIREMENT,
-                requirement.strip(), project_id,
-            ))
-        for index, assumption in enumerate(request.assumptions, 1):
-            planned.append(PlannedEntity(
-                self._id(request.project_name, f"assumption-{index}"), EntityKind.ASSUMPTION,
-                assumption.strip(), project_id,
-            ))
-        for index, component in enumerate(request.components, 1):
-            planned.append(PlannedEntity(
-                self._id(request.project_name, f"component-{index}"), EntityKind.COMPONENT,
-                component.strip(), assembly_id,
-            ))
-        representation_id = self._id(request.project_name, "representation")
-        planned.append(PlannedEntity(
-            representation_id, EntityKind.REPRESENTATION, request.representation,
-            project_id, (("representation_type", request.representation),),
-        ))
-
-        relationships = tuple(
-            PlannedRelationship(
-                self._id(request.project_name, f"contains-{index}"), assembly_id, entity.id, "contains"
-            )
-            for index, entity in enumerate(planned)
-            if entity.kind == EntityKind.COMPONENT
-        )
-        operations = [
-            GraphOperation(PatchOperation.ADD_ENTITY, entity=EngineeringEntity(
-                id=item.id, kind=item.kind, name=item.name, parent_id=item.parent_id,
-                metadata=dict(item.metadata),
-            ))
-            for item in planned
-        ]
-        operations.extend(
-            GraphOperation(PatchOperation.ADD_RELATIONSHIP, relationship=Relationship(
-                id=item.id, source_id=item.source_id, target_id=item.target_id, type=item.type,
-            ))
-            for item in relationships
-        )
-        patch = GraphPatch(
-            id=self._id(request.project_name, "initial-patch"), operations=tuple(operations),
-            summary=f"Create engineering graph for {request.project_name.strip()}",
-        )
-        plan = ProjectPlan(
-            request=request, entities=tuple(planned), relationships=relationships, patch=patch,
-            representation_requests=(RepresentationRequest(project_id, request.representation),),
-            verification_request=VerificationRequest(patch.id, ("schema", "references", "safety")),
-            workspace_events=(WorkspaceEventProposal("project.created", project_id),),
-        )
-        plan.validate()
-        return plan
 
     def _semantic_plan(self,request:ProjectRequest,capability_status:str)->ProjectPlan:
         """Compile intent into families without replacing an unknown role with a look-alike.
@@ -110,9 +51,9 @@ class PlannerService:
         intent_text=" ".join((request.project_name,semantic_text,*request.requirements))
         text=semantic_text.lower();objective_text=request.objective.lower();planner_labels=" ".join(request.components).lower();project_id=self._id(request.objective,"project")
         semantic_requirements=[]
-        def require(key,label,roles,*,axes=0):
+        def require(key,label,roles,*,axes=0,quantity=1):
             if not any(item["key"]==key for item in semantic_requirements):
-                semantic_requirements.append({"key":key,"label":label,"roles":list(roles),"axes":axes,"critical":True})
+                semantic_requirements.append({"key":key,"label":label,"roles":list(roles),"axes":axes,"quantity":quantity,"critical":True})
         require("controller","Control logic",("controller",))
         require("power","Low-voltage power",("power",))
         def has_term(value:str,term:str)->bool: return bool(re.search(rf"\b{re.escape(term)}\w*\b",value))
@@ -121,7 +62,7 @@ class PlannerService:
         non_indicator_motion=(has_term(text,"turn") and "turn on" not in text and "turns on" not in text)
         explicit_motion=bool(re.search(r"\b(?:move|moves|moving|rotate|rotates|rotating|lift|lifts|lifting|tilt|tilts|tilting|pan|pans|panning|balance|balances|balancing|conveyor|dispens\w*|arm|arms|drive|drives|driving|slid\w*)\b",text))
         needs_motion=explicit_motion or non_indicator_motion or any(has_term(planner_labels,word) for word in ("motor","servo","actuator")) or (any(has_term(text,word) for word in ("lid","flap","shade")) and any(has_term(text,word) for word in ("open","close")))
-        mobile_drive=any(re.search(rf"\b{re.escape(word)}\b", text) or re.search(rf"\b{re.escape(word)}\b", planner_labels) for word in ("wheel","drive","vehicle","car","chassis"))
+        mobile_drive=any(has_term(text,word) or has_term(planner_labels,word) for word in ("wheel","drive","vehicle","car","chassis"))
         if any(word in text for word in ("plate","platform","surface","conveyor")): require("moving-surface","Moving surface or platform",("moving_surface",))
         if any(word in text for word in ("ball","object","drawer","lid","camera")): require("moving-body","Required moving body",("moving_body",))
         if needs_motion and any(word in text for word in ("support","plate","platform","conveyor","lid","drawer","camera")): require("support","Stationary support",("support",))
@@ -134,7 +75,21 @@ class PlannerService:
         axis_count=self._requested_axis_count(intent_text)
         if not axis_count and (("pan" in text and "tilt" in text) or "balanc" in text): axis_count=2
         servo_count=self._named_component_count(f"{intent_text} {planner_labels}","servo")
+        requested_counts={
+            "fan":self._named_component_count(intent_text,"fan"),
+            "pump":self._named_component_count(intent_text,"pump"),
+            "temperature-sensor":self._named_component_count(intent_text,"temperature sensor"),
+            "environmental-sensor":self._named_component_count(intent_text,"environmental sensor"),
+            "distance-sensor":self._named_component_count(intent_text,"distance sensor"),
+            "drive-wheel":self._named_component_count(intent_text,"wheel"),
+        }
+        requested_counts={family:count for family,count in requested_counts.items() if count}
+        if axis_count>8 or servo_count>8 or any(count>8 for count in requested_counts.values()):
+            raise ValueError({"status":"UNSUPPORTED","reasons":["This bounded planner supports at most eight repeated actuators, sensors, wheels, or controlled axes per project."]})
         if axis_count: require("controlled-axes",f"{axis_count}-axis controlled motion",("controlled_motion",),axes=axis_count)
+        count_roles={"fan":"airflow_output","pump":"fluid_drive","temperature-sensor":"feedback_temperature","environmental-sensor":"feedback_environment","distance-sensor":"feedback_distance","drive-wheel":"drive_output"}
+        for family,count in requested_counts.items():
+            require(f"{family}-count",f"{count} independently represented {family.replace('-',' ')} instances",(count_roles[family],),quantity=count)
         if any(word in text for word in ("position","balanc","track")): require("position-feedback","Position/state feedback",("feedback_position",))
         if "temperature" in text or "thermal" in text or "warm" in text: require("temperature-feedback","Temperature feedback",("feedback_temperature",))
         if "drawer" in text and any(word in text for word in ("detect","opened","open state")): require("open-state-feedback","Open-state feedback",("feedback_open_state",))
@@ -154,7 +109,8 @@ class PlannerService:
         if "drawer" in text: include("drawer");include("open-state-sensor")
         if "light" in text and any(word in text for word in ("turn on","turns on","output","illuminate")): include("indicator")
         if "conveyor" in text or "belt" in text: include("conveyor");include("motor");include("driver");include("support")
-        if mobile_drive: include("chassis");include("drive-wheel",2);include("motor");include("motor-driver")
+        if mobile_drive:
+            wheel_count=requested_counts.get("drive-wheel",2);include("chassis");include("drive-wheel",wheel_count);include("motor",wheel_count if "independent" in text else 1);include("motor-driver",wheel_count if "independent" in text else 1)
         if any(re.search(rf"\b{re.escape(word)}\b", text) or re.search(rf"\b{re.escape(word)}\b", planner_labels) for word in ("remote","wireless","receiver","bluetooth")): include("wireless-control")
         if any(word in text or word in planner_labels for word in ("enclosure","housing")): include("enclosure")
         if "camera" in text: include("camera-platform")
@@ -168,7 +124,10 @@ class PlannerService:
             include("servo",servo_count)
             if needs_motion: include("mechanism",servo_count)
         motor_count=self._named_component_count(f"{intent_text} {planner_labels}","motor")
+        if motor_count>8:
+            raise ValueError({"status":"UNSUPPORTED","reasons":["This bounded planner supports at most eight repeated actuators per project."]})
         if motor_count: include("motor",motor_count)
+        for family,count in requested_counts.items(): include(family,count)
         if sliding_system:
             include("sliding-panel");include("linear-mechanism");include("support")
 
@@ -227,6 +186,10 @@ class PlannerService:
             for trace in raw_trace:
                 if trace.get("normalizedFamily")=="motor-driver":
                     trace.update({"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"external motor driver is incompatible with the selected self-driven servo architecture"})
+        if families.get("fan") or families.get("pump"): include("driver",families.get("fan",0)+families.get("pump",0))
+        if families.get("motor"): include("motor-driver",families["motor"])
+        if families.get("motor") and not (families.get("fan") or families.get("pump")):
+            families.pop("driver",None)
         moving_families={"mechanism","linear-mechanism","sliding-panel","controlled-platform","camera-platform","conveyor","lid","dispensing-mechanism","drive-wheel"}
         actuator_families={"servo","motor","fan","pump"}
         support_families={"support","mounting-plate","chassis","hinge","enclosure"}
@@ -239,10 +202,14 @@ class PlannerService:
             matching=[item for item in raw_trace if item.get("normalizedFamily")==family]
             for index in range(count):
                 suffix="" if count==1 else f"-{index+1}";cid=f"component-{family}{suffix}";params=dict(base_params)
-                if family in curated: params["component_definition_id"]=curated[family]
+                if family in curated:
+                    params["component_definition_id"]=curated[family]
+                    params["component_definition_version"]="catalogue-v1"
                 if index<len(matching):
                     params["planner_intent"]=matching[index]["plannerIntent"];params["resolution_quality"]=matching[index]["resolutionQuality"];params["resolution_reason"]=matching[index]["reason"]
-                    if matching[index]["resolutionQuality"] != "EXACT": params.pop("component_definition_id",None)
+                    if matching[index]["resolutionQuality"] != "EXACT":
+                        params.pop("component_definition_id",None)
+                        params.pop("component_definition_version",None)
                 else: params["planner_intent"]=name
                 physical=component_interfaces(kind,tuple(float(value) for value in dims),params);interface_names=tuple(dict.fromkeys(item.name for item in physical))
                 components.append(ComponentSpec(cid,name,kind,f"subsystem-{role}",f"{name} for the requested low-voltage system.",params,interface_names,{key:{"value":value,"unit":"mm"} for key,value in zip(("width","length","height"),dims)},assumption_refs=(f"assumption-{family}",)))
@@ -299,9 +266,14 @@ class PlannerService:
         for sensor in sensors: connect(sensor,controller,"signal")
         for remote in component_by_family.get("wireless-control",[]): connect(remote,controller,"signal")
         drivers=component_by_family.get("driver",[])+component_by_family.get("motor-driver",[]);actuators=[c.id for c in components if "controlled_motion" in c.parameters.get("functional_roles",[]) or c.role in {"fan","small_dc_pump"}]
-        for actuator in actuators: connect(drivers[0] if drivers and by_component[actuator].role!="servo" else controller,actuator,"switched-power" if drivers and by_component[actuator].role!="servo" else "control")
+        driven_index=0
+        for actuator in actuators:
+            externally_driven=drivers and by_component[actuator].role!="servo"
+            driver=drivers[min(driven_index,len(drivers)-1)] if externally_driven else controller
+            connect(driver,actuator,"switched-power" if externally_driven else "control")
+            if externally_driven: driven_index+=1
         for indicator in component_by_family.get("indicator",[]): connect(controller,indicator,"control")
-        if drivers: connect(controller,drivers[0],"control")
+        for driver in drivers: connect(controller,driver,"control")
         driver_controlled={actuator for actuator in actuators if drivers and by_component[actuator].role!="servo"}
         for target in sorted(item.id for item in components if item.id!=power and {"power","ground"}.issubset(item.interfaces)):
             if target not in driver_controlled: connect(power,target,"power")
@@ -331,7 +303,7 @@ class PlannerService:
             for index,motor in enumerate(motors): connect(motor,wheels[min(index,len(wheels)-1)],"mechanical")
         entities=[PlannedEntity(project_id,EntityKind.PROJECT,request.project_name,metadata=(("objective",request.objective),("capability_status",capability_status),("plannerIntentTrace",raw_trace),("semanticRequirements",semantic_requirements)))]
         entities += [PlannedEntity(s.id,EntityKind.SUBSYSTEM,s.name,project_id,(("role",s.role),)) for s in subsystems]
-        entities += [PlannedEntity(f"requirement-{item['key']}",EntityKind.REQUIREMENT,item["label"],project_id,tuple({"semantic_requirement":item["key"],"required_roles":item["roles"],"required_axes":item["axes"],"critical":item["critical"]}.items())) for item in semantic_requirements]
+        entities += [PlannedEntity(f"requirement-{item['key']}",EntityKind.REQUIREMENT,item["label"],project_id,tuple({"semantic_requirement":item["key"],"required_roles":item["roles"],"required_axes":item["axes"],"required_quantity":item["quantity"],"critical":item["critical"]}.items())) for item in semantic_requirements]
         entities += [PlannedEntity(f"requirement-declared-{i}",EntityKind.REQUIREMENT,value,project_id,(("declared_requirement",True),)) for i,value in enumerate(request.requirements,1)]
         entities += [PlannedEntity(c.id,EntityKind.COMPONENT,c.name,c.subsystem_id,tuple({"role":c.role,"family":c.role,"parameters":c.parameters,"interfaces":list(c.interfaces),"dimensions":c.dimensions,"representation_status":"placeholder","assumption_refs":list(c.assumption_refs)}.items())) for c in components]
         entities += [PlannedEntity(f"assumption-{i}",EntityKind.ASSUMPTION,value,project_id) for i,value in enumerate(("Use 5 V isolated low-voltage power","Exact mechanical fit remains conceptual"),1)]
@@ -358,7 +330,7 @@ class PlannerService:
     @staticmethod
     def _named_component_count(text: str, family: str) -> int:
         words={"one":1,"single":1,"two":2,"dual":2,"three":3,"tri":3,"four":4,"quad":4,"five":5,"six":6,"seven":7,"eight":8}
-        match=re.search(rf"\b(?P<count>\d+|{'|'.join(words)})\s+(?:(?:hobby|small|dc|raw)\s+)?{re.escape(family)}s?\b",text.lower())
+        match=re.search(rf"\b(?P<count>\d+|{'|'.join(words)})\s+(?:(?:independently\s+)?(?:controlled|driven)\s+)?(?:(?:hobby|small|dc|raw)\s+)?{re.escape(family)}s?\b",text.lower())
         if not match: return 0
         token=match.group("count");return int(token) if token.isdigit() else words[token]
 

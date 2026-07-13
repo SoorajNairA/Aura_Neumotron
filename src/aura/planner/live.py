@@ -17,11 +17,11 @@ from .service import PlannerRepairAttempt, PlannerService
 
 class StructuredPlannerResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    projectName: str = Field(min_length=1)
-    objective: str = Field(min_length=1)
-    requirements: list[str] = Field(min_length=1)
-    assumptions: list[str]
-    components: list[str] = Field(min_length=3)
+    projectName: str = Field(min_length=1,max_length=200)
+    objective: str = Field(min_length=1,max_length=2000)
+    requirements: list[str] = Field(min_length=1,max_length=64)
+    assumptions: list[str] = Field(max_length=64)
+    components: list[str] = Field(min_length=3,max_length=64)
 
 
 @dataclass(frozen=True)

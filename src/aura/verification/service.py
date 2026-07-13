@@ -8,7 +8,7 @@ from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOper
 from aura.engineering_graph.interfaces import component_interfaces
 from aura.planner.schemas import ProjectPlan
 
-from .catalogue import CATALOGUE, evidence_records, search
+from .catalogue import CATALOGUE, CATALOGUE_VERSION, evidence_records, search
 from .evidence import EvidenceKind
 from .results import VerificationDecision, VerificationFinding, VerificationResult, VerificationState
 from .units import convert, in_range
@@ -51,6 +51,12 @@ class VerificationService:
                 if not match:
                     findings.append(self._finding("unknown-component",VerificationState.FAILED,"critical",f"Unknown curated component ID {exact}.",(c.id,),revision=revision))
                     continue
+                definition_version=c.parameters.get("component_definition_version")
+                if definition_version not in (None,CATALOGUE_VERSION):
+                    findings.append(self._finding("component-definition-version",VerificationState.FAILED,"critical",f"{c.name} references incompatible component definition version {definition_version}.",(c.id,),revision=revision))
+                    continue
+                if definition_version is None:
+                    findings.append(self._finding("component-definition-version",VerificationState.ESTIMATED,"warning",f"{c.name} has legacy component definition provenance without a catalogue version.",(c.id,),revision=revision))
                 resolved[c.id]=match[0]; exact_ids.add(c.id)
             elif c.id=="component-esp32" and c.name.strip().upper()=="ESP32":
                 resolved[c.id]=next(x for x in CATALOGUE if x.component_definition_id=="esp32-devkit-v1"); exact_ids.add(c.id)
@@ -77,9 +83,10 @@ class VerificationService:
         for requirement_id,label,metadata in semantic_requirements:
             required=set(metadata.get("required_roles", ()))
             matches=[component for component in components.values() if required & role_index[component.id]]
-            if not matches:
+            required_quantity=int(metadata.get("required_quantity",1))
+            if len(matches)<required_quantity:
                 check="REQ_121" if "feedback" in str(metadata.get("semantic_requirement", "")) else "REQ_101"
-                add(check,VerificationState.FAILED,"critical",f"No graph component satisfies required {label.lower()}.",(requirement_id,),expected={"roles":sorted(required)},actual={"componentIds":[]})
+                add(check,VerificationState.FAILED,"critical",f"Only {len(matches)} graph components satisfy required {label.lower()}.",(requirement_id,*[component.id for component in matches]),expected={"roles":sorted(required),"quantity":required_quantity},actual={"componentIds":[component.id for component in matches],"quantity":len(matches)})
                 continue
             qualities={str(component.parameters.get("resolution_quality", "UNRESOLVED")) for component in matches}
             conceptual=qualities <= {"CONCEPTUAL", "UNRESOLVED"}
@@ -87,7 +94,7 @@ class VerificationService:
                 "warning" if conceptual else "info",
                 f"{label} is implemented by {', '.join(component.name for component in matches)}" + (" as a conceptual role." if conceptual else "."),
                 (requirement_id,*[component.id for component in matches]),
-                expected={"roles":sorted(required)},actual={"componentIds":[component.id for component in matches],"resolutionQualities":sorted(qualities)})
+                expected={"roles":sorted(required),"quantity":required_quantity},actual={"componentIds":[component.id for component in matches],"quantity":len(matches),"resolutionQualities":sorted(qualities)})
         for trace in project_metadata.get("plannerIntentTrace", ()):
             if trace.get("resolutionQuality") == "UNRESOLVED":
                 add("FAMILY_104",VerificationState.CONCEPTUAL,"warning",

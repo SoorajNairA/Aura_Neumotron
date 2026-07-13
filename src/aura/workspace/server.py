@@ -11,7 +11,7 @@ import os
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 from uuid import uuid4
 
 from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
@@ -48,9 +48,9 @@ LOGGER = logging.getLogger("aura.workspace")
 
 class CreateProjectBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    objective: str = Field(min_length=8)
-    planningMode: str = "deterministic_test"
-    operationId: Optional[str] = None
+    objective: str = Field(min_length=8,max_length=2000)
+    planningMode: Literal["deterministic_test","live_model"] = "deterministic_test"
+    operationId: Optional[str] = Field(default=None,max_length=128)
 
 
 class ModificationBody(BaseModel):
@@ -81,7 +81,8 @@ class RepresentationUpdateBody(BaseModel):
     generation: Optional[int] = None
 
 class ProposalBody(BaseModel):
-    projectId:str;baseRevision:int;selectedSemanticIds:list[str];request:str=Field(min_length=5);mode:str="automatic";operationId:Optional[str]=None
+    model_config = ConfigDict(extra="forbid")
+    projectId:str=Field(min_length=1,max_length=160);baseRevision:int=Field(ge=0);selectedSemanticIds:list[str]=Field(min_length=1,max_length=16);request:str=Field(min_length=5,max_length=2000);mode:Literal["automatic","parameter_change"]="automatic";operationId:Optional[str]=Field(default=None,max_length=128)
 
 
 class EventBroker:
@@ -151,6 +152,7 @@ class WorkspaceApplication:
         self.modification_proposals:dict[str,ModificationProposal]={}
         self.modification_operations:dict[str,ModificationProposal]={}
         self.modification_locks:dict[str,threading.Lock]={}
+        self.creation_lock=threading.Lock()
         self.active_representation_operations:set[str]=set()
 
     def _request(self, objective: str) -> ProjectRequest:
@@ -233,11 +235,21 @@ class WorkspaceApplication:
         return record
 
     async def create(self, body: CreateProjectBody) -> StoredProject:
+        await run_in_threadpool(self.creation_lock.acquire)
+        try:
+            return await self._create_serialized(body)
+        finally:
+            self.creation_lock.release()
+
+    async def _create_serialized(self, body: CreateProjectBody) -> StoredProject:
         if body.operationId:
             completed=self.find_operation("project.operation_completed",body.operationId)
             if completed:
                 existing=self.repository.get_project(completed.payload["projectId"])
                 if existing:return existing
+        existing=self.repository.get_project(PlannerService._id(body.objective,"project"))
+        if existing is not None:
+            return existing
         try:
             outcome = await run_in_threadpool(self.plan, body)
         except ValueError as exc:
@@ -253,7 +265,9 @@ class WorkspaceApplication:
                 raise HTTPException(422,detail={"status":"PLANNING_FAILED","reasons":["Supported Planner output contained no semantic components after bounded repair/fallback."]})
         project_id = plan.entities[0].id
         existing=self.repository.get_project(project_id)
-        if body.planningMode=="deterministic_test" and existing is not None:
+        # Project IDs are objective-derived. Repeating the same create request is
+        # idempotent in every planner mode, not only in deterministic tests.
+        if existing is not None:
             return existing
         planner_metadata = dict(outcome.provider_metadata or {})
         planner_metadata.update({"provider": "vertex" if outcome.mode == "live_model" else "deterministic", "fallbackUsed": outcome.mode != "live_model", "planId": plan.patch.id, "componentCount": len(plan.components), "relationshipCount": len(plan.relationships)})

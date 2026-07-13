@@ -129,6 +129,9 @@ class ProjectPlan:
         for relationship in self.relationships:
             if relationship.source_id not in known or relationship.target_id not in known:
                 raise ValueError(f"Planner relationship {relationship.id} has a missing endpoint")
+        relationship_ids=[relationship.id for relationship in self.relationships]
+        if len(relationship_ids)!=len(set(relationship_ids)):
+            raise ValueError("Planner output contains duplicate relationship ids")
         if self.verification_request.patch_id != self.patch.id:
             raise ValueError("Verification request must reference the proposed patch")
         subsystem_ids = {item.id for item in self.subsystems}
@@ -141,3 +144,6 @@ class ProjectPlan:
         for connection in self.connections:
             if connection.source_id not in component_ids or connection.target_id not in component_ids:
                 raise ValueError(f"Connection {connection.id} references a missing component")
+        connection_ids=[connection.id for connection in self.connections]
+        if len(connection_ids)!=len(set(connection_ids)):
+            raise ValueError("Planner output contains duplicate connection ids")

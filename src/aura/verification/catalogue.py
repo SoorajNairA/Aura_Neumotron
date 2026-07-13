@@ -6,6 +6,8 @@ from typing import Any
 from .evidence import EvidenceKind, EvidenceRecord
 from .units import in_range
 
+CATALOGUE_VERSION = "catalogue-v1"
+
 
 @dataclass(frozen=True)
 class PropertyFact:
@@ -31,7 +33,7 @@ class ComponentDefinition:
     representation: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
-        return {"componentDefinitionId": self.component_definition_id, "family": self.family,
+        return {"componentDefinitionId": self.component_definition_id, "componentDefinitionVersion": CATALOGUE_VERSION, "family": self.family,
                 "manufacturer": self.manufacturer, "partNumber": self.part_number,
                 "properties": {k: v.to_dict() for k, v in self.properties.items()},
                 "interfaces": list(self.interfaces), "evidenceIds": list(self.evidence_ids),
