@@ -3,6 +3,7 @@ from __future__ import annotations
 from hashlib import sha256
 import json
 from dataclasses import replace
+import pytest
 
 from fastapi.testclient import TestClient
 
@@ -20,13 +21,18 @@ CASES = (
     ),
     (
         "manipulator",
-        "Build a tri-axis robotic manipulator with three hobby servos.",
-        "Tri-Axis Robotic Manipulator",
+        "make a quad-axis robotic manipulator",
+        "Quad-Axis Robotic Manipulator",
     ),
     (
         "sliding-door",
         "Build an automatic sliding door with a low-voltage controller.",
         "Automatic Sliding Door",
+    ),
+    (
+        "turntable",
+        "Build a rotating camera turntable with a low-voltage controller.",
+        "Camera Turntable",
     ),
 )
 
@@ -90,14 +96,17 @@ def test_distinct_mechanical_projects_keep_graphs_artifacts_and_assemblies_isola
         manipulator = states["manipulator"]
         entities = manipulator["graph"]["entities"]
         axis_requirement = next(entity for entity in entities if entity["id"] == "requirement-controlled-axes")
-        assert axis_requirement["metadata"]["required_axes"] == 3
+        assert axis_requirement["metadata"]["required_axes"] == 4
         components = [entity for entity in entities if entity["kind"] == "component"]
         axis_ids = {axis for entity in components for axis in entity["metadata"]["parameters"].get("controlled_axis_ids", [])}
         driven_axis_ids = {axis for entity in components for axis in entity["metadata"]["parameters"].get("driven_axis_ids", [])}
-        assert axis_ids == driven_axis_ids == {"axis-1", "axis-2", "axis-3"}
-        assert len(manipulator["assembly"]["relationships"]) == 6
-        assert manipulator["assembly"]["transformSourceCounts"]["MATE_SOLVED"] == 6
+        assert axis_ids == driven_axis_ids == {"axis-1", "axis-2", "axis-3", "axis-4"}
+        assert len(manipulator["assembly"]["relationships"]) == 8
+        assert manipulator["assembly"]["transformSourceCounts"]["MATE_SOLVED"] == 8
+        assert all(part["transformSource"] in {"FIXED_ROOT", "MATE_SOLVED"} for part in manipulator["assembly"]["parts"] if part["semanticId"] in manipulator["assembly"]["primaryMechanismIds"])
+        assert len({tuple(part["assembledTransform"]["position"]) for part in manipulator["assembly"]["parts"] if part["semanticId"] in manipulator["assembly"]["primaryMechanismIds"]}) == 9
         assert not manipulator["assembly"]["unresolvedMechanicalRelations"]
+        assert not manipulator["assembly"]["unresolvedPrimaryMechanism"]
 
         sliding = states["sliding-door"]
         sliding_mates = sliding["assembly"]["relationships"]
@@ -105,9 +114,24 @@ def test_distinct_mechanical_projects_keep_graphs_artifacts_and_assemblies_isola
         assert {part["family"] for part in sliding["assembly"]["parts"]} >= {"linear_drive", "sliding_panel"}
         assert not sliding["assembly"]["unresolvedMechanicalRelations"]
 
+        turntable = states["turntable"]
+        turntable_families={part["family"] for part in turntable["assembly"]["parts"]}
+        assert {"base", "servo", "rotating_platform"} <= turntable_families
+        assert "mounting_plate" not in turntable_families
+        assert "enclosure" not in turntable_families
+        assert "articulated_link" not in turntable_families
+        assert len(turntable["assembly"]["relationships"]) == 2
+        assert not turntable["assembly"]["unresolvedPrimaryMechanism"]
+
+        # A reusable template may recur, but no universal project-level bundle
+        # may be injected into every unrelated mechanism.
+        family_sets=[frozenset(part["family"] for part in state["assembly"]["parts"]) for state in states.values()]
+        assert len(set(family_sets)) == len(CASES)
+        assert not set.intersection(*(set(item) for item in family_sets)) >= {"enclosure", "mounting_plate", "generic_mechanical_part"}
+
         # Repeated switching must return the same project-owned graph and
         # transforms rather than a previously loaded scene or assembly state.
-        for name in ("rover", "manipulator", "sliding-door", "rover", "sliding-door", "manipulator"):
+        for name in ("rover", "manipulator", "sliding-door", "turntable", "rover", "turntable", "sliding-door", "manipulator"):
             assert _state(client, projects[name]) == states[name]
     app.state.workspace.repository.close()
 
@@ -131,3 +155,26 @@ def test_axis_requirement_rejects_a_vague_driven_mechanism():
     result = VerificationService().verify(vague)
     assert not result.accepted
     assert any(finding.check == "MECH_311" and finding.severity == "critical" for finding in result.findings)
+
+
+@pytest.mark.parametrize(("phrase", "expected"), (
+    ("single-axis positioning stage", 1),
+    ("dual axis positioning stage", 2),
+    ("tri-axis positioning stage", 3),
+    ("quad-axis positioning stage", 4),
+    ("four independent degrees of freedom", 4),
+    ("4-DOF positioning stage", 4),
+    ("6 axis positioning stage", 6),
+))
+def test_structured_axis_language_is_preserved(phrase, expected):
+    assert PlannerService._requested_axis_count(phrase) == expected
+
+
+def test_servo_architecture_does_not_retain_an_unconnected_motor_driver():
+    plan=PlannerService().plan(ProjectRequest(
+        "Sliding mechanism", "Build an automatic sliding door with a low-voltage controller.",
+        ("Use a motor-driven linear mechanism", "Use low voltage"),
+        components=("microcontroller_board", "servo", "motor_driver", "mounting_plate", "generic_mechanical_part"),
+    ))
+    assert "motor_driver" not in {component.role for component in plan.components}
+    assert VerificationService().verify(plan).accepted

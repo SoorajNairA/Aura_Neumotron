@@ -15,7 +15,7 @@ class InterfaceDefinition:
     clearance_mm: float = 0
 
 
-def component_interfaces(family: str, dimensions: tuple[float, float, float]) -> tuple[InterfaceDefinition, ...]:
+def component_interfaces(family: str, dimensions: tuple[float, float, float], parameters: dict[str, Any] | None = None) -> tuple[InterfaceDefinition, ...]:
     """Return reusable physical/electrical interfaces for a component family."""
     width, length, height = dimensions
     electrical = {
@@ -40,8 +40,11 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float]) ->
     result = [InterfaceDefinition(name, kind, compatible=("electrical_connector",)) for name, kind in electrical.get(family, ())]
     if family in {"servo", "small_dc_motor"}:
         output_name = "output" if family == "servo" else "shaft"
+        output_axis = tuple((parameters or {}).get("output_axis", (0, 0, 1))) if family == "servo" else (0, -1, 0)
+        half_extent = abs(output_axis[0])*width/2 + abs(output_axis[1])*length/2 + abs(output_axis[2])*height/2
+        output_position = tuple(value*(half_extent+3) for value in output_axis)
         result += [
-            InterfaceDefinition(output_name, "rotating_output", (0, -length / 2 - 3, 0), axis=(0, -1, 0), compatible=("rotating_input",)),
+            InterfaceDefinition(output_name, "rotating_output", output_position, axis=output_axis, compatible=("rotating_input",)),
             InterfaceDefinition("body-mount", "fixed_mount", (0, 0, -height / 2), axis=(0, 0, -1), compatible=("structural_face",)),
         ]
     elif family == "drive_wheel":
@@ -59,6 +62,17 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float]) ->
         result += [
             InterfaceDefinition("linear-input", "linear_input", (0, -length / 2, 0), axis=(0, 1, 0), compatible=("linear_output",)),
             InterfaceDefinition("end-face", "structural_face", (0, length / 2, 0), axis=(0, 0, 1), compatible=("fixed_mount", "structural_face")),
+        ]
+    elif family == "articulated_link":
+        result += [
+            InterfaceDefinition("joint-input", "rotating_input", (0, 0, -height / 2), axis=(0, 0, 1), compatible=("rotating_output", "hinge_axis")),
+            InterfaceDefinition("end-face", "structural_face", (0, 0, height / 2), axis=(0, 0, 1), compatible=("fixed_mount", "structural_face")),
+        ]
+    elif family == "rotating_platform":
+        result += [
+            InterfaceDefinition("joint-input", "rotating_input", (0, 0, -height / 2), axis=(0, 0, 1), compatible=("rotating_output", "hinge_axis")),
+            InterfaceDefinition("fixed-input", "fixed_mount", (0, 0, -height / 2), axis=(0, 0, -1), compatible=("structural_face",)),
+            InterfaceDefinition("top-face", "structural_face", (0, 0, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)),
         ]
     elif family in {"simple_arm", "lid", "dispensing-mechanism", "generic_mechanical_part", "tracked_object"}:
         result += [

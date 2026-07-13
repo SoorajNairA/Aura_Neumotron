@@ -17,7 +17,7 @@ def test_robotic_arm_is_bounded_nonempty_and_visually_structured():
         project=response.json();graph=client.get(f'/api/projects/{project["projectId"]}/graph').json()
         components=[x for x in graph["entities"] if x["kind"]==EntityKind.COMPONENT.value]
         families={dict(x["metadata"]).get("family") for x in components}
-        assert {"microcontroller_board","low_voltage_power_source","servo","generic_mechanical_part","mounting_plate"}<=families
+        assert {"microcontroller_board","low_voltage_power_source","servo","articulated_link","base"}<=families
         assembly=client.get(f'/api/projects/{project["projectId"]}/assembly').json()
         assert assembly["layoutStatus"]=="conceptual mechanical assembly" and len(assembly["parts"])==len(components)
 

@@ -100,13 +100,15 @@ class VerificationService:
             adjacency[connection.source_id].add(connection.target_id)
             adjacency[connection.target_id].add(connection.source_id)
             connection_source=components[connection.source_id].role;connection_target=components[connection.target_id].role
-            source_interfaces={item.name:item for item in component_interfaces(connection_source,tuple(float(value.get("value",1)) for value in components[connection.source_id].dimensions.values()))}
-            target_interfaces={item.name:item for item in component_interfaces(connection_target,tuple(float(value.get("value",1)) for value in components[connection.target_id].dimensions.values()))}
+            source_interfaces={item.name:item for item in component_interfaces(connection_source,tuple(float(value.get("value",1)) for value in components[connection.source_id].dimensions.values()),components[connection.source_id].parameters)}
+            target_interfaces={item.name:item for item in component_interfaces(connection_target,tuple(float(value.get("value",1)) for value in components[connection.target_id].dimensions.values()),components[connection.target_id].parameters)}
             source=source_interfaces.get(connection.source_interface);target=target_interfaces.get(connection.target_interface)
             if source is None or target is None or target.kind not in source.compatible:
                 add("MECH_320",VerificationState.FAILED,"critical",f"Mechanical connection {connection.id} does not join compatible physical interfaces.",(connection.source_id,connection.target_id),expected={"sourceInterface":connection.source_interface,"targetInterface":connection.target_interface},actual={"sourceFamily":connection_source,"targetFamily":connection_target})
         moving={component_id for component_id,roles in role_index.items() if {"moving_surface","moving_body"} & roles}
         actuators=[component for component in components.values() if "controlled_motion" in role_index[component.id]]
+        controller_ids={component.id for component in components.values() if component.role in {"controller","microcontroller_board"}}
+        controlled_targets={connection.target_id for connection in connections if connection.connection_type=="control" and connection.source_id in controller_ids}
         mechanical_reach={}
         for actuator in actuators:
             seen={actuator.id}; pending=[actuator.id]
@@ -139,6 +141,8 @@ class VerificationService:
                     add("MECH_311",VerificationState.FAILED,"critical",f"{label} does not resolve {axis} to both an actuator and a driven mechanism.",(requirement_id,*([actuator.id] if actuator else []),*([driven.id] if driven else [])),expected={"axis":axis,"requires":["controlled_axis_ids","driven_axis_ids"]},actual={"actuatorId":actuator.id if actuator else None,"drivenComponentId":driven.id if driven else None})
                 elif driven.id not in mechanical_reach.get(actuator.id,set()):
                     add("MECH_311",VerificationState.FAILED,"critical",f"{label} has no mechanical chain from {axis} actuator to its driven mechanism.",(requirement_id,actuator.id,driven.id),expected={"axis":axis,"mechanicalReachability":True},actual={"mechanicalReach":sorted(mechanical_reach.get(actuator.id,set()))})
+                if actuator is not None and actuator.id not in controlled_targets:
+                    add("MECH_312",VerificationState.FAILED,"critical",f"{label} has no controller relationship for {axis} actuator.",(requirement_id,actuator.id),expected={"axis":axis,"controlRelationship":True},actual={"controlledTargets":sorted(controlled_targets)})
         controllers=[c for c in components.values() if c.id=="component-esp32" or c.role=="microcontroller_board"]
         loads=[c for c in components.values() if c.role in {"fan","small_dc_motor","small_dc_pump","servo"} or c.id=="component-pump"]
         drivers=[c for c in components.values() if c.role in {"mosfet_driver","relay_module","motor_driver"} or c.id=="component-driver"]
