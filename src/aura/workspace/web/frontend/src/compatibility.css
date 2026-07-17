@@ -1,6 +1,9 @@
 .sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
-.semantic-parts { display: flex; flex-direction: column; gap: 1px; max-height: 44vh; overflow: auto; scrollbar-width: thin; }
-.semantic-parts button { padding: 5px 7px; color: #adb6bb; font-size: 9px; }
+.semantic-parts { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 5px; overflow: auto; scrollbar-width: thin; }
+.semantic-parts button { width: 100%; padding: 3px 5px; color: #adb3b6; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-group { display: flex; flex-direction: column; gap: 1px; }
+.tree-group .tree-heading { border-bottom: 1px solid #34383a; color: #d0d3d4; font-weight: 700; }
+.tree-group button:not(.tree-heading) { padding-left: 13px; color: #959da1; text-transform: none; }
 .project-switch { display: flex; min-width: 240px; max-width: 500px; flex-direction: column; align-items: flex-start; border: 0; background: transparent; padding: 4px 8px; }
 .project-switch strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-switch small { order: -1; font: 8px ui-monospace, Consolas, monospace; }
@@ -21,6 +24,7 @@
 .schematic-controls { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 2px; padding: 2px; border: 1px solid #697278; background: #f3f3ef; }
 .schematic-controls button { padding: 5px 8px; color: #252b2f; background: #f3f3ef; border-color: #899197; font-size: 9px; }
 .schematic svg { background: #eeeeea !important; filter: grayscale(1); }
-.schematic-nets { position: absolute; z-index: 3; left: 10px; bottom: 10px; display: flex; max-width: 68%; gap: 4px; flex-wrap: wrap; }
-.schematic-nets button { padding: 4px 6px; color: #252b2f; background: #f3f3ef; border-color: #899197; font-size: 8px; text-transform: uppercase; }
+.schematic-nets { position: absolute; z-index: 3; left: 8px; top: 42px; display: flex; max-width: 180px; flex-direction: column; gap: 2px; }
+.schematic-nets::before { content: "NETS"; color: #4b5357; font-size: 8px; }
+.schematic-nets button { padding: 3px 5px; color: #252b2f; background: #f3f3ef; border-color: #899197; font-size: 8px; text-align: left; text-transform: uppercase; }
 .schematic-nets button.active { border-width: 2px; }
