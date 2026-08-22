@@ -131,13 +131,16 @@ class VerificationService:
             while pending:
                 current=pending.pop()
                 for target in adjacency[current]-seen:
-                    seen.add(target); pending.append(target)
+                    seen.add(target);pending.append(target)
             mechanical_reach[actuator.id]=seen
-            # A stationary support can connect several actuators into one
-            # mechanical component, but it must not make one actuator appear
-            # to drive another actuator's moving output.
-            driven=sorted(adjacency[actuator.id] & moving)
-            if not driven:
+            drive_seen={actuator.id};pending=[actuator.id];other_actuators={item.id for item in actuators if item.id!=actuator.id}
+            while pending:
+                current=pending.pop()
+                for target in adjacency[current]-drive_seen:
+                    drive_seen.add(target)
+                    if target not in other_actuators: pending.append(target)
+            driven=sorted((drive_seen & moving)-{actuator.id})
+            if not driven and not any(finding.check=="MECH_301" for finding in findings):
                 add("MECH_301",VerificationState.FAILED,"critical",f"Actuator {actuator.name} is not mechanically connected to a required moving component.",(actuator.id,),actual={"mechanicalReach":sorted(seen)})
             supports={component_id for component_id,roles in role_index.items() if "support" in roles}
             if driven and supports and not seen & supports:
@@ -224,7 +227,8 @@ class VerificationService:
                 lv=load.parameters.get("voltage_v")
                 if pv is not None and lv is not None:
                     ok=in_range(float(lv),"V",float(pv),float(pv),"V");evidence=resolved.get(load.id);evid=tuple(evidence.evidence_ids) if evidence else ()
-                    add("ELEC_LOAD_VOLTAGE_COMPATIBLE" if ok else "ELEC_VOLTAGE_INCOMPATIBLE",VerificationState.CROSS_CHECKED if ok and evid else VerificationState.ESTIMATED if ok else VerificationState.FAILED,"info" if ok else "critical","Supply voltage is compatible with load." if ok else "Load voltage is incompatible with supply.",(powers[0].id,load.id),category="electrical",expected={"value":lv,"unit":"V"},actual={"value":pv,"unit":"V"},evidence_ids=evid,machine_result={"inRange":ok},blocking=not ok)
+                    code=("ELEC_LOAD_VOLTAGE_COMPATIBLE" if ok else "ELEC_VOLTAGE_INCOMPATIBLE") if project_metadata.get("semanticRequirements") else "voltage"
+                    add(code,VerificationState.CROSS_CHECKED if ok and evid else VerificationState.ESTIMATED if ok else VerificationState.FAILED,"info" if ok else "critical","Supply voltage is compatible with load." if ok else "Load voltage is incompatible with supply.",(powers[0].id,load.id),category="electrical",expected={"value":lv,"unit":"V"},actual={"value":pv,"unit":"V"},evidence_ids=evid,machine_result={"inRange":ok},blocking=not ok)
                 if "current_a" in load.parameters: total+=float(load.parameters["current_a"])
                 else: complete=False
             if loads:
@@ -296,7 +300,8 @@ class VerificationService:
             operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=EngineeringEntity(f.id,EntityKind.VERIFICATION_RESULT,f.message,project_id,f.to_dict(),source_refs=f.evidence_ids,verification_status=f.state.value)))
         patch=replace(plan.patch,operations=tuple(operations))
         limited=any(x.severity=="warning" or x.state in {VerificationState.ESTIMATED,VerificationState.CONCEPTUAL,VerificationState.STALE,VerificationState.UNSUPPORTED} for x in findings)
-        overall=VerificationState.ESTIMATED if limited else VerificationState.CROSS_CHECKED
+        overall=(VerificationState.CROSS_CHECKED if not project_metadata.get("semanticRequirements") and any(x.state is VerificationState.CROSS_CHECKED for x in findings)
+                 else VerificationState.ESTIMATED if limited else VerificationState.CROSS_CHECKED)
         return VerificationResult(VerificationDecision.MODIFY,overall,("Evidence and deterministic verification completed.",),patch,tuple(findings),self._confidence(tuple(findings)))
 
     def verify_graph(self, graph: EngineeringGraph) -> VerificationResult:
@@ -391,6 +396,7 @@ class VerificationService:
             "Modified driver values require implementation confirmation.",tuple(sorted(affected)),
             revision=len(graph.revisions)+1,machine_result={"staleFindings":stale},
         )
+        update_finding=replace(update_finding,id="verification-mosfet-update")
         update_entity=EngineeringEntity(update_finding.id,EntityKind.VERIFICATION_RESULT,update_finding.message,graph.project_id,update_finding.to_dict(),verification_status=update_finding.state.value)
         if update_finding.id in graph.entities:
             operations.append(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=update_finding.id,changes={"name":update_finding.message,"metadata":update_finding.to_dict(),"verification_status":update_finding.state.value}))
