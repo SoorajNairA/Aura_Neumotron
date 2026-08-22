@@ -52,10 +52,10 @@ def analyze(graph:EngineeringGraph,target_id:str,change_type:str,value:Any)->Eng
     indirect-=direct|adjacent
     findings=[x.to_dict() for x in verification.findings]
     derived=[{"kind":"DERIVED_IMPACT","message":f"Relationship {rid} must be re-evaluated","semanticIds":[target_id]} for rid in relationship_changes]
-    uncertainty=[{"kind":"UNCERTAINTY","message":x["summary"],"semanticIds":x.get("semanticIds",[]),"findingId":x["findingId"]} for x in findings if x.get("severity") in {"warning","critical"}]
+    uncertainty=[{"kind":"UNCERTAINTY","message":x["summary"],"semanticIds":x.get("semanticIds",[]),"findingId":x["findingId"]} for x in findings if x.get("severity") in {"WARN","FAIL"}]
     analysis={"current":{"revision":len(graph.revisions),"component":{"id":target.id,"name":target.name}},"candidate":{"component":None if change_type=="REMOVE_COMPONENT" else {"id":target.id,"name":candidate.get(target.id).name}},
         "diff":{"changedComponents":[] if change_type=="REMOVE_COMPONENT" else [target_id],"addedComponents":[],"removedComponents":[target_id] if change_type=="REMOVE_COMPONENT" else [],"changedRelationships":relationship_changes},
         "impact":{"directlyChanged":sorted(direct),"directlyAffected":sorted(adjacent),"indirectlyAffected":sorted(indirect),"affectedComponentIds":sorted((direct|adjacent|indirect)&{x.id for x in graph.find(kind=EntityKind.COMPONENT)})},
-        "verification":{"accepted":verification.accepted,"state":verification.state.value,"findings":findings,"delta":{"current":"PASS","candidate":verification.state.value.upper()}},
+        "verification":{"accepted":verification.accepted,"state":verification.state.value,"findings":findings,"delta":verification.verification_delta},
         "confidence":_confidence(verification.findings),"explanations":[*known,*derived,*uncertainty]}
     return EngineeringScenario(f"scenario-{uuid4().hex}",graph.project_id,len(graph.revisions),graph.current_revision_id,target_id,change_type,patch,candidate,analysis)

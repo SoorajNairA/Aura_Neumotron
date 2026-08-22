@@ -40,7 +40,7 @@ from .bridge import WorkspaceBridge
 from .assembly import engineering_assembly
 from .events import WorkspaceEvent
 from .representation_service import RepresentationService, initial_records, representation_specs
-from .representations import RepresentationRecord, RepresentationStatus
+from .representations import RepresentationRecord, RepresentationStatus, RepresentationType
 from .modifications import LiveModificationPlanner,ModificationProposal,inverse_proposal,propose
 from .narration import NarrationService
 from .work_items import EngineeringWorkService, WorkDomainError
@@ -773,9 +773,6 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         record=_record(application,project_id)
         try:scenario=analyze_scenario(record.graph,body.targetSemanticId,body.changeType,body.value)
         except ScenarioError as exc:raise HTTPException(exc.status,detail={"code":exc.code,"message":exc.message}) from exc
-        revisions=application.repository.list_revisions(project_id)
-        current_verification=revisions[-1].get("verification",{}) if revisions else {}
-        scenario.analysis["verification"]["delta"]["current"]=str(current_verification.get("state",current_verification.get("outcome","UNKNOWN"))).upper()
         application.scenarios={scenario.id:scenario};return scenario.to_dict()
 
     @app.delete("/api/projects/{project_id}/scenarios/{scenario_id}")
@@ -797,11 +794,26 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             verified=VerificationService().verify_modification(record.graph,scenario.patch)
             if not verified.accepted or verified.patch is None:raise HTTPException(422,detail={"code":"SCENARIO_INVALID","reasons":list(verified.reasons)})
             updated=WorkspaceBridge().commit(record.graph,verified); now=datetime.now(timezone.utc).isoformat()
-            updated_record=StoredProject(record.project_id,record.objective,record.planning_mode,record.fallback_reason,"ready",updated,record.representations,record.created_at,now)
             diff=scenario.analysis["diff"];affected=scenario.analysis["impact"]["affectedComponentIds"]
-            result={"projectId":project_id,"previousRevisionId":scenario.base_revision_id,"newRevisionId":updated.current_revision_id,"revision":len(updated.revisions),"targetSemanticId":scenario.target_id,"changedComponentIds":diff["changedComponents"],"affectedComponentIds":affected,"changedRelationshipIds":diff["changedRelationships"],"diff":diff}
-            events=application.repository.save_commit(updated_record,scenario.patch,{"kind":"scenario","analysis":scenario.analysis},[{"type":"scenario.applied","semantic_ids":affected,"payload":{"scenarioId":scenario.id,"result":result}}])
-            await application.publish_with_narration(events,updated,record.representations);application.scenarios.pop(scenario_id,None)
+            previous=[RepresentationRecord.from_dict(item) for item in record.representations]
+            representations=[];lifecycle=[]
+            for current in previous:
+                if scenario.target_id not in current.semantic_ids and current.type is not RepresentationType.CIRCUIT_SCHEMATIC:
+                    representations.append(current.to_dict());continue
+                if scenario.change_type=="REMOVE_COMPONENT" and scenario.target_id in current.semantic_ids and current.type is RepresentationType.MECHANICAL_3D:
+                    lifecycle.append({"type":"representation.removed","semantic_ids":list(current.semantic_ids),"payload":{"representationId":current.representation_id}});continue
+                regenerated=await run_in_threadpool(application.representation_service.regenerate,updated,current)
+                representations.append(regenerated.to_dict())
+                lifecycle.extend([
+                    {"type":"representation.stale","semantic_ids":list(current.semantic_ids),"payload":{"representationId":current.representation_id}},
+                    {"type":"representation.generating","semantic_ids":list(current.semantic_ids),"payload":{"representationId":current.representation_id}},
+                    {"type":f"representation.{regenerated.status.value}","semantic_ids":list(current.semantic_ids),"payload":{"representationId":current.representation_id,"artifactId":regenerated.artifact_id,"error":regenerated.error}},
+                ])
+            readiness_status={"BUILD_INCOMPLETE":"build_incomplete","SUPPORTED_WITH_LIMITATIONS":"ready_with_limitations","SUPPORTED":"ready"}[verification_readiness(verified)]
+            updated_record=StoredProject(record.project_id,record.objective,record.planning_mode,record.fallback_reason,readiness_status,updated,representations,record.created_at,now)
+            result={"projectId":project_id,"previousRevisionId":scenario.base_revision_id,"newRevisionId":updated.current_revision_id,"revision":len(updated.revisions),"targetSemanticId":scenario.target_id,"changedComponentIds":diff["changedComponents"],"affectedComponentIds":affected,"changedRelationshipIds":diff["changedRelationships"],"diff":diff,"representations":representations,"verificationDelta":verified.verification_delta}
+            events=application.repository.save_commit(updated_record,verified.patch,{"kind":"scenario","analysis":scenario.analysis,"verificationDelta":verified.verification_delta},[{"type":"scenario.applied","semantic_ids":affected,"payload":{"scenarioId":scenario.id,"result":result}},*lifecycle])
+            await application.publish_with_narration(events,updated,representations);application.scenarios.pop(scenario_id,None)
             return result
         finally:lock.release()
 
