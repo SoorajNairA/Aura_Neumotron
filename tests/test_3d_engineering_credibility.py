@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 
 import pytest
@@ -11,7 +12,7 @@ from aura.planner.service import PlannerService
 from aura.verification.service import VerificationService
 from aura.workspace.assembly import engineering_assembly
 from aura.workspace.bridge import WorkspaceBridge
-from aura.workspace.representation_service import representation_specs
+from aura.workspace.representation_service import CircuitGeneratorAdapter, representation_specs
 from aura.workspace.representations import RepresentationType
 from aura.workspace.server import create_app
 
@@ -102,6 +103,14 @@ def test_direct_controller_to_fan_is_a_critical_architecture_error():
     result = VerificationService().verify(replace(plan, connections=plan.connections + (unsafe,)))
     assert not result.accepted
     assert any(item.check == "direct-pump-gpio" and item.severity == "critical" for item in result.findings)
+
+
+def test_generated_schematic_renders_real_hardware_name():
+    circuit = compile_project("Build a temperature monitor. Use an Arduino Nano.")[4]
+    artifact = json.loads(CircuitGeneratorAdapter().generate(circuit).artifact)
+    controller = next(item for item in artifact if item.get("type") == "source_component" and item.get("aura_reference") == "U1")
+    assert controller["name"] == "U1 Arduino Nano"
+    assert controller["display_name"] == "Arduino Nano"
 
 
 def test_identity_net_ids_and_wire_routes_survive_reopen(tmp_path):

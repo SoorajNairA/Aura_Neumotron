@@ -22,7 +22,7 @@ try {
   const circuit = new Circuit(); const board = new Board({width:"80mm",height:"50mm"}); circuit.add(board)
   const sourceByReference = new Map()
   for (const component of request.components) {
-    const common = {name:component.reference}
+    const common = {name:component.reference,displayName:component.displayName}
     const pinLabels=Object.fromEntries(component.pins.map((pin,index)=>[index+1,pin]))
     let instance
     if (component.kind === "controller") instance = new Chip({...common,footprint:"soic8",pinLabels})
@@ -59,6 +59,12 @@ try {
     const component=sourceByReference.get(reference);element.aura_semantic_id=component.semanticId
     element.aura_display_name=component.displayName;element.symbol_display_value=component.displayName
     element.aura_component_definition_id=component.componentDefinitionId
+  }
+  for (const element of circuitJson.filter(e=>e.type==="source_component")) {
+    const reference=element.name,component=sourceByReference.get(reference)
+    if(!component) continue
+    element.aura_reference=reference;element.display_name=component.displayName
+    element.name=`${reference} ${component.displayName}`
   }
   const mapping=Object.fromEntries(request.components.map(component=>[component.reference,component.semanticId]))
   const generationMs=performance.now()-started
