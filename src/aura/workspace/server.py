@@ -330,7 +330,8 @@ class WorkspaceApplication:
             and not assembly.get("unresolvedMechanicalRelations") and not assembly.get("unresolvedPrimaryMechanism")
             and all(source in {"MATE_SOLVED","FIXED_ROOT"} for source in primary_sources.values()))
         required_failed = any(item.status is RepresentationStatus.FALLBACK for item in completed) or not physical_complete or not circuit_fidelity or critical_semantic
-        record.status = "build_incomplete" if required_failed else ("ready_with_limitations" if capability == "SUPPORTED_WITH_LIMITATIONS" else "ready")
+        verification_limited=verified.state in {VerificationState.ESTIMATED,VerificationState.CONCEPTUAL,VerificationState.STALE,VerificationState.UNSUPPORTED} or any(item.severity=="warning" for item in verified.findings)
+        record.status = "build_incomplete" if required_failed else ("ready_with_limitations" if capability == "SUPPORTED_WITH_LIMITATIONS" or verification_limited else "ready")
         self.repository.update_project_status(project_id, record.status)
         representation_events=[]
         for item in completed:

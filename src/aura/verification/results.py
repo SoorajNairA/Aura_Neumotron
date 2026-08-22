@@ -41,14 +41,27 @@ class VerificationFinding:
     dependency_ids: tuple[str, ...] = ()
     revision: int = 1
     machine_result: dict[str, Any] = field(default_factory=dict)
+    category: str = "general"
+    requirement_ids: tuple[str, ...] = ()
+    net_ids: tuple[str, ...] = ()
+    interface_ids: tuple[str, ...] = ()
+    required_capability: str | None = None
+    repair_hint: str | None = None
+    blocking: bool = False
 
     def to_dict(self) -> dict[str, Any]:
+        level="FAIL" if self.blocking or self.state is VerificationState.FAILED else "WARN" if self.severity=="warning" else "INFO"
         return {"findingId": self.id, "semanticId": self.entity_ids[0] if self.entity_ids else None,
-                "check": self.check, "status": self.state.value, "severity": self.severity,
+                "code": self.check, "check": self.check, "status": self.state.value, "severity": level,
+                "legacySeverity": self.severity,
+                "category": self.category, "blocking": self.blocking,
                 "summary": self.message, "expected": self.expected, "actual": self.actual,
                 "evidenceIds": list(self.evidence_ids), "verifiedAt": self.verified_at,
                 "sourceVersions": self.source_versions, "dependencyIds": list(self.dependency_ids),
                 "revision": self.revision, "machineResult": self.machine_result,
+                "requirementIds": list(self.requirement_ids), "netIds": list(self.net_ids),
+                "interfaceIds": list(self.interface_ids),
+                "requiredCapability": self.required_capability, "repairHint": self.repair_hint,
                 "semanticIds": list(self.entity_ids), "entity_ids": list(self.entity_ids)}
 
 

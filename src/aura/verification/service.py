@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from hashlib import sha256
 from uuid import uuid4
 
 from aura.engineering_graph.model import EngineeringEntity, EntityKind
@@ -11,6 +12,7 @@ from aura.planner.schemas import ProjectPlan
 from .catalogue import CATALOGUE, CATALOGUE_VERSION, evidence_records, search
 from .evidence import EvidenceKind
 from .results import VerificationDecision, VerificationFinding, VerificationResult, VerificationState
+from .plausibility import evaluate_plausibility
 from .units import convert, in_range
 
 
@@ -154,16 +156,6 @@ class VerificationService:
         loads=[c for c in components.values() if c.role in {"fan","small_dc_motor","small_dc_pump","servo"} or c.id=="component-pump"]
         drivers=[c for c in components.values() if c.role in {"mosfet_driver","relay_module","motor_driver"} or c.id=="component-driver"]
         powers=[c for c in components.values() if c.role=="low_voltage_power_source" or c.id=="component-power"]
-        direct=[x for x in connections if any({x.source_id,x.target_id}=={a.id,b.id} and x.connection_type in ({"power","switched-power"} if b.role=="servo" else {"control","power","switched-power"}) for a in controllers for b in loads if float(b.parameters.get("current_a",0))>.05)]
-        if direct: add("direct-pump-gpio",VerificationState.FAILED,"critical","A high-current actuator cannot be driven directly from controller GPIO.",(direct[0].source_id,direct[0].target_id),machine_result={"rule":"load_current > gpio_current"})
-        inductive=[x for x in loads if x.parameters.get("inductive_load") or x.role in {"fan","small_dc_motor","small_dc_pump"}]
-        if inductive and not drivers: add("missing-driver",VerificationState.FAILED,"warning","Inductive/high-current load has no driver.",(inductive[0].id,))
-        if drivers and inductive and not drivers[0].parameters.get("flyback_protection"):
-            strict=bool(drivers[0].parameters.get("protection_required"))
-            add("flyback",VerificationState.FAILED if strict else VerificationState.ESTIMATED,"critical" if strict else "warning","Inductive load requires confirmed flyback protection.",(drivers[0].id,inductive[0].id),dependency_ids=(drivers[0].id,inductive[0].id))
-        types={x.connection_type for x in connections}
-        if not ({"power","switched-power"}&types): add("power-connection",VerificationState.FAILED,"critical","Required power connection is missing.",(powers[0].id if powers else "component-power",))
-        if "ground" not in types: add("common-ground",VerificationState.FAILED,"critical","Connected low-voltage modules require a common ground.",tuple(x.id for x in controllers+powers))
         for connection in connections:
             source,target=components[connection.source_id],components[connection.target_id]
             if connection.source_interface not in source.interfaces or connection.target_interface not in target.interfaces:
@@ -190,19 +182,30 @@ class VerificationService:
                         f"{component.name} expects electrical ports {', '.join(sorted(missing))} that have no graph connection.",(component.id,),
                         expected={"ports":sorted(expected)},actual={"connectedPorts":sorted(connected_ports[component.id])})
         if drivers and controllers:
-            dv=float(drivers[0].parameters.get("logic_voltage_v",3.3)); cv=float(controllers[0].parameters.get("logic_voltage_v",3.3))
-            add("logic-compatibility",VerificationState.CROSS_CHECKED if dv==cv else VerificationState.FAILED,"info" if dv==cv else "critical","Driver logic is compatible with controller logic." if dv==cv else "Driver logic is incompatible with controller logic.",(controllers[0].id,drivers[0].id),expected={"value":cv,"unit":"V"},actual={"value":dv,"unit":"V"},machine_result={"equal":dv==cv})
+            dv=drivers[0].parameters.get("logic_voltage_v");cv=controllers[0].parameters.get("logic_voltage_v")
+            if dv is not None and cv is not None:
+                add("ELEC_LOGIC_VOLTAGE_INCOMPATIBLE" if float(dv)!=float(cv) else "ELEC_LOGIC_VOLTAGE_COMPATIBLE",
+                    VerificationState.FAILED if float(dv)!=float(cv) else VerificationState.CROSS_CHECKED,
+                    "critical" if float(dv)!=float(cv) else "info",
+                    "Driver logic is incompatible with controller logic." if float(dv)!=float(cv) else "Driver logic is compatible with controller logic.",
+                    (controllers[0].id,drivers[0].id),category="electrical",expected={"value":cv,"unit":"V"},actual={"value":dv,"unit":"V"},machine_result={"equal":float(dv)==float(cv)},blocking=float(dv)!=float(cv))
+            else:
+                add("ELEC_VOLTAGE_NOT_PROVEN",VerificationState.ESTIMATED,"warning","Controller-to-driver logic voltage compatibility is not proven.",(controllers[0].id,drivers[0].id),category="electrical",expected={"knownLogicVoltages":True},actual={"controllerLogicVoltageV":cv,"driverLogicVoltageV":dv})
         if powers:
-            pv=float(powers[0].parameters.get("voltage_v",0)); capacity=float(powers[0].parameters.get("available_current_a",0)); total=0.; complete=True
+            pv=powers[0].parameters.get("voltage_v");capacity=powers[0].parameters.get("available_current_a");total=0.;complete=capacity is not None
             for load in loads:
-                lv=float(load.parameters.get("voltage_v",pv)); ok=in_range(lv,"V",pv,pv,"V")
-                evidence=resolved.get(load.id); evid=tuple(evidence.evidence_ids) if evidence else ()
-                add("voltage",VerificationState.CROSS_CHECKED if ok and evid else VerificationState.ESTIMATED if ok else VerificationState.FAILED,"info" if ok else "critical","Supply voltage is compatible with load." if ok else "Load voltage is incompatible with supply.",(powers[0].id,load.id),expected={"value":lv,"unit":"V"},actual={"value":pv,"unit":"V"},evidence_ids=evid,machine_result={"inRange":ok})
+                lv=load.parameters.get("voltage_v")
+                if pv is not None and lv is not None:
+                    ok=in_range(float(lv),"V",float(pv),float(pv),"V");evidence=resolved.get(load.id);evid=tuple(evidence.evidence_ids) if evidence else ()
+                    add("ELEC_LOAD_VOLTAGE_COMPATIBLE" if ok else "ELEC_VOLTAGE_INCOMPATIBLE",VerificationState.CROSS_CHECKED if ok and evid else VerificationState.ESTIMATED if ok else VerificationState.FAILED,"info" if ok else "critical","Supply voltage is compatible with load." if ok else "Load voltage is incompatible with supply.",(powers[0].id,load.id),category="electrical",expected={"value":lv,"unit":"V"},actual={"value":pv,"unit":"V"},evidence_ids=evid,machine_result={"inRange":ok},blocking=not ok)
                 if "current_a" in load.parameters: total+=float(load.parameters["current_a"])
                 else: complete=False
             if loads:
-                ok=capacity>=total
-                add("power-budget",VerificationState.CROSS_CHECKED if ok and complete else VerificationState.ESTIMATED if ok else VerificationState.FAILED,"info" if ok else "critical",f"Modeled peak load {total:.3g} A {'fits' if ok else 'exceeds'} {capacity:.3g} A supply capacity.",(powers[0].id,*[x.id for x in loads]),expected={"maximum":capacity,"unit":"A"},actual={"value":total,"unit":"A","qualifier":"modeled_peak"},machine_result={"withinCapacity":ok,"complete":complete})
+                if complete:
+                    ok=float(capacity)>=total
+                    add("POWER_BUDGET_WITHIN_CAPACITY" if ok else "POWER_BUDGET_EXCEEDED",VerificationState.CROSS_CHECKED if ok else VerificationState.FAILED,"info" if ok else "critical",f"Modeled peak load {total:.3g} A {'fits' if ok else 'exceeds'} {float(capacity):.3g} A supply capacity.",(powers[0].id,*[x.id for x in loads]),category="electrical",expected={"maximum":capacity,"unit":"A"},actual={"value":total,"unit":"A","qualifier":"modeled_peak"},machine_result={"withinCapacity":ok,"complete":True},blocking=not ok)
+                else:
+                    add("POWER_BUDGET_NOT_PROVEN",VerificationState.ESTIMATED,"warning","Power budget is not proven because one or more source/load current values are unavailable.",(powers[0].id,*[x.id for x in loads]),category="electrical",expected={"completeCurrentData":True},actual={"modeledLoadA":total,"sourceCapacityA":capacity})
         for c in components.values():
             if not c.dimensions: add("dimensions",VerificationState.CONCEPTUAL,"warning",f"Exact dimensions are unavailable for {c.name}.",(c.id,)); continue
             valid=True
@@ -234,7 +237,13 @@ class VerificationService:
             authoritative=all(evidence_by_id[eid].kind is not EvidenceKind.ENGINEERING_ASSUMPTION for eid in definition.evidence_ids)
             add("catalogue-properties",VerificationState.SOURCE_VERIFIED if authoritative else VerificationState.ESTIMATED,"info" if authoritative else "warning",f"Authoritative properties available from {definition.manufacturer} {definition.part_number}." if authoritative else f"{definition.part_number} uses a bounded curated engineering assumption.",(c.id,),evidence_ids=definition.evidence_ids,dependency_ids=(c.id,),source_versions={eid:"curated-record-v1" for eid in definition.evidence_ids})
 
-        critical=[x for x in findings if x.severity=="critical" and x.state==VerificationState.FAILED]
+        evaluate_plausibility(plan, add)
+        findings.sort(key=lambda item: (
+            {"critical": 0, "warning": 1, "info": 2}.get(item.severity, 3),
+            item.check, item.entity_ids, item.id,
+        ))
+
+        critical=[x for x in findings if x.blocking or (x.severity=="critical" and x.state==VerificationState.FAILED)]
         if critical: return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,tuple(x.message for x in critical),None,tuple(findings))
         project_id=next(e.id for e in plan.entities if e.kind==EntityKind.PROJECT); operations=[]
         for op in plan.patch.operations:
@@ -255,13 +264,17 @@ class VerificationService:
         for f in findings:
             operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=EngineeringEntity(f.id,EntityKind.VERIFICATION_RESULT,f.message,project_id,f.to_dict(),source_refs=f.evidence_ids,verification_status=f.state.value)))
         patch=replace(plan.patch,operations=tuple(operations))
-        overall=VerificationState.CROSS_CHECKED if any(x.state==VerificationState.CROSS_CHECKED for x in findings) else VerificationState.ESTIMATED
+        limited=any(x.severity=="warning" or x.state in {VerificationState.ESTIMATED,VerificationState.CONCEPTUAL,VerificationState.STALE,VerificationState.UNSUPPORTED} for x in findings)
+        overall=VerificationState.ESTIMATED if limited else VerificationState.CROSS_CHECKED
         return VerificationResult(VerificationDecision.MODIFY,overall,("Evidence and deterministic verification completed.",),patch,tuple(findings))
 
     @staticmethod
     def _finding(check,state,severity,message,ids,revision=1,**kwargs):
         kwargs.setdefault("dependency_ids",ids)
-        return VerificationFinding(f"verification-{check}-{uuid4().hex[:10]}",check,state,severity,message,ids,revision=revision,**kwargs)
+        kwargs.setdefault("blocking",severity=="critical" and state is VerificationState.FAILED)
+        fingerprint="|".join((check,*ids,str(revision)))
+        finding_id=f"verification-{check.lower().replace('_','-')}-{sha256(fingerprint.encode()).hexdigest()[:10]}"
+        return VerificationFinding(finding_id,check,state,severity,message,ids,revision=revision,**kwargs)
 
     def verify_modification(self, graph, patch: GraphPatch) -> VerificationResult:
         affected={x.target_id for x in patch.operations if x.target_id}; operations=[]; stale=[]; attached=()
