@@ -7,6 +7,8 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $frontend = Join-Path $repoRoot "src/aura/workspace/web/frontend"
+$venvPython = Join-Path $repoRoot ".venv/Scripts/python.exe"
+$python = if (Test-Path -LiteralPath $venvPython -PathType Leaf) { $venvPython } else { "python" }
 
 function Invoke-Checked {
     param([scriptblock]$Command, [string]$FailureMessage)
@@ -30,7 +32,18 @@ try {
         } else {
             @("tests")
         }
-        Invoke-Checked { python -m pytest -q $pythonTests -m "not live" } "Python tests failed."
+        $previousErrorPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            & $python -c "import pytest" *> $null
+            $pytestProbeExitCode = $LASTEXITCODE
+        } finally {
+            $ErrorActionPreference = $previousErrorPreference
+        }
+        if ($pytestProbeExitCode -ne 0) {
+            throw "Pytest is absent from the selected environment. Run '$python -m pip install -e `".[server,vertex,dev]`"' first."
+        }
+        Invoke-Checked { & $python -m pytest -q $pythonTests -m "not live" } "Python tests failed."
     }
 
     if ($Module -in @("ui", "all")) {
@@ -47,7 +60,7 @@ try {
     }
 
     if ($Module -eq "all") {
-        Invoke-Checked { python -m compileall -q src tests } "Python compile check failed."
+        Invoke-Checked { & $python -m compileall -q src tests } "Python compile check failed."
     }
 } finally {
     Pop-Location

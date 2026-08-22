@@ -22,9 +22,10 @@ diagnostics without deciding engineering project state.
 ## Planner
 
 `aura.planner` produces validated structured proposals and never commits graph
-truth. The live adapter requests JSON from the configured Ollama model, makes
-one bounded repair attempt using exact validation errors, and reports an honest
-deterministic fallback when the model is unavailable or invalid.
+truth. The live adapter requests structured output from the configured AI
+provider, makes one bounded repair attempt using exact validation errors, and
+reports an honest deterministic fallback when the provider is unavailable or
+invalid. Provider and model identity remain server-side operational metadata.
 
 ## Verification
 
@@ -44,7 +45,9 @@ desktop, or Unreal dependency.
 `aura.workspace` commits only accepted Verification output. Its FastAPI server
 exposes project, graph, revision, modification, and replayable WebSocket event
 APIs. The reusable browser frontend projects graph state; it does not invent a
-second project model.
+second project model. Free-form edits follow the same boundary: AI produces a
+graph patch proposal, Verification checks it, the user previews it, and only an
+accepted proposal becomes a revision.
 
 ## Dependency rules
 

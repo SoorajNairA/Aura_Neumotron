@@ -1,187 +1,159 @@
 # AURA
 
-AURA is migrating into a local AI Engineering Workspace. A structured project
-request is proposed by one Planner, checked by deterministic Verification,
-committed to a versioned Engineering Graph, and presented through
-frontend-neutral Workspace events.
+AURA is an AI-assisted engineering workspace that turns a product request into
+a connected, versioned system model. It combines an engineering graph,
+deterministic verification, generated schematic and 3D representations, and an
+AI proposal workflow in one desktop interface.
 
 ```text
-Project request -> Planner -> Verification -> Engineering Graph -> Workspace
+Request -> AI proposal -> Verification -> Engineering Graph -> 3D / Schematic
 ```
 
-The existing Windows assistant remains available during migration. Its proven
-Ollama, Faster-Whisper, XTTS, memory, safe tools, desktop integration, project
-templates, and QML UI are being retained as infrastructure or compatibility
-features. Unreal, TITAN, and the old specialist hierarchy are legacy opt-in
-experiments and are not part of normal startup.
+Edits are proposed before they are committed. AURA identifies affected
+components and relationships, previews the impact, runs verification, and then
+updates the authoritative graph only after acceptance. The interface does not
+present arbitrary component substitutions as valid engineering changes, and it
+does not expose provider or model branding in user-facing output.
 
-## Implemented engineering core
+## Fast start on Windows
 
-- Stable project, assembly, subsystem, component, connection, requirement,
-  constraint, assumption, decision, artifact, evidence, verification-result,
-  and representation entities.
-- Hierarchy and typed relationships with deterministic lookup.
-- JSON serialization and safe project-graph persistence.
-- Validated graph patches and revision history.
-- Explicit structured Planner request and proposal schemas.
-- Categorical Verification states controlled independently of Planner output.
-- GUI-independent Workspace events and subscriptions.
-- A deterministic request-to-revision-to-event flow requiring no LLM, GUI,
-  voice, desktop, internet, or Unreal installation.
+Prerequisites:
 
-The browser Workspace includes production mechanical representations through
-cascade-core/Three.js and generated Circuit JSON rendered by tscircuit's
-schematic viewer.
+- Python 3.11 recommended (3.9 and newer are supported)
+- Current Node.js LTS with npm
+- Optional: Google Cloud Application Default Credentials for live AI planning
 
-## Installation
-
-Python 3.10 or newer is supported.
-
-Install the lightweight engineering core and Ollama HTTP support:
+From the repository root, run:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -e .
+.\scripts\start.bat
 ```
 
-Install the current Windows UI and voice assistant dependencies:
+The launcher creates `.venv` when needed, installs missing backend and frontend
+dependencies, starts the FastAPI backend, waits for its health check, and opens
+the Electron desktop app. Existing healthy services and installed dependencies
+are reused, so later starts are fast.
+
+Useful alternatives:
 
 ```powershell
-pip install -e ".[voice,desktop]"
+# Open the browser UI instead of Electron
+.\scripts\start.ps1 -Frontend browser
+
+# Start only the backend
+.\scripts\start.ps1 -Frontend none
+
+# Reinstall dependencies and rebuild the frontend
+.\scripts\start.ps1 -Install -Build
+
+# Use a different local port
+.\scripts\start.ps1 -Port 9000
 ```
 
-XTTS is optional. Install the correct CUDA-enabled PyTorch build for the host,
-then run:
+The default application URL is <http://127.0.0.1:8765/> and liveness is
+reported at <http://127.0.0.1:8765/health/live>.
+
+## Live AI configuration
+
+The launcher copies `.env.example` to `.env` only when `.env` does not exist.
+For the configured cloud planner, authenticate once and set the project value:
 
 ```powershell
-pip install -e ".[voice,xtts]"
-```
-
-`requirements.txt` and `requirements-xtts.txt` remain available for the
-existing reproducible assistant setup during migration.
-
-## Running
-
-The compatibility assistant optionally uses Ollama. To run it, install a supported local model:
-
-```powershell
-ollama pull qwen3:8b
-ollama serve
-```
-
-Launch through the package entry point:
-
-```powershell
-aura
-```
-
-For the compatibility assistant:
-
-```powershell
-$env:PYTHONPATH = "src"
-aura-assistant
-```
-
-The compatibility assistant supports text/voice conversation, safe tools,
-project templates, memory, and result reveal.
-
-Run the primary browser engineering workspace server:
-
-```powershell
-$env:PYTHONPATH = "src"
-pip install -e ".[server,vertex]"
 gcloud auth application-default login
-python -m aura.workspace.server --open
 ```
-
-The reusable frontend consumes project, graph, revision, modification, and
-WebSocket event APIs. Component cards use stable graph IDs for hover, click
-selection, information display, verification warnings, representation states,
-and AURA focus highlighting. The existing QML interface remains a legacy
-assistant fallback and is not imported by the workspace server.
-
-Projects and artifacts persist by default in the platform user-data directory
-(`%LOCALAPPDATA%\AURA` on Windows). `AURA_DATA_DIR`,
-`AURA_WORKSPACE_DB_PATH`, and `AURA_WORKSPACE_ARTIFACT_DIR` override it. Set
-`AURA_WORKSPACE_STORAGE_MODE=memory` only for disposable development or tests.
-
-The production frontend package is under `src/aura/workspace/web/frontend`:
-
-```powershell
-cd src/aura/workspace/web/frontend
-npm ci
-npm run build
-```
-
-## Testing
-
-Install development dependencies:
-
-```powershell
-pip install -e ".[dev]"
-```
-
-Default fast and mocked-local suite:
-
-```powershell
-pytest -q
-```
-
-Exclude all explicitly live tests:
-
-```powershell
-pytest -q -m "not live"
-```
-
-Live host validation is opt-in and environment-specific:
-
-```powershell
-pytest -m live
-python tests/live_xtts_activation.py
-python tests/live_desktop_integration.py
-python tests/live_titan_validation.py --live --editor "C:\path\to\UnrealEditor-Cmd.exe"
-```
-
-Standalone historical `tests/t*.py` files are not all collected by pytest yet.
-Their old reports are historical evidence, not proof of the current checkout.
-
-## Configuration
-
-Settings use package defaults and optional values from `.env`. Copy
-`.env.example` when local customization is needed. Important options include:
 
 ```env
 AURA_LLM_PROVIDER=vertex
 AURA_GCP_PROJECT=your-gcp-project-id
 AURA_GCP_LOCATION=global
-AURA_VERTEX_MODEL=gemini-3.1-flash-lite
-AURA_VERTEX_TIMEOUT_SECONDS=20
 AURA_DETERMINISTIC_FALLBACK=true
-AURA_HARDWARE_PROFILE=auto
-AURA_STT_MODEL=small
-AURA_TTS_BACKEND=auto
-AUTO_REVEAL_RESULTS=true
 ```
 
-Secrets, models, voice references, logs, generated workspaces, and runtime
-memory are excluded from Git.
+`.env` is ignored by Git. Without usable cloud credentials, the workspace can
+still run with its bounded deterministic fallback; live free-form engineering
+edits require the configured AI provider.
 
-## Architecture and status
+## Product capabilities
 
-- [Current architecture](docs/ARCHITECTURE.md)
-- [Legacy systems](docs/LEGACY.md)
-- [Validation status](docs/VALIDATION.md)
-- [Development](docs/DEVELOPMENT.md)
-- [Representation stack decision](docs/decisions/representation-stack.md)
-- [Vertex Planner decision](docs/decisions/vertex-planner.md)
+- Versioned projects, revisions, undo, replayable events, and persistence.
+- Typed assemblies, subsystems, components, interfaces, and relationships.
+- AI-generated creation and edit proposals validated against strict schemas.
+- Deterministic electrical, physical, safety, reference, and graph checks.
+- Generic representation compilation for multi-part mechanical assemblies.
+- Interactive Three.js assembly views and tscircuit schematic rendering.
+- Selection-linked 3D, schematic, engineering graph, verification, and work UI.
+- Desktop Electron shell plus the same workspace in a normal browser.
+
+Project data is stored under `%LOCALAPPDATA%\AURA` by default. Override it with
+`AURA_DATA_DIR`, `AURA_WORKSPACE_DB_PATH`, or
+`AURA_WORKSPACE_ARTIFACT_DIR`. Use `AURA_WORKSPACE_STORAGE_MODE=memory` only
+for disposable tests.
+
+## Development
+
+Install all test dependencies after the fast-start environment exists:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[server,vertex,dev]"
+```
+
+Run the repository validation script:
+
+```powershell
+.\scripts\test.ps1 -Module all
+```
+
+Run the full browser and desktop checks:
+
+```powershell
+Set-Location src\aura\workspace\web\frontend
+npm run test:browser
+npm run test:electron
+```
+
+Frontend source is under `src/aura/workspace/web/frontend`; its production
+bundle is emitted into `src/aura/workspace/web/representation` and served by
+the Python application.
+
+## Repository map
+
+```text
+src/aura/engineering_graph/   Authoritative graph, patches, and revisions
+src/aura/planner/             Structured planning contracts and proposal flow
+src/aura/verification/        Deterministic engineering checks
+src/aura/workspace/           API, persistence, assembly, and representations
+src/aura/workspace/web/       Browser assets and frontend source
+src/aura/infrastructure/      Provider, persistence, and host adapters
+src/aura/legacy/              Optional compatibility systems
+tests/                        Python unit and integration tests
+docs/                         Architecture, operations, security, and decisions
+scripts/                      Startup, test, integration, and deployment tools
+infra/                        Cloud infrastructure definitions
+```
+
+Generated workspaces, build packages, test reports, caches, local models,
+runtime data, and secrets are intentionally excluded from Git.
+
+After validation or packaging, remove only reproducible local output with:
+
+```powershell
+.\scripts\cleanup.ps1
+```
+
+The cleanup script preserves `.env`, `.venv`, `node_modules`, Terraform state,
+and deployment caches.
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Development guide](docs/DEVELOPMENT.md)
+- [Validation and failure behavior](docs/VALIDATION.md)
+- [Cloud deployment](docs/CLOUD_DEPLOYMENT.md)
+- [Security](docs/SECURITY.md)
+- [Legacy compatibility systems](docs/LEGACY.md)
 - [Third-party notices](docs/THIRD_PARTY_NOTICES.md)
-
-Known migration limitations include the still-large compatibility supervisor,
-fragmented historical test scripts, host-dependent voice/desktop behavior, and
-legacy modules that remain at their original import paths for compatibility.
 
 ## License
 
-AURA is licensed under the MIT License. XTTS usage is also subject to Coqui's
-model license.
+AURA is licensed under the MIT License. Optional XTTS use is also subject to
+Coqui's model license.
