@@ -81,6 +81,9 @@ class ProjectRepository(Protocol):
     def read_artifact(self, artifact_id: str) -> bytes: ...
     def is_ready(self) -> bool: ...
     def close(self) -> None: ...
+    def save_work_item(self, item: dict[str, Any]) -> None: ...
+    def get_work_item(self, project_id: str, work_item_id: str) -> dict[str, Any] | None: ...
+    def list_work_items(self, project_id: str) -> list[dict[str, Any]]: ...
 
 
 class SQLiteProjectRepository:
@@ -106,6 +109,8 @@ class SQLiteProjectRepository:
                 version = self._connection.execute("SELECT version FROM schema_info").fetchone()[0]
                 if version != SCHEMA_VERSION:
                     raise UnsupportedSchemaVersion(f"Workspace schema {version} is unsupported; expected {SCHEMA_VERSION}")
+                self._connection.execute("CREATE TABLE IF NOT EXISTS work_items(project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE, work_item_id TEXT NOT NULL, item_json TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(project_id, work_item_id))")
+                self._connection.commit()
                 return
             with self._connection:
                 self._connection.executescript("""
@@ -126,7 +131,24 @@ class SQLiteProjectRepository:
                     revision INTEGER NOT NULL, component_ids_json TEXT NOT NULL, representation_type TEXT NOT NULL,
                     format TEXT NOT NULL, status TEXT NOT NULL, content_hash TEXT, relative_path TEXT,
                     generator TEXT, generator_version TEXT, created_at TEXT, error TEXT);
+                CREATE TABLE work_items(project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+                    work_item_id TEXT NOT NULL, item_json TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    PRIMARY KEY(project_id, work_item_id));
                 """)
+
+    def save_work_item(self, item: dict[str, Any]) -> None:
+        with self._lock, self._connection:
+            if self._connection.execute("SELECT 1 FROM projects WHERE project_id=?",(item["projectId"],)).fetchone() is None: raise KeyError(item["projectId"])
+            self._connection.execute("INSERT INTO work_items VALUES(?,?,?,?) ON CONFLICT(project_id,work_item_id) DO UPDATE SET item_json=excluded.item_json,updated_at=excluded.updated_at",
+                (item["projectId"],item["id"],json.dumps(item,separators=(",",":")),item["updatedAt"]))
+
+    def get_work_item(self, project_id: str, work_item_id: str) -> dict[str, Any] | None:
+        with self._lock: row=self._connection.execute("SELECT item_json FROM work_items WHERE project_id=? AND work_item_id=?",(project_id,work_item_id)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def list_work_items(self, project_id: str) -> list[dict[str, Any]]:
+        with self._lock: rows=self._connection.execute("SELECT item_json FROM work_items WHERE project_id=? ORDER BY updated_at,work_item_id",(project_id,)).fetchall()
+        return [json.loads(row[0]) for row in rows]
 
     def get_project(self, project_id: str) -> StoredProject | None:
         with self._lock:

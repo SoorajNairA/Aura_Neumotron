@@ -53,9 +53,25 @@ class PostgresProjectRepository:
                 current = int(cursor.fetchone()[0])
                 if current > POSTGRES_SCHEMA_VERSION:
                     raise UnsupportedSchemaVersion(f"Workspace schema {current} is newer than supported {POSTGRES_SCHEMA_VERSION}")
+                cursor.execute(self._migration_sql())
                 if current < 1:
-                    cursor.execute(self._migration_sql())
                     cursor.execute("INSERT INTO aura_schema_version(version) VALUES (1) ON CONFLICT DO NOTHING")
+
+    def save_work_item(self, item: dict[str, Any]) -> None:
+        from psycopg.types.json import Jsonb
+        with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:
+            cursor.execute("INSERT INTO work_items VALUES(%s,%s,%s,%s) ON CONFLICT(project_id,work_item_id) DO UPDATE SET item_json=EXCLUDED.item_json,updated_at=EXCLUDED.updated_at",
+                (item["projectId"],item["id"],Jsonb(item),item["updatedAt"]))
+
+    def get_work_item(self, project_id: str, work_item_id: str) -> dict[str, Any] | None:
+        with self._pool.connection() as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT item_json FROM work_items WHERE project_id=%s AND work_item_id=%s",(project_id,work_item_id)); row=cursor.fetchone()
+        return dict(row[0]) if row else None
+
+    def list_work_items(self, project_id: str) -> list[dict[str, Any]]:
+        with self._pool.connection() as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT item_json FROM work_items WHERE project_id=%s ORDER BY updated_at,work_item_id",(project_id,)); rows=cursor.fetchall()
+        return [dict(row[0]) for row in rows]
 
     def is_ready(self) -> bool:
         try:
