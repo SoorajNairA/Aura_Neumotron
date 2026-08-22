@@ -300,7 +300,8 @@ class VerificationService:
             operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=EngineeringEntity(f.id,EntityKind.VERIFICATION_RESULT,f.message,project_id,f.to_dict(),source_refs=f.evidence_ids,verification_status=f.state.value)))
         patch=replace(plan.patch,operations=tuple(operations))
         limited=any(x.severity=="warning" or x.state in {VerificationState.ESTIMATED,VerificationState.CONCEPTUAL,VerificationState.STALE,VerificationState.UNSUPPORTED} for x in findings)
-        overall=(VerificationState.CROSS_CHECKED if not project_metadata.get("semanticRequirements") and any(x.state is VerificationState.CROSS_CHECKED for x in findings)
+        overall=(VerificationState.ESTIMATED if any(x.check=="COMPONENT_CRITICAL_UNRESOLVED" for x in findings)
+                 else VerificationState.CROSS_CHECKED if not project_metadata.get("semanticRequirements") and any(x.state is VerificationState.CROSS_CHECKED for x in findings)
                  else VerificationState.ESTIMATED if limited else VerificationState.CROSS_CHECKED)
         return VerificationResult(VerificationDecision.MODIFY,overall,("Evidence and deterministic verification completed.",),patch,tuple(findings),self._confidence(tuple(findings)))
 
