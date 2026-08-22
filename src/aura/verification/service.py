@@ -15,6 +15,7 @@ from .evidence import EvidenceKind
 from .results import VerificationDecision, VerificationFinding, VerificationResult, VerificationState
 from .plausibility import evaluate_plausibility
 from .graph_rules import evaluate_graph
+from .delta import DeltaClassification, compare_verification
 from .units import convert, in_range
 
 
@@ -318,11 +319,12 @@ class VerificationService:
     def _finding(check,state,severity,message,ids,revision=1,**kwargs):
         kwargs.setdefault("dependency_ids",ids)
         kwargs.setdefault("blocking",severity=="critical" and state is VerificationState.FAILED)
-        fingerprint="|".join((check,*ids,str(revision)))
+        fingerprint="|".join((check,*ids))
         finding_id=f"verification-{check.lower().replace('_','-')}-{sha256(fingerprint.encode()).hexdigest()[:10]}"
         return VerificationFinding(finding_id,check,state,severity,message,ids,revision=revision,**kwargs)
 
     def verify_modification(self, graph: EngineeringGraph, patch: GraphPatch) -> VerificationResult:
+        before=self.verify_graph(graph)
         affected={x.target_id for x in patch.operations if x.target_id};operations=[];stale=[];attached=()
         for operation in patch.operations:
             exact=operation.changes.get("metadata",{}).get("component_definition_id") if operation.changes else None
@@ -336,8 +338,10 @@ class VerificationService:
         try: candidate=self._with_authoritative_nets(apply_patch(graph,candidate_patch))
         except ValueError as exc: return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,(str(exc),),None)
         verified=self.verify_graph(candidate)
-        if not verified.accepted:
-            return VerificationResult(VerificationDecision.REJECT,verified.state,verified.reasons,None,verified.findings,verified.confidence_ingredients)
+        delta=compare_verification(before,verified)
+        incremental=delta.classification in {DeltaClassification.IMPROVES,DeltaClassification.RESOLVES_ALL} and delta.blocking_introduced_count==0
+        if not verified.accepted and not incremental:
+            return VerificationResult(VerificationDecision.REJECT,verified.state,verified.reasons,None,verified.findings,verified.confidence_ingredients,delta.to_dict())
         for result in graph.find(kind=EntityKind.VERIFICATION_RESULT):
             dependencies=set(result.metadata.get("dependencyIds",result.metadata.get("entity_ids",[])))
             if dependencies & affected:
@@ -355,4 +359,7 @@ class VerificationService:
             if finding.id in graph.entities:
                 operations.append(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=finding.id,changes={"name":finding.message,"metadata":finding.to_dict(),"source_refs":finding.evidence_ids,"verification_status":finding.state.value}))
             else: operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=entity))
-        return VerificationResult(VerificationDecision.MODIFY,verified.state,("The complete candidate Engineering Graph passed re-verification.",),replace(patch,operations=tuple(operations)),verified.findings,verified.confidence_ingredients)
+        reason=("The candidate incrementally improves the design; remaining blockers keep the project incomplete."
+                if incremental and verified.state is VerificationState.FAILED else
+                "The complete candidate Engineering Graph passed re-verification.")
+        return VerificationResult(VerificationDecision.MODIFY,verified.state,(reason,),replace(patch,operations=tuple(operations)),verified.findings,verified.confidence_ingredients,delta.to_dict())

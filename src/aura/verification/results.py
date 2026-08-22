@@ -73,6 +73,7 @@ class VerificationResult:
     patch: GraphPatch | None
     findings: tuple[VerificationFinding, ...] = ()
     confidence_ingredients: dict[str, int] = field(default_factory=dict)
+    verification_delta: dict[str, Any] | None = None
 
     @property
     def accepted(self) -> bool:
