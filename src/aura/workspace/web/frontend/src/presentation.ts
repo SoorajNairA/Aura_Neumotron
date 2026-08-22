@@ -68,6 +68,9 @@ export interface ScenarioImpactPresentation {
   uncertainties:string[];
   stale:boolean;
   applicable:boolean;
+  compatibilityDecision?:string;
+  analysisSource?:string;
+  analysisModel?:string;
 }
 
 const words=(value:unknown)=>String(value||"").trim().toLowerCase().replaceAll("-","_");
@@ -76,7 +79,7 @@ export function statusLabel(value:unknown){return words(value).replaceAll("_"," 
 
 export function statusTone(value:unknown){
   const state=words(value);
-  if(state.includes("fail")||state.includes("abandon")||state.includes("unsupported"))return "fail";
+  if(state.includes("fail")||state.includes("abandon")||state.includes("unsupported")||state.includes("incompatible")||state.includes("invalid")||state.includes("reject"))return "fail";
   if(state.includes("estimate")||state.includes("concept")||state.includes("pause")||state.includes("limit")||state.includes("warn"))return "warn";
   if(state.includes("verified")||state.includes("cross_checked")||state.includes("ready")||state.includes("complete")||state.includes("pass"))return "pass";
   return "neutral";
@@ -158,7 +161,10 @@ export function scenarioPresentation(raw:any):ScenarioImpactPresentation {
     derivedImpacts:[...(raw?.derivedImpacts??raw?.derived_impacts??explanations.filter((item:any)=>item.kind==="DERIVED_IMPACT"))].map((impact:any)=>typeof impact==="string"?{summary:impact}:{...impact,summary:impact.summary??impact.message}),
     uncertainties:[...(raw?.uncertainties??explanations.filter((item:any)=>item.kind==="UNCERTAINTY"))].map((item:any)=>typeof item==="string"?item:String(item?.summary??item?.message??"Uncertainty")),
     stale:Boolean(raw?.stale),
-    applicable:raw?.applicable!==false,
+    applicable:Boolean(raw?.applicable??analysis?.applicable??false),
+    compatibilityDecision:analysis?.semanticAssessment?.decision,
+    analysisSource:analysis?.ai?.source,
+    analysisModel:analysis?.ai?.model,
   };
 }
 

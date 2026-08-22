@@ -44,7 +44,7 @@ from .representations import RepresentationRecord, RepresentationStatus, Represe
 from .modifications import LiveModificationPlanner,ModificationProposal,inverse_proposal,propose
 from .narration import NarrationService
 from .work_items import EngineeringWorkService, WorkDomainError
-from .scenarios import EngineeringScenario,ScenarioError,analyze as analyze_scenario
+from .scenarios import EngineeringScenario,LiveScenarioAnalyzer,ScenarioError,analyze as analyze_scenario
 
 LOGGER = logging.getLogger("aura.workspace")
 
@@ -769,10 +769,22 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         except WorkDomainError as exc:return work_error(exc)
 
     @app.post("/api/projects/{project_id}/scenarios")
-    def create_scenario(project_id:str,body:ScenarioBody)->dict[str,Any]:
+    async def create_scenario(project_id:str,body:ScenarioBody)->dict[str,Any]:
         record=_record(application,project_id)
-        try:scenario=analyze_scenario(record.graph,body.targetSemanticId,body.changeType,body.value)
+        try:
+            assessment=None;model_metadata=None
+            if body.changeType=="REPLACE_COMPONENT":
+                provider=application.provider or application._default_provider()
+                if provider is None or not hasattr(provider,"generate_structured"):
+                    raise ScenarioError("SCENARIO_AI_UNAVAILABLE","What-If replacement analysis requires a configured structured AI provider",503)
+                application.provider=provider
+                assessment,model_metadata=await run_in_threadpool(LiveScenarioAnalyzer(provider).assess_replacement,record.graph,body.targetSemanticId,body.value)
+            scenario=analyze_scenario(record.graph,body.targetSemanticId,body.changeType,body.value,assessment,model_metadata)
         except ScenarioError as exc:raise HTTPException(exc.status,detail={"code":exc.code,"message":exc.message}) from exc
+        except Exception as exc:
+            error_name=exc.__class__.__name__
+            status=503 if error_name=="VertexAuthenticationError" else 504 if error_name=="VertexTimeoutError" else 502
+            raise HTTPException(status,detail={"code":"SCENARIO_AI_UNAVAILABLE","message":str(exc)}) from exc
         application.scenarios={scenario.id:scenario};return scenario.to_dict()
 
     @app.delete("/api/projects/{project_id}/scenarios/{scenario_id}")
@@ -785,6 +797,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     async def apply_scenario(project_id:str,scenario_id:str)->dict[str,Any]:
         scenario=application.scenarios.get(scenario_id);record=_record(application,project_id)
         if not scenario or scenario.project_id!=project_id:raise HTTPException(404,detail={"code":"SCENARIO_NOT_FOUND"})
+        if not scenario.analysis.get("applicable",False):raise HTTPException(422,detail={"code":"SCENARIO_NOT_APPLICABLE","message":"AI compatibility analysis did not approve this direct replacement"})
         if scenario.base_revision!=len(record.graph.revisions) or scenario.base_revision_id!=record.graph.current_revision_id:raise HTTPException(409,detail={"code":"SCENARIO_STALE","message":"Project changed; re-run analysis."})
         lock=application.modification_locks.setdefault(project_id,threading.Lock())
         if not lock.acquire(blocking=False):raise HTTPException(409,detail={"code":"SCENARIO_APPLY_IN_PROGRESS"})

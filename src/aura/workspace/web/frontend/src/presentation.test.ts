@@ -23,8 +23,9 @@ describe("workspace presentation contracts",()=>{
     const integrated=scenarioPresentation({scenarioId:"s2",baseRevisionId:"r1",analysis:{
       diff:{changedComponents:["servo"]},impact:{affectedComponentIds:["servo","mount"]},
       verification:{delta:{readinessBefore:"BUILD_INCOMPLETE",readinessAfter:"SUPPORTED_WITH_LIMITATIONS"}},confidence:"MEDIUM",
+      applicable:false,semanticAssessment:{decision:"INCOMPATIBLE"},ai:{source:"structured_model",model:"gemini-test"},
       explanations:[{kind:"KNOWN_CHANGE",message:"Servo replaced"},{kind:"DERIVED_IMPACT",message:"Mount must be checked"},{kind:"UNCERTAINTY",message:"Torque is estimated"}],
     }});
-    expect(integrated).toMatchObject({scenarioId:"s2",changedIds:["servo"],affectedIds:["servo","mount"],verificationBefore:"BUILD_INCOMPLETE",verificationAfter:"SUPPORTED_WITH_LIMITATIONS",derivedImpacts:[{summary:"Mount must be checked"}],uncertainties:["Torque is estimated"]});
+    expect(integrated).toMatchObject({scenarioId:"s2",changedIds:["servo"],affectedIds:["servo","mount"],verificationBefore:"BUILD_INCOMPLETE",verificationAfter:"SUPPORTED_WITH_LIMITATIONS",derivedImpacts:[{summary:"Mount must be checked"}],uncertainties:["Torque is estimated"],applicable:false,compatibilityDecision:"INCOMPATIBLE",analysisSource:"structured_model",analysisModel:"gemini-test"});
   });
 });

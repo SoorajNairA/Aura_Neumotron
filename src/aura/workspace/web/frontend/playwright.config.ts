@@ -7,7 +7,7 @@ const webServer:any[]=[{
 }];
 
 if(process.env.AURA_E2E_MOCK_ONLY!=="1")webServer.push({
-  command:"python -c \"from aura.workspace.server import create_app; import uvicorn; uvicorn.run(create_app(storage_mode='memory'),host='127.0.0.1',port=4184)\"",
+  command:"python e2e/aura_test_server.py",
   url:"http://127.0.0.1:4184/health/ready",
   reuseExistingServer:true,
 });
