@@ -72,6 +72,7 @@ class VerificationResult:
     reasons: tuple[str, ...]
     patch: GraphPatch | None
     findings: tuple[VerificationFinding, ...] = ()
+    confidence_ingredients: dict[str, int] = field(default_factory=dict)
 
     @property
     def accepted(self) -> bool:
