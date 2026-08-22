@@ -1,5 +1,5 @@
 import { performance } from "node:perf_hooks"
-import { Battery, Board, Chip, Circuit, Diode, Mosfet, Trace } from "@tscircuit/core"
+import { Battery, Board, Chip, Circuit, Diode, Mosfet, Resistor, Trace } from "@tscircuit/core"
 
 const started = performance.now()
 const readInput = async () => {
@@ -34,6 +34,7 @@ try {
     else if (component.kind === "soil_sensor") instance = new Chip({...common,footprint:"sot23",pinLabels})
     else if (component.kind === "mosfet") instance = new Mosfet({...common,channelType:"n",mosfetMode:"enhancement",footprint:"sot23"})
     else if (component.kind === "diode") instance = new Diode({...common,footprint:"sod123"})
+    else if (component.kind === "resistor") instance = new Resistor({...common,resistance:"10k",footprint:"0402"})
     else if (component.kind === "servo") instance = new Chip({...common,footprint:"sot23",pinLabels})
     else if (component.kind === "motor") instance = new Chip({...common,footprint:"sot23",pinLabels})
     else if (component.kind === "power_source") instance = new Battery({...common,capacity:"2000mAh"})
@@ -55,7 +56,9 @@ try {
   for (const element of circuitJson.filter(e=>e.type==="schematic_component")) {
     const reference=namesBySource.get(element.source_component_id); const index=request.components.findIndex(c=>c.reference===reference)
     if(index<0) continue
-    element.aura_semantic_id=sourceByReference.get(reference).semanticId
+    const component=sourceByReference.get(reference);element.aura_semantic_id=component.semanticId
+    element.aura_display_name=component.displayName;element.symbol_display_value=component.displayName
+    element.aura_component_definition_id=component.componentDefinitionId
   }
   const mapping=Object.fromEntries(request.components.map(component=>[component.reference,component.semanticId]))
   const generationMs=performance.now()-started

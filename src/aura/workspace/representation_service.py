@@ -41,9 +41,10 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
                 "representationClass":"exact" if resolution=="EXACT" else "generic" if resolution=="COMPATIBLE_GENERIC" else "conceptual"}}))
     categories={
         "microcontroller_board":("U","controller",["VCC","GND",*[f"IO{i}" for i in range(1,9)]]),"controller":("U","controller",["VCC","GND",*[f"IO{i}" for i in range(1,9)]]),
-        "temperature_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"light_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"environmental_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"distance_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"conceptual_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"moisture_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"soil sensing":("S","generic_sensor",["VCC","GND","SIGNAL"]),
-        "mosfet_driver":("Q","generic_module",["VCC","GND","SIGNAL","OUT"]),"motor_driver":("Q","generic_module",["VCC","GND","SIGNAL","OUT"]),"pump switching":("Q","generic_module",["VCC","GND","SIGNAL","OUT"]),"wireless_module":("W","generic_module",["VCC","GND","SIGNAL"]),
-        "fan":("A","generic_actuator",["V+","GND","CONTROL"]),"small_dc_motor":("A","generic_actuator",["V+","GND","CONTROL"]),"small_dc_pump":("A","generic_actuator",["V+","GND","CONTROL"]),"water delivery":("A","generic_actuator",["V+","GND","CONTROL"]),"indicator":("A","generic_actuator",["V+","GND","CONTROL"]),
+        "temperature_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"light_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"environmental_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"distance_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"soil_moisture_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"motion_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"orientation_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"conceptual_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"moisture_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"soil sensing":("S","generic_sensor",["VCC","GND","SIGNAL"]),
+        "mosfet_driver":("Q","mosfet",["VCC","GND","SIGNAL","OUT"]),"motor_driver":("DRV","generic_module",["VCC","GND","SIGNAL","OUT"]),"relay_module":("K","generic_module",["VCC","GND","SIGNAL","OUT"]),"bare_relay":("K","generic_module",["VCC","GND","OUT"]),"pump switching":("Q","generic_module",["VCC","GND","SIGNAL","OUT"]),"wireless_module":("W","generic_module",["VCC","GND","SIGNAL"]),
+        "flyback_diode":("D","diode",["ANODE","CATHODE"]),"resistor":("R","resistor",["A","B"]),
+        "fan":("M","motor",["V+","GND","CONTROL"]),"small_dc_motor":("M","motor",["V+","GND","CONTROL"]),"small_dc_pump":("M","motor",["V+","GND","CONTROL"]),"water delivery":("M","motor",["V+","GND","CONTROL"]),"indicator":("A","generic_actuator",["V+","GND","CONTROL"]),
         "servo":("M","servo",["PWM","V+","GND"]),"low_voltage_power_source":("BT","power_source",["V+","GND"]),"system power":("BT","power_source",["V+","GND"]),
     }
     counts={};circuit_components=[];references={}
@@ -53,7 +54,8 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
         if not category and electrical_ports: category=("X","generic_module",["VCC","GND","CONTROL","OUT","SIGNAL"])
         if not category: continue
         prefix,kind,pins=category;counts[prefix]=counts.get(prefix,0)+1;ref=f"{prefix}{counts[prefix]}";references[entity.id]=ref
-        circuit_components.append({"reference":ref,"semanticId":entity.id,"kind":kind,"pins":pins})
+        circuit_components.append({"reference":ref,"semanticId":entity.id,"kind":kind,"pins":pins,"displayName":entity.name,
+            "componentDefinitionId":entity.metadata.get("parameters",{}).get("component_definition_id")})
     # Circuit topology is compiled exclusively from first-class graph nets.
     if not electrical_nets(graph):
         materialize_electrical_nets(graph)  # migration path for persisted pre-net graphs
@@ -64,7 +66,10 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
         "power_source":{"power":"V+","5v":"V+","ground":"GND"},
         "generic_sensor":{"power":"VCC","vcc":"VCC","ground":"GND","gnd":"GND","signal":"SIGNAL"},
         "generic_actuator":{"power":"V+","power+":"V+","ground":"GND","signal":"CONTROL"},
+        "motor":{"power":"V+","power+":"V+","ground":"GND","signal":"CONTROL","load-output":"V+"},
         "generic_module":{"power":"VCC","ground":"GND","signal":"SIGNAL","load-output":"OUT"},
+        "mosfet":{"power":"VCC","ground":"GND","signal":"SIGNAL","load-output":"OUT"},
+        "diode":{"anode":"ANODE","cathode":"CATHODE"},"resistor":{"terminal-a":"A","terminal-b":"B"},
     }
     by_reference={item["reference"]:item for item in circuit_components}
     for net in electrical_nets(graph):
