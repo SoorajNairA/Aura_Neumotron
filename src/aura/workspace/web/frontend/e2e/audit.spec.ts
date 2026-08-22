@@ -21,10 +21,10 @@ async function projectRoutes(page:Page,delayA=800){
 
 test("late old-project artifact cannot overwrite the active scene or schematic",async({page})=>{
  await projectRoutes(page);await page.goto("/?projectId=project-a");
- await expect(page.getByText("project-a",{exact:true})).toBeVisible();
+ await expect(page.getByRole("button",{name:/PROJECT project-a/i})).toBeVisible();
  await page.getByRole("button",{name:/project-a/i}).first().click();
  await page.getByTestId("projects-panel").getByRole("button",{name:/build project-b system/i}).click();
- await expect(page.getByText("project-b",{exact:true})).toBeVisible();
+ await expect(page.getByRole("button",{name:/PROJECT project-b/i})).toBeVisible();
  await page.getByRole("button",{name:"SCHEMATIC"}).click();
  await page.waitForTimeout(1000);
  const metrics=await page.evaluate(()=>(window as any).__auraSceneMetrics());
@@ -35,7 +35,7 @@ test("late old-project artifact cannot overwrite the active scene or schematic",
 
 test("returning to welcome invalidates late project hydration",async({page})=>{
  await projectRoutes(page);await page.goto("/?projectId=project-a");
- await expect(page.getByText("project-a",{exact:true})).toBeVisible();
+ await expect(page.getByRole("button",{name:/PROJECT project-a/i})).toBeVisible();
  await page.getByRole("button",{name:"AURA"}).click();
  await expect(page.getByText("What do you want to build?")).toBeVisible();
  await page.waitForTimeout(1000);
@@ -44,13 +44,13 @@ test("returning to welcome invalidates late project hydration",async({page})=>{
 });
 
 test("fifty project switches and twenty view cycles retain one bounded renderer",async({page})=>{
- await projectRoutes(page,0);await page.goto("/?projectId=project-a");await expect(page.getByText("project-a",{exact:true})).toBeVisible();
+ await projectRoutes(page,0);await page.goto("/?projectId=project-a");await expect(page.getByRole("button",{name:/PROJECT project-a/i})).toBeVisible();
  const baseline=await page.evaluate(()=>(window as any).__auraSceneMetrics());
  for(let index=0;index<50;index++){
   const next=index%2?"project-a":"project-b";
-  await page.getByRole("button",{name:/project-[ab] PROJECT/i}).click();
+  await page.getByRole("button",{name:/PROJECT project-[ab]/i}).click();
   await page.getByTestId("projects-panel").getByRole("button",{name:new RegExp(`build ${next} system`,"i")}).click();
-  await expect(page.getByText(next,{exact:true})).toBeVisible();
+  await expect(page.getByRole("button",{name:new RegExp(`PROJECT ${next}`,"i")})).toBeVisible();
  }
  for(let index=0;index<20;index++)for(const mode of ["SCHEMATIC","SPLIT","ASSEMBLY"])await page.getByRole("button",{name:mode,exact:true}).click();
  await page.waitForTimeout(500);const metrics=await page.evaluate(()=>(window as any).__auraSceneMetrics());
@@ -66,15 +66,15 @@ test("an old-project reconnect timer cannot reopen its socket after a switch",as
   }
   ;(window as any).WebSocket=AuditSocket;(window as any).__auditSockets=AuditSocket.instances;
  });
- await projectRoutes(page,0);await page.goto("/?projectId=project-a");await expect(page.getByText("project-a",{exact:true})).toBeVisible();
+ await projectRoutes(page,0);await page.goto("/?projectId=project-a");await expect(page.getByRole("button",{name:/PROJECT project-a/i})).toBeVisible();
  await page.evaluate(()=>{const socket=(window as any).__auditSockets[0];socket.onclose?.()});
- await page.getByRole("button",{name:/project-a PROJECT/i}).click();await page.getByTestId("projects-panel").getByRole("button",{name:/build project-b system/i}).click();await expect(page.getByText("project-b",{exact:true})).toBeVisible();
+ await page.getByRole("button",{name:/PROJECT project-a/i}).click();await page.getByTestId("projects-panel").getByRole("button",{name:/build project-b system/i}).click();await expect(page.getByRole("button",{name:/PROJECT project-b/i})).toBeVisible();
  await page.waitForTimeout(2300);const urls=await page.evaluate(()=>(window as any).__auditSockets.map((socket:any)=>socket.url));
  expect(urls).toHaveLength(2);expect(urls[0]).toContain("project-a");expect(urls[1]).toContain("project-b");
 });
 
 test("WebGL context loss is visible and restoration is reported",async({page})=>{
- await projectRoutes(page,0);await page.goto("/?projectId=project-a");await expect(page.getByText("project-a",{exact:true})).toBeVisible();
+ await projectRoutes(page,0);await page.goto("/?projectId=project-a");await expect(page.getByRole("button",{name:/PROJECT project-a/i})).toBeVisible();
  await page.locator("canvas").dispatchEvent("webglcontextlost");await expect(page.locator(".narration-card")).toContainText("3D representation interrupted");
  await page.locator("canvas").dispatchEvent("webglcontextrestored");await expect(page.locator(".narration-card")).toContainText("3D renderer restored");
 });

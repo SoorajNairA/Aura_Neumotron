@@ -21,6 +21,6 @@ export class SelectionStore {
   hover(semanticId:string|null){this.state={...this.state,hoveredSemanticId:semanticId}}
   focus(ids:string[]){this.state={...this.state,auraFocusSemanticIds:[...new Set(ids)]}}
   reset(){this.state={selection:null,selectedSemanticId:null,hoveredSemanticId:null,auraFocusSemanticIds:[]}}
-  subscribe(listener:(state:SelectionState,event:SelectionEvent)=>void){this.listeners.add(listener);return()=>this.listeners.delete(listener)}
+  subscribe(listener:(state:SelectionState,event:SelectionEvent)=>void){this.listeners.add(listener);return()=>{this.listeners.delete(listener)}}
   private emit(event:SelectionEvent){for(const listener of this.listeners)listener(this.state,event)}
 }
