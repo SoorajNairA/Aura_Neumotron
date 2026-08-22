@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import replace
 from hashlib import sha256
-from uuid import uuid4
 
-from aura.engineering_graph.model import EngineeringEntity, EntityKind
-from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation
+from aura.engineering_graph.electrical import electrical_nets, materialize_electrical_nets
+from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
+from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation, apply_patch
 from aura.engineering_graph.interfaces import component_interfaces
 from aura.planner.schemas import ProjectPlan
 
@@ -13,6 +14,7 @@ from .catalogue import CATALOGUE, CATALOGUE_VERSION, evidence_records, search
 from .evidence import EvidenceKind
 from .results import VerificationDecision, VerificationFinding, VerificationResult, VerificationState
 from .plausibility import evaluate_plausibility
+from .graph_rules import evaluate_graph
 from .units import convert, in_range
 
 
@@ -238,13 +240,17 @@ class VerificationService:
             add("catalogue-properties",VerificationState.SOURCE_VERIFIED if authoritative else VerificationState.ESTIMATED,"info" if authoritative else "warning",f"Authoritative properties available from {definition.manufacturer} {definition.part_number}." if authoritative else f"{definition.part_number} uses a bounded curated engineering assumption.",(c.id,),evidence_ids=definition.evidence_ids,dependency_ids=(c.id,),source_versions={eid:"curated-record-v1" for eid in definition.evidence_ids})
 
         evaluate_plausibility(plan, add)
+        candidate=self._with_authoritative_nets(apply_patch(EngineeringGraph(project.id),plan.patch))
+        graph_result=self.verify_graph(candidate)
+        existing={(item.check,item.entity_ids) for item in findings}
+        findings.extend(item for item in graph_result.findings if (item.check,item.entity_ids) not in existing)
         findings.sort(key=lambda item: (
             {"critical": 0, "warning": 1, "info": 2}.get(item.severity, 3),
             item.check, item.entity_ids, item.id,
         ))
 
         critical=[x for x in findings if x.blocking or (x.severity=="critical" and x.state==VerificationState.FAILED)]
-        if critical: return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,tuple(x.message for x in critical),None,tuple(findings))
+        if critical: return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,tuple(x.message for x in critical),None,tuple(findings),self._confidence(tuple(findings)))
         project_id=next(e.id for e in plan.entities if e.kind==EntityKind.PROJECT); operations=[]
         for op in plan.patch.operations:
             if op.operation==PatchOperation.ADD_ENTITY and op.entity:
@@ -266,7 +272,47 @@ class VerificationService:
         patch=replace(plan.patch,operations=tuple(operations))
         limited=any(x.severity=="warning" or x.state in {VerificationState.ESTIMATED,VerificationState.CONCEPTUAL,VerificationState.STALE,VerificationState.UNSUPPORTED} for x in findings)
         overall=VerificationState.ESTIMATED if limited else VerificationState.CROSS_CHECKED
-        return VerificationResult(VerificationDecision.MODIFY,overall,("Evidence and deterministic verification completed.",),patch,tuple(findings))
+        return VerificationResult(VerificationDecision.MODIFY,overall,("Evidence and deterministic verification completed.",),patch,tuple(findings),self._confidence(tuple(findings)))
+
+    def verify_graph(self, graph: EngineeringGraph) -> VerificationResult:
+        """Purely verify an arbitrary complete candidate graph.
+
+        Graph-owned electrical nets are authoritative when present. The input
+        graph, its metadata, nets, evidence, and revisions are never mutated.
+        """
+        try: graph.validate()
+        except ValueError as exc:
+            finding=self._finding("GRAPH_INVALID",VerificationState.FAILED,"critical",str(exc),(graph.project_id,),category="graph",blocking=True)
+            return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,(str(exc),),None,(finding,),self._confidence((finding,)))
+        candidate=self._with_authoritative_nets(deepcopy(graph))
+        findings=[];revision=len(graph.revisions)
+        def add(check,state,severity,message,ids,**kwargs):
+            findings.append(self._finding(check,state,severity,message,tuple(ids),revision=revision,**kwargs))
+        evaluate_graph(candidate,add)
+        findings.sort(key=lambda item: ({"critical":0,"warning":1,"info":2}.get(item.severity,3),item.check,item.entity_ids,item.id))
+        blocking=[item for item in findings if item.blocking or (item.severity=="critical" and item.state is VerificationState.FAILED)]
+        limited=any(item.severity=="warning" or item.state in {VerificationState.ESTIMATED,VerificationState.CONCEPTUAL,VerificationState.STALE,VerificationState.UNSUPPORTED} for item in findings)
+        state=VerificationState.FAILED if blocking else VerificationState.ESTIMATED if limited else VerificationState.CROSS_CHECKED
+        decision=VerificationDecision.REJECT if blocking else VerificationDecision.ACCEPT
+        reasons=tuple(item.message for item in blocking) or ("Complete Engineering Graph verification passed.",)
+        return VerificationResult(decision,state,reasons,None,tuple(findings),self._confidence(tuple(findings)))
+
+    @staticmethod
+    def _confidence(findings: tuple[VerificationFinding,...]) -> dict[str,int]:
+        return {
+            "blockingFailures":sum(item.blocking for item in findings),
+            "warnings":sum(item.severity=="warning" for item in findings),
+            "criticalConceptualProperties":sum(item.category=="evidence" and item.state is VerificationState.CONCEPTUAL for item in findings),
+            "criticalUnresolvedProperties":sum(item.check=="COMPONENT_CRITICAL_UNRESOLVED" for item in findings),
+            "staleEvidence":sum(item.state is VerificationState.STALE for item in findings),
+            "conflictedEvidence":sum(item.check=="EVIDENCE_PROPERTY_CONFLICT" for item in findings),
+        }
+
+    @staticmethod
+    def _with_authoritative_nets(graph: EngineeringGraph) -> EngineeringGraph:
+        # Persisted/candidate graph nets are graph truth. Older plan-derived
+        # graphs receive deterministic materialized nets as a compatibility fallback.
+        return graph if electrical_nets(graph) else materialize_electrical_nets(graph)
 
     @staticmethod
     def _finding(check,state,severity,message,ids,revision=1,**kwargs):
@@ -276,8 +322,8 @@ class VerificationService:
         finding_id=f"verification-{check.lower().replace('_','-')}-{sha256(fingerprint.encode()).hexdigest()[:10]}"
         return VerificationFinding(finding_id,check,state,severity,message,ids,revision=revision,**kwargs)
 
-    def verify_modification(self, graph, patch: GraphPatch) -> VerificationResult:
-        affected={x.target_id for x in patch.operations if x.target_id}; operations=[]; stale=[]; attached=()
+    def verify_modification(self, graph: EngineeringGraph, patch: GraphPatch) -> VerificationResult:
+        affected={x.target_id for x in patch.operations if x.target_id};operations=[];stale=[];attached=()
         for operation in patch.operations:
             exact=operation.changes.get("metadata",{}).get("component_definition_id") if operation.changes else None
             if exact:
@@ -286,14 +332,27 @@ class VerificationService:
                 attached=definition.evidence_ids
                 operation=replace(operation,changes=dict(operation.changes)|{"source_refs":attached,"verification_status":VerificationState.SOURCE_VERIFIED.value})
             operations.append(operation)
+        candidate_patch=replace(patch,operations=tuple(operations))
+        try: candidate=self._with_authoritative_nets(apply_patch(graph,candidate_patch))
+        except ValueError as exc: return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,(str(exc),),None)
+        verified=self.verify_graph(candidate)
+        if not verified.accepted:
+            return VerificationResult(VerificationDecision.REJECT,verified.state,verified.reasons,None,verified.findings,verified.confidence_ingredients)
         for result in graph.find(kind=EntityKind.VERIFICATION_RESULT):
             dependencies=set(result.metadata.get("dependencyIds",result.metadata.get("entity_ids",[])))
             if dependencies & affected:
                 operations.append(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=result.id,changes={"verification_status":VerificationState.STALE.value,"metadata":dict(result.metadata)|{"status":"stale"}})); stale.append(result.id)
+        for evidence in graph.find(kind=EntityKind.EVIDENCE):
+            targets=set(evidence.metadata.get("appliesTo",evidence.metadata.get("applies_to",())))
+            if targets & affected and evidence.id not in attached:
+                operations.append(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=evidence.id,changes={"verification_status":VerificationState.STALE.value,"metadata":dict(evidence.metadata)|{"status":"stale"}}))
         for evidence in evidence_records():
             if evidence.evidence_id in attached and evidence.evidence_id not in graph.entities:
                 record=evidence.for_targets(*affected)
                 operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=EngineeringEntity(record.evidence_id,EntityKind.EVIDENCE,record.title,graph.project_id,record.to_dict(),verification_status=VerificationState.SOURCE_VERIFIED.value)))
-        finding=VerificationFinding("verification-mosfet-update" if "verification-mosfet-update" not in graph.entities else f"verification-modification-{uuid4().hex[:10]}","driver-update",VerificationState.ESTIMATED,"warning","Modified driver values require implementation confirmation.",tuple(affected),revision=len(graph.revisions)+1,machine_result={"staleFindings":stale})
-        operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=EngineeringEntity(finding.id,EntityKind.VERIFICATION_RESULT,finding.message,graph.project_id,finding.to_dict(),verification_status=finding.state.value)))
-        return VerificationResult(VerificationDecision.MODIFY,VerificationState.ESTIMATED,("Affected evidence applications were invalidated and bounded checks reran.",),replace(patch,operations=tuple(operations)),(finding,))
+        for finding in verified.findings:
+            entity=EngineeringEntity(finding.id,EntityKind.VERIFICATION_RESULT,finding.message,graph.project_id,finding.to_dict(),source_refs=finding.evidence_ids,verification_status=finding.state.value)
+            if finding.id in graph.entities:
+                operations.append(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=finding.id,changes={"name":finding.message,"metadata":finding.to_dict(),"source_refs":finding.evidence_ids,"verification_status":finding.state.value}))
+            else: operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=entity))
+        return VerificationResult(VerificationDecision.MODIFY,verified.state,("The complete candidate Engineering Graph passed re-verification.",),replace(patch,operations=tuple(operations)),verified.findings,verified.confidence_ingredients)
