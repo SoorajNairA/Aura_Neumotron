@@ -96,23 +96,33 @@ class PlannerService:
         if "temperature" in text or "thermal" in text or "warm" in text: require("temperature-feedback","Temperature feedback",("feedback_temperature",))
         if "drawer" in text and any(word in text for word in ("detect","opened","open state")): require("open-state-feedback","Open-state feedback",("feedback_open_state",))
         if "light" in text and any(word in text for word in ("turn on","turns on","output","illuminate")): require("light-output","Light output",("light_output",))
+        directional_light=("light" in text and any(word in text for word in ("brightest","direction","track","point toward")))
+        if directional_light: require("directional-light-feedback","Directional light feedback",("feedback_light",),quantity=4)
+        elif any(word in text for word in ("bright","illumination","light sensor")): require("light-feedback","Light feedback",("feedback_light",))
+        if "soil" in text or "moisture" in text: require("soil-feedback","Soil moisture feedback",("feedback_soil",))
 
         families={"controller":1,"power":1}
         def include(family:str,count:int=1)->None: families[family]=max(families.get(family,0),count)
         # Reusable objective-to-role rules.  None selects a complete named project.
         if any(word in text for word in ("warm","temperature","thermal")): include("temperature-sensor")
-        if any(word in text for word in ("bright","illumination")): include("light-sensor")
+        if any(word in text for word in ("bright","illumination","light sensor","ldr","bh1750")):
+            include("light-sensor",4 if directional_light else 1)
         if any(word in text for word in ("humidity","pressure","weather","environment")): include("environmental-sensor")
         if any(word in text for word in ("distance","range")): include("distance-sensor")
         if any(word in text for word in ("airflow","fan","ventilation")): include("fan");include("driver")
         if any(word in text for word in ("water","liquid","soil","pump","fluid","irrigation")): include("container");include("tube");include("pump");include("driver");include("enclosure")
+        if "soil" in text or "moisture" in text: include("soil-sensor")
         if any(word in text for word in ("dispense","dispensing","food","portion")): include("container");include("servo");include("dispensing-mechanism");include("mounting-plate")
         if any(re.search(rf"\b{re.escape(word)}\b",text) for word in ("lid","flap","shade")): include("lid");include("hinge");include("servo");include("mounting-plate")
         if "drawer" in text: include("drawer");include("open-state-sensor")
         if "light" in text and any(word in text for word in ("turn on","turns on","output","illuminate")): include("indicator")
+        if "lamp" in text: include("indicator")
+        if "bare relay" in text:
+            include("bare-relay");include("driver");include("flyback-diode")
+        elif "relay" in text: include("relay-module")
         if "conveyor" in text or "belt" in text: include("conveyor");include("motor");include("driver");include("support")
         if mobile_drive:
-            wheel_count=requested_counts.get("drive-wheel",2);include("chassis");include("drive-wheel",wheel_count);include("motor",wheel_count if "independent" in text else 1);include("motor-driver",wheel_count if "independent" in text else 1)
+            wheel_count=requested_counts.get("drive-wheel",2);include("chassis");include("drive-wheel",wheel_count);include("motor",wheel_count);include("motor-driver",wheel_count if "independent" in text else 1)
         if any(re.search(rf"\b{re.escape(word)}\b", text) or re.search(rf"\b{re.escape(word)}\b", planner_labels) for word in ("remote","wireless","receiver","bluetooth")): include("wireless-control")
         if any(word in text or word in planner_labels for word in ("enclosure","housing")): include("enclosure")
         if "camera" in text: include("camera-platform")
@@ -132,21 +142,27 @@ class PlannerService:
         for family,count in requested_counts.items(): include(family,count)
         if sliding_system:
             include("sliding-panel");include("linear-mechanism");include("frame")
+        if directional_light: include("resistor",4)
 
         specs={
-          "controller":("Controller board","microcontroller_board","electronics",{"logic_voltage_v":3.3,"gpio_max_current_ma":12,"functional_roles":["controller"],"resolution_quality":"EXACT"},(52,28,8)),
+          "controller":("ESP32 DevKit","microcontroller_board","electronics",{"logic_voltage_v":3.3,"gpio_max_current_ma":12,"functional_roles":["controller"],"resolution_quality":"EXACT","visual_template":"esp32_devkit"},(52,28,8)),
           "power":("Low-voltage power source","low_voltage_power_source","power",{"voltage_v":5.0,"available_current_a":max(3.0,families.get("servo",0)*0.8+families.get("motor",0)*0.6+0.5),"mains_exposed":False,"functional_roles":["power"],"resolution_quality":"COMPATIBLE_GENERIC"},(48,30,18)),
           "enclosure":("Protective enclosure","enclosure","structure",{"contains":["component-controller"],"waterproofing":"splash-resistant" if "tank" in text else "basic","functional_roles":["support"],"resolution_quality":"COMPATIBLE_GENERIC"},(120,90,55)),
           "temperature-sensor":("Temperature sensor","temperature_sensor","sensor",{"supply_voltage_v":3.3,"signal_voltage_v":3.3,"threshold_c":26,"functional_roles":["feedback_temperature"],"measures":["temperature"],"resolution_quality":"EXACT"},(22,16,6)),
           "light-sensor":("Ambient light sensor","light_sensor","sensor",{"supply_voltage_v":3.3,"signal_voltage_v":3.3,"functional_roles":["feedback_light"],"measures":["light"],"resolution_quality":"COMPATIBLE_GENERIC"},(22,16,6)),
+          "soil-sensor":("Capacitive soil moisture sensor","soil_moisture_sensor","sensor",{"supply_voltage_v":3.3,"signal_voltage_v":3.3,"functional_roles":["feedback_soil"],"measures":["soil_moisture"],"resolution_quality":"EXACT","visual_template":"soil_probe"},(23,98,4)),
           "environmental-sensor":("Environmental sensor","environmental_sensor","sensor",{"supply_voltage_v":3.3,"measurements":["temperature","humidity","pressure"],"functional_roles":["feedback_environment"],"resolution_quality":"EXACT"},(24,18,6)),
           "distance-sensor":("Generic distance sensor","distance_sensor","sensor",{"supply_voltage_v":5.0,"functional_roles":["feedback_distance"],"measures":["distance"],"resolution_quality":"COMPATIBLE_GENERIC"},(45,22,18)),
           "position-sensor":("Conceptual position sensor","conceptual_sensor","sensor",{"supply_voltage_v":5.0,"signal_voltage_v":3.3,"functional_roles":["feedback_position"],"measures":["position"],"resolution_quality":"CONCEPTUAL","research_required":True},(35,24,12)),
           "open-state-sensor":("Conceptual open-state sensor","conceptual_sensor","sensor",{"supply_voltage_v":5.0,"signal_voltage_v":3.3,"functional_roles":["feedback_open_state"],"measures":["open_state"],"resolution_quality":"CONCEPTUAL"},(24,18,8)),
-          "driver":("Logic-level MOSFET driver","mosfet_driver","electronics",{"logic_voltage_v":3.3,"load_voltage_v":5.0,"max_current_a":3.0,"flyback_protection":True,"functional_roles":["actuator_driver"],"resolution_quality":"EXACT"},(32,24,8)),
-          "motor-driver":("Generic motor driver","motor_driver","electronics",{"logic_voltage_v":3.3,"load_voltage_v":5.0,"max_current_a":1.2,"flyback_protection":True,"functional_roles":["actuator_driver"],"resolution_quality":"COMPATIBLE_GENERIC"},(32,24,8)),
+          "driver":("Logic-level N-channel MOSFET switch","mosfet_driver","electronics",{"logic_voltage_v":3.3,"logic_voltage_min_v":2.5,"logic_voltage_max_v":5.0,"load_voltage_v":5.0,"max_current_a":3.0,"flyback_protection":False,"protection_required":True,"functional_roles":["actuator_driver"],"resolution_quality":"EXACT","visual_template":"mosfet_switch"},(32,24,8)),
+          "motor-driver":("Generic motor driver","motor_driver","electronics",{"logic_voltage_v":3.3,"logic_voltage_min_v":2.7,"logic_voltage_max_v":5.5,"load_voltage_v":5.0,"max_current_a":1.2,"flyback_protection":True,"functional_roles":["actuator_driver"],"resolution_quality":"COMPATIBLE_GENERIC"},(32,24,8)),
+          "relay-module":("5 V relay module","relay_module","electronics",{"logic_voltage_v":3.3,"logic_voltage_min_v":3.3,"logic_voltage_max_v":5.0,"load_voltage_v":5.0,"max_current_a":5.0,"flyback_protection":True,"integrated_driver":True,"functional_roles":["actuator_driver","switching"],"resolution_quality":"EXACT","visual_template":"relay_module"},(50,26,18)),
+          "bare-relay":("5 V bare relay","bare_relay","electronics",{"voltage_v":5.0,"current_a":0.08,"inductive_load":True,"flyback_protection":False,"protection_required":True,"integrated_driver":False,"functional_roles":["switching"],"resolution_quality":"EXACT","visual_template":"bare_relay"},(20,15,15)),
+          "flyback-diode":("D1 Flyback Diode","flyback_diode","electronics",{"functional_roles":["inductive_protection"],"resolution_quality":"EXACT","visual_template":"axial_diode"},(10,3,3)),
+          "resistor":("LDR divider resistor","resistor","electronics",{"functional_roles":["signal_conditioning"],"resistance_ohm":10000,"resolution_quality":"COMPATIBLE_GENERIC","visual_template":"axial_resistor"},(7,3,3)),
           "fan":("Desk fan","fan","actuator",{"voltage_v":5.0,"current_a":0.5,"inductive_load":True,"functional_roles":["airflow_output"],"resolution_quality":"EXACT"},(90,30,90)),
-          "servo":("Small servo","servo","actuator",{"voltage_v":5.0,"current_a":0.8,"inductive_load":False,"functional_roles":["controlled_motion"],"controlled_dof":1,"resolution_quality":"EXACT"},(40,20,38)),
+          "servo":("SG90 Servo","servo","actuator",{"voltage_v":5.0,"current_a":0.65,"inductive_load":False,"functional_roles":["controlled_motion"],"controlled_dof":1,"resolution_quality":"EXACT","visual_template":"sg90"},(23,12,29)),
           "motor":("Small DC motor","small_dc_motor","actuator",{"voltage_v":5.0,"current_a":0.6,"inductive_load":True,"functional_roles":["controlled_motion","conveyor_drive"],"controlled_dof":1,"resolution_quality":"COMPATIBLE_GENERIC"},(30,45,30)),
           "chassis":("Structural chassis","mounting_plate","structure",{"functional_roles":["support"],"resolution_quality":"CONCEPTUAL"},(180,110,18)),
           "drive-wheel":("Drive wheel","drive_wheel","mechanical",{"functional_roles":["moving_body","drive_output"],"resolution_quality":"CONCEPTUAL"},(52,52,18)),
@@ -172,7 +188,25 @@ class PlannerService:
           "tube":("Fluid tube","tube","mechanical",{"resolution_quality":"CONCEPTUAL"},(10,150,10)),
           "pump":("Low-voltage pump","small_dc_pump","actuator",{"voltage_v":5.0,"current_a":0.8,"inductive_load":True,"functional_roles":["fluid_drive"],"resolution_quality":"COMPATIBLE_GENERIC"},(40,60,40)),
         }
-        curated={"controller":"esp32-devkit-v1","temperature-sensor":"bme280-i2c-module","environmental-sensor":"bme280-breakout","distance-sensor":"vl53l0x-module","fan":"dc-fan-5v","servo":"sg90-servo","driver":"logic-mosfet-module","motor-driver":"drv8833-module"}
+        curated={"controller":"esp32-devkit-v1","temperature-sensor":"bme280-i2c-module","environmental-sensor":"bme280-breakout","distance-sensor":"vl53l0x-module","soil-sensor":"capacitive-soil-v1","fan":"dc-fan-5v","servo":"sg90-servo","driver":"logic-mosfet-module","motor-driver":"drv8833-module","relay-module":"relay-module-5v","bare-relay":"bare-relay-5v","flyback-diode":"1n4007-diode","resistor":"resistor-10k"}
+        identity_overrides:dict[str,list[dict[str,Any]]]={}
+        def identity(family:str,name:str,definition:str,visual:str,dimensions:tuple[float,float,float],quality:str="EXACT",parameters:dict[str,Any]|None=None):
+            identity_overrides.setdefault(family,[]).append({"name":name,"definition":definition,"visual":visual,"dimensions":dimensions,"quality":quality,"parameters":parameters or {}})
+        named_text=f"{intent_text} {planner_labels}".lower()
+        if "arduino nano" in named_text: identity("controller","Arduino Nano","arduino-nano-v3","arduino_nano",(45,18,8),parameters={"logic_voltage_v":5.0,"gpio_max_current_ma":20})
+        elif "arduino uno" in named_text or re.search(r"\barduino\b",named_text): identity("controller","Arduino Uno","arduino-uno-r4","arduino_uno",(69,53,15),"EXACT" if "uno" in named_text else "COMPATIBLE_GENERIC",{"logic_voltage_v":5.0,"gpio_max_current_ma":20})
+        elif "esp8266" in named_text or "nodemcu" in named_text: identity("controller","ESP8266 NodeMCU","esp8266-nodemcu-v3","nodemcu",(31,58,13),parameters={"logic_voltage_v":3.3})
+        elif "raspberry pi pico" in named_text or re.search(r"\bpico\b",named_text): identity("controller","Raspberry Pi Pico","raspberry-pi-pico","pico",(51,21,4),parameters={"logic_voltage_v":3.3})
+        elif "esp32" in named_text: identity("controller","ESP32 DevKit","esp32-devkit-v1","esp32_devkit",(28,52,12),parameters={"logic_voltage_v":3.3})
+        if "mg996" in named_text:
+            for _ in range(families.get("servo",1)): identity("servo","MG996R Servo","mg996r-servo","mg996r",(41,20,43))
+        elif "sg90" in named_text:
+            for _ in range(families.get("servo",1)): identity("servo","SG90 Servo","sg90-servo","sg90",(23,12,29))
+        if "hc-sr04" in named_text or "hc sr04" in named_text: identity("distance-sensor","HC-SR04 Ultrasonic Sensor","hc-sr04-class","hc_sr04",(45,20,15))
+        if "bh1750" in named_text: identity("light-sensor","BH1750 Light Sensor","bh1750-module","bh1750",(18,13,4))
+        if directional_light:
+            identity_overrides["light-sensor"]=[]
+            for index in range(4): identity("light-sensor",f"LDR Direction Sensor {index+1}","photoresistor-module","ldr",(32,14,7))
         raw_trace=[];raw_counts={}
         for raw in request.components:
             resolved=self._resolve_component_intent(raw,objective_text)
@@ -195,7 +229,8 @@ class PlannerService:
             for trace in raw_trace:
                 if trace.get("normalizedFamily")=="motor-driver":
                     trace.update({"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"external motor driver is incompatible with the selected self-driven servo architecture"})
-        if families.get("fan") or families.get("pump"): include("driver",families.get("fan",0)+families.get("pump",0))
+        if families.get("fan") or families.get("pump"):
+            load_count=families.get("fan",0)+families.get("pump",0);include("driver",load_count);include("flyback-diode",load_count)
         if families.get("motor"): include("motor-driver",families["motor"])
         if families.get("motor") and not (families.get("fan") or families.get("pump")):
             families.pop("driver",None)
@@ -203,7 +238,7 @@ class PlannerService:
         actuator_families={"servo","motor","fan","pump"}
         support_families={"support","mounting-plate","chassis","frame","hinge","enclosure"}
         if needs_motion and not moving_families.intersection(families): include("mechanism")
-        if actuator_families.intersection(families) and not support_families.intersection(families): include("support")
+        if not support_families.intersection(families): include("support")
         if axis_count >= 3 and not {"controlled-platform","camera-platform","panel","tool-platform"}.intersection(families): include("tool-platform")
         order=list(families);roles=tuple(dict.fromkeys(specs[family][2] for family in order));subsystems=tuple(SubsystemSpec(f"subsystem-{role}",role.title(),role,"Deterministic semantic subsystem.") for role in roles)
         components=[];component_by_family={}
@@ -211,18 +246,23 @@ class PlannerService:
             name,kind,role,base_params,dims=specs[family];count=families[family]
             matching=[item for item in raw_trace if item.get("normalizedFamily")==family]
             for index in range(count):
-                suffix="" if count==1 else f"-{index+1}";cid=f"component-{family}{suffix}";params=dict(base_params)
+                override=(identity_overrides.get(family) or [None]*count)[min(index,len(identity_overrides.get(family) or [None])-1)]
+                component_name=override["name"] if override else name
+                component_dims=override["dimensions"] if override else dims
+                suffix="" if count==1 or (family in {"light-sensor","motor"} and index==0) else f"-{index+1}";cid=f"component-{family}{suffix}";params=dict(base_params)
                 if family in curated:
                     params["component_definition_id"]=curated[family]
                     params["component_definition_version"]="catalogue-v1"
+                if override:
+                    params.update(override["parameters"]);params.update({"component_definition_id":override["definition"],"component_definition_version":"catalogue-v1","resolution_quality":override["quality"],"visual_template":override["visual"],"requested_identity":override["name"]})
                 if index<len(matching):
                     params["planner_intent"]=matching[index]["plannerIntent"];params["resolution_quality"]=matching[index]["resolutionQuality"];params["resolution_reason"]=matching[index]["reason"]
                     if matching[index]["resolutionQuality"] != "EXACT":
                         params.pop("component_definition_id",None)
                         params.pop("component_definition_version",None)
                 else: params["planner_intent"]=name
-                physical=component_interfaces(kind,tuple(float(value) for value in dims),params);interface_names=tuple(dict.fromkeys(item.name for item in physical))
-                components.append(ComponentSpec(cid,name,kind,f"subsystem-{role}",f"{name} for the requested low-voltage system.",params,interface_names,{key:{"value":value,"unit":"mm"} for key,value in zip(("width","length","height"),dims)},assumption_refs=(f"assumption-{family}",)))
+                physical=component_interfaces(kind,tuple(float(value) for value in component_dims),params);interface_names=tuple(dict.fromkeys(item.name for item in physical))
+                components.append(ComponentSpec(cid,component_name,kind,f"subsystem-{role}",f"{component_name} for the requested low-voltage system.",params,interface_names,{key:{"value":value,"unit":"mm"} for key,value in zip(("width","length","height"),component_dims)},assumption_refs=(f"assumption-{family}",)))
                 component_by_family.setdefault(family,[]).append(cid)
         # Explicit axes remain graph semantics.  An actuator can advertise one
         # or more controlled axes, and a distinct driven body records which
@@ -256,6 +296,7 @@ class PlannerService:
                     controller_signal+=1;endpoint=(f"signal-{min(controller_signal,8)}","signal")
                 elif b in by_component and by_component[b].role in {"microcontroller_board","controller"}:
                     controller_signal+=1;endpoint=("signal",f"signal-{min(controller_signal,8)}")
+                if b in by_component and by_component[b].role=="resistor": endpoint=("signal","terminal-a")
             if kind=="mechanical" and a in by_component and b in by_component:
                 left=component_interfaces(by_component[a].role,tuple(float(x.get("value",1)) for x in by_component[a].dimensions.values()),by_component[a].parameters);right=component_interfaces(by_component[b].role,tuple(float(x.get("value",1)) for x in by_component[b].dimensions.values()),by_component[b].parameters)
                 # A downstream actuator body is fixed to the prior link.  Its
@@ -267,8 +308,10 @@ class PlannerService:
                 pair=next((pair for pair in (*preferred,*compatible) if f"{a}:{pair[0].name}" not in mechanical_interfaces_used and f"{b}:{pair[1].name}" not in mechanical_interfaces_used),None)
                 if pair:
                     endpoint=(pair[0].name,pair[1].name);mechanical_interfaces_used.update((f"{a}:{endpoint[0]}",f"{b}:{endpoint[1]}"))
-            if kind=="switched-power" and a in by_component and by_component[a].role in {"mosfet_driver","motor_driver","relay_module"}:
-                endpoint=("load-output","power")
+            if kind=="switched-power" and a in by_component and by_component[a].role in {"mosfet_driver","motor_driver","relay_module","bare_relay"}:
+                endpoint=("load-output","cathode" if by_component[b].role=="flyback_diode" else "power")
+            if kind=="ground" and a in by_component and by_component[a].role=="flyback_diode": endpoint=("anode","ground")
+            if kind=="ground" and a in by_component and by_component[a].role=="resistor": endpoint=("terminal-b","ground")
             if endpoint is None and kind!="mechanical" and a in by_component and b in by_component:
                 left=component_interfaces(by_component[a].role,tuple(float(x.get("value",1)) for x in by_component[a].dimensions.values()),by_component[a].parameters);right=component_interfaces(by_component[b].role,tuple(float(x.get("value",1)) for x in by_component[b].dimensions.values()),by_component[b].parameters)
                 endpoint=next(((x.name,y.name) for x in left for y in right if y.kind in x.compatible),("mechanical","mechanical"))
@@ -276,20 +319,33 @@ class PlannerService:
         controller=component_by_family["controller"][0];power=component_by_family["power"][0]
         sensors=[c.id for c in components if any(str(role).startswith("feedback_") for role in c.parameters.get("functional_roles",[]))]
         for sensor in sensors: connect(sensor,controller,"signal")
+        for index,resistor in enumerate(component_by_family.get("resistor",[])):
+            if sensors:
+                connect(sensors[min(index,len(sensors)-1)],resistor,"signal");connect(resistor,power,"ground")
         for remote in component_by_family.get("wireless-control",[]): connect(remote,controller,"signal")
-        drivers=component_by_family.get("driver",[])+component_by_family.get("motor-driver",[]);actuators=[c.id for c in components if "controlled_motion" in c.parameters.get("functional_roles",[]) or c.role in {"fan","small_dc_pump"}]
+        drivers=component_by_family.get("driver",[])+component_by_family.get("motor-driver",[])+component_by_family.get("relay-module",[]);actuators=[c.id for c in components if "controlled_motion" in c.parameters.get("functional_roles",[]) or c.role in {"fan","small_dc_pump","bare_relay"}]
         driven_index=0
         for actuator in actuators:
             externally_driven=drivers and by_component[actuator].role!="servo"
             driver=drivers[min(driven_index,len(drivers)-1)] if externally_driven else controller
             connect(driver,actuator,"switched-power" if externally_driven else "control")
             if externally_driven: driven_index+=1
-        for indicator in component_by_family.get("indicator",[]): connect(controller,indicator,"control")
+        relay_targets=set()
+        relay_switches=component_by_family.get("relay-module",[])+component_by_family.get("bare-relay",[])
+        if relay_switches and component_by_family.get("indicator"):
+            for index,indicator in enumerate(component_by_family["indicator"]):
+                relay=relay_switches[min(index,len(relay_switches)-1)]
+                connect(relay,indicator,"switched-power");relay_targets.add(indicator)
+        for indicator in component_by_family.get("indicator",[]):
+            if indicator not in relay_targets: connect(controller,indicator,"control")
         for driver in drivers: connect(controller,driver,"control")
-        driver_controlled={actuator for actuator in actuators if drivers and by_component[actuator].role!="servo"}
+        driver_controlled={actuator for actuator in actuators if drivers and by_component[actuator].role!="servo"}|relay_targets
         for target in sorted(item.id for item in components if item.id!=power and {"power","ground"}.issubset(item.interfaces)):
             if target not in driver_controlled: connect(power,target,"power")
             connect(power,target,"ground")
+        for index,diode in enumerate(component_by_family.get("flyback-diode",[])):
+            if drivers:
+                connect(drivers[min(index,len(drivers)-1)],diode,"switched-power");connect(diode,power,"ground")
         servos=component_by_family.get("servo",[]);mechanisms=component_by_family.get("mechanism",[]);platforms=component_by_family.get("controlled-platform",[])+component_by_family.get("camera-platform",[])+component_by_family.get("panel",[])+component_by_family.get("tool-platform",[])+component_by_family.get("conveyor",[])+component_by_family.get("lid",[])+component_by_family.get("dispensing-mechanism",[])
         mounts=component_by_family.get("mounting-plate",[])+component_by_family.get("support",[])+component_by_family.get("frame",[])
         if servos and mounts: connect(mounts[0],servos[0],"mechanical")
@@ -302,8 +358,10 @@ class PlannerService:
                 stage=mechanisms[min(index,len(mechanisms)-1)];connect(servo,stage,"mechanical")
                 if index+1<len(servos): connect(stage,servos[index+1],"mechanical")
             if platforms: connect(mechanisms[min(len(servos)-1,len(mechanisms)-1)],platforms[0],"mechanical")
+        elif servos and mechanisms:
+            connect(servos[0],mechanisms[0],"mechanical")
+            if platforms: connect(mechanisms[0],platforms[0],"mechanical")
         elif servos and platforms: connect(servos[0],platforms[0],"mechanical")
-        elif servos and mechanisms: connect(servos[0],mechanisms[0],"mechanical")
         if platforms and sensors: connect(platforms[0],sensors[0],"mechanical")
         if mounts:
             connect(mounts[0],controller,"mechanical")
@@ -370,7 +428,8 @@ class PlannerService:
         has_servo=any(component.role=="servo" for component in plan.components)
         has_inductive=any(component.role in {"small_dc_motor","small_dc_pump","fan"} for component in plan.components)
         has_driver=any(component.role in {"mosfet_driver","motor_driver","relay_module"} for component in plan.components)
-        if has_inductive and not has_driver and ({"direct-pump-gpio","missing-driver","ELEC_411","connection-endpoint"}&checks): additions.append("compatible motor driver")
+        if has_inductive and not has_driver and ({"direct-pump-gpio","missing-driver","ELEC_DRIVER_REQUIRED","ELEC_411","connection-endpoint"}&checks): additions.append("compatible motor driver")
+        if has_inductive and "ELEC_INDUCTIVE_PROTECTION_REQUIRED" in checks: additions.append("flyback diode")
         if has_motor and ({"MECH_301","connection-endpoint"}&checks): additions.extend(("structural chassis","drive wheel"))
         if has_servo and ({"MECH_301","MECH_302","MECH_310","MECH_311","MECH_312","connection-endpoint"}&checks): additions.extend(("structural support","driven mechanism"))
         if {"power-connection","common-ground","ELEC_411"}&checks: additions.append("low-voltage power supply")
@@ -402,10 +461,20 @@ class PlannerService:
     def _resolve_component_intent(intent:str,objective:str)->dict[str,str|None]:
         """Resolve a Planner label only when its functional language is retained."""
         label=re.sub(r"[_-]+"," ",intent.lower()).strip()
+        exact_named=(
+            (("arduino nano","arduino uno","esp32 devkit","esp8266","nodemcu","raspberry pi pico"),"controller"),
+            (("sg90","mg996r"),"servo"),(("hc sr04","hc-sr04"),"distance-sensor"),
+            (("bh1750","ldr","photoresistor"),"light-sensor"),(("soil moisture sensor",),"soil-sensor"),
+            (("l298n","tb6612","uln2003"),"motor-driver"),(("relay module",),"relay-module"),
+            (("flyback diode",),"flyback-diode"),
+        )
+        for names,family in exact_named:
+            if any(name in label for name in names):
+                return {"normalizedFamily":family,"resolutionQuality":"EXACT","reason":"explicit named hardware identity is preserved"}
         if ("tank" in label or "level" in label) and any(word in objective for word in ("position","balanc","track")) and not any(word in objective for word in ("tank","level")):
             return {"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"level sensing does not preserve the objective's position-feedback intent"}
         rules=(
-            (("arduino","nano"),"controller","COMPATIBLE_GENERIC"),(("controller","esp32","microcontroller"),"controller","EXACT"),(("power","battery","supply"),"power","EXACT"),
+            (("arduino",),"controller","COMPATIBLE_GENERIC"),(("controller","esp32","microcontroller"),"controller","EXACT"),(("power","battery","supply"),"power","EXACT"),
             (("servo",),"servo","EXACT"),(("temperature",),"temperature-sensor","EXACT"),(("ambient light","light sensor"),"light-sensor","COMPATIBLE_GENERIC"),
             (("humidity","pressure","environmental"),"environmental-sensor","EXACT"),(("distance","range","level sensor"),"distance-sensor","COMPATIBLE_GENERIC"),
             (("position","tracking","camera-based"),"position-sensor","CONCEPTUAL"),(("drawer","open-state","reed"),"open-state-sensor","CONCEPTUAL"),

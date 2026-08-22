@@ -19,8 +19,9 @@ FAMILY_DEFAULTS = {
     "environmental_sensor": "bme280-breakout", "soil_moisture_sensor": "capacitive-soil-v1",
     "distance_sensor": "vl53l0x-module", "fan": "dc-fan-5v", "small_dc_motor": "dc-motor-6v",
     "servo": "sg90-servo", "motor_driver": "drv8833-module", "mosfet_driver": "logic-mosfet-module",
-    "relay_module": "relay-module-5v", "low_voltage_power_source": "supply-usb-5v-2a",
+    "relay_module": "relay-module-5v", "bare_relay": "bare-relay-5v", "low_voltage_power_source": "supply-usb-5v-2a",
     "enclosure": "enclosure-100x120",
+    "flyback_diode": "1n4007-diode", "resistor": "resistor-10k",
 }
 
 
@@ -64,6 +65,9 @@ class VerificationService:
                 # Generic plans retain an explicit assumption; this candidate is used only for relevant sourced facts.
                 matches=search(family=family); resolved[c.id]=matches[0] if matches else None
                 findings.append(self._finding("generic-component",VerificationState.ESTIMATED,"warning",f"{c.name} is generic; exact operating values remain estimated.",(c.id,),dependency_ids=(c.id,),revision=revision))
+            requested=str(c.parameters.get("requested_identity","")).strip()
+            if requested and requested.casefold()!=c.name.strip().casefold():
+                findings.append(self._finding("IDENTITY_101",VerificationState.FAILED,"critical",f"Requested hardware identity {requested} was not preserved by {c.name}.",(c.id,),expected={"displayName":requested},actual={"displayName":c.name},revision=revision))
 
         def add(check,state,severity,message,ids,**kw): findings.append(self._finding(check,state,severity,message,tuple(ids),revision=revision,**kw))
         # The graph has to satisfy the semantic requirements that led to it, not
@@ -125,7 +129,7 @@ class VerificationService:
                     seen.add(target); pending.append(target)
             mechanical_reach[actuator.id]=seen
             driven=sorted((seen & moving)-{actuator.id})
-            if not driven:
+            if not driven and not any(finding.check=="MECH_301" for finding in findings):
                 add("MECH_301",VerificationState.FAILED,"critical",f"Actuator {actuator.name} is not mechanically connected to a required moving component.",(actuator.id,),actual={"mechanicalReach":sorted(seen)})
             supports={component_id for component_id,roles in role_index.items() if "support" in roles}
             if driven and supports and not seen & supports:
@@ -151,16 +155,21 @@ class VerificationService:
                 if actuator is not None and actuator.id not in controlled_targets:
                     add("MECH_312",VerificationState.FAILED,"critical",f"{label} has no controller relationship for {axis} actuator.",(requirement_id,actuator.id),expected={"axis":axis,"controlRelationship":True},actual={"controlledTargets":sorted(controlled_targets)})
         controllers=[c for c in components.values() if c.id=="component-esp32" or c.role=="microcontroller_board"]
-        loads=[c for c in components.values() if c.role in {"fan","small_dc_motor","small_dc_pump","servo"} or c.id=="component-pump"]
+        loads=[c for c in components.values() if c.role in {"fan","small_dc_motor","small_dc_pump","servo","bare_relay"} or c.id=="component-pump"]
         drivers=[c for c in components.values() if c.role in {"mosfet_driver","relay_module","motor_driver"} or c.id=="component-driver"]
         powers=[c for c in components.values() if c.role=="low_voltage_power_source" or c.id=="component-power"]
         direct=[x for x in connections if any({x.source_id,x.target_id}=={a.id,b.id} and x.connection_type in ({"power","switched-power"} if b.role=="servo" else {"control","power","switched-power"}) for a in controllers for b in loads if float(b.parameters.get("current_a",0))>.05)]
         if direct: add("direct-pump-gpio",VerificationState.FAILED,"critical","A high-current actuator cannot be driven directly from controller GPIO.",(direct[0].source_id,direct[0].target_id),machine_result={"rule":"load_current > gpio_current"})
         inductive=[x for x in loads if x.parameters.get("inductive_load") or x.role in {"fan","small_dc_motor","small_dc_pump"}]
-        if inductive and not drivers: add("missing-driver",VerificationState.FAILED,"warning","Inductive/high-current load has no driver.",(inductive[0].id,))
-        if drivers and inductive and not drivers[0].parameters.get("flyback_protection"):
-            strict=bool(drivers[0].parameters.get("protection_required"))
-            add("flyback",VerificationState.FAILED if strict else VerificationState.ESTIMATED,"critical" if strict else "warning","Inductive load requires confirmed flyback protection.",(drivers[0].id,inductive[0].id),dependency_ids=(drivers[0].id,inductive[0].id))
+        if inductive and not drivers:
+            add("missing-driver",VerificationState.CONCEPTUAL,"warning","An inductive/high-current load needs an external driver stage.",(inductive[0].id,))
+            add("ELEC_DRIVER_REQUIRED",VerificationState.FAILED,"critical","Inductive/high-current load has no driver stage.",(inductive[0].id,))
+        protection=[c for c in components.values() if c.role=="flyback_diode" or "inductive_protection" in role_index[c.id]]
+        requires_external_protection=any(bool(driver.parameters.get("protection_required")) for driver in drivers)
+        if drivers and inductive and requires_external_protection and not drivers[0].parameters.get("flyback_protection") and not protection:
+            add("ELEC_INDUCTIVE_PROTECTION_REQUIRED",VerificationState.FAILED,"critical","Inductive load requires a graph-owned flyback/protection component.",(drivers[0].id,inductive[0].id),dependency_ids=(drivers[0].id,inductive[0].id))
+        elif drivers and inductive and not drivers[0].parameters.get("flyback_protection") and not protection:
+            add("flyback",VerificationState.CONCEPTUAL,"warning","Confirm relay or driver suppression before implementation.",(drivers[0].id,inductive[0].id))
         types={x.connection_type for x in connections}
         if not ({"power","switched-power"}&types): add("power-connection",VerificationState.FAILED,"critical","Required power connection is missing.",(powers[0].id if powers else "component-power",))
         if "ground" not in types: add("common-ground",VerificationState.FAILED,"critical","Connected low-voltage modules require a common ground.",tuple(x.id for x in controllers+powers))
@@ -177,10 +186,11 @@ class VerificationService:
                 if connection.connection_type in {"power","ground","control","signal","switched-power","regulated-power"}:
                     connected_ports[connection.source_id].add(connection.source_interface)
                     connected_ports[connection.target_id].add(connection.target_interface)
+            switched_targets={connection.target_id for connection in connections if connection.connection_type=="switched-power"}
             for component in components.values():
                 roles=role_index[component.id]
                 expected={port for port in ("power","ground") if port in component.interfaces}
-                if ("feedback_" in " ".join(roles) or {"controlled_motion","light_output"} & roles) and "signal" in component.interfaces:
+                if ("feedback_" in " ".join(roles) or "controlled_motion" in roles or ("light_output" in roles and component.id not in switched_targets)) and "signal" in component.interfaces:
                     expected.add("signal")
                 if component.role in {"mosfet_driver","motor_driver","relay_module"} and "load-output" in component.interfaces:
                     expected.add("load-output")
@@ -191,7 +201,8 @@ class VerificationService:
                         expected={"ports":sorted(expected)},actual={"connectedPorts":sorted(connected_ports[component.id])})
         if drivers and controllers:
             dv=float(drivers[0].parameters.get("logic_voltage_v",3.3)); cv=float(controllers[0].parameters.get("logic_voltage_v",3.3))
-            add("logic-compatibility",VerificationState.CROSS_CHECKED if dv==cv else VerificationState.FAILED,"info" if dv==cv else "critical","Driver logic is compatible with controller logic." if dv==cv else "Driver logic is incompatible with controller logic.",(controllers[0].id,drivers[0].id),expected={"value":cv,"unit":"V"},actual={"value":dv,"unit":"V"},machine_result={"equal":dv==cv})
+            logic_min=float(drivers[0].parameters.get("logic_voltage_min_v",dv));logic_max=float(drivers[0].parameters.get("logic_voltage_max_v",dv));compatible=logic_min<=cv<=logic_max
+            add("logic-compatibility",VerificationState.CROSS_CHECKED if compatible else VerificationState.FAILED,"info" if compatible else "critical","Driver logic is compatible with controller logic." if compatible else "Driver logic is incompatible with controller logic.",(controllers[0].id,drivers[0].id),expected={"minimum":logic_min,"maximum":logic_max,"unit":"V"},actual={"value":cv,"unit":"V"},machine_result={"inRange":compatible})
         if powers:
             pv=float(powers[0].parameters.get("voltage_v",0)); capacity=float(powers[0].parameters.get("available_current_a",0)); total=0.; complete=True
             for load in loads:

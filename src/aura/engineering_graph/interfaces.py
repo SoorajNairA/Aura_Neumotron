@@ -28,6 +28,9 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
         "light_sensor": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")),
         "environmental_sensor": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")),
         "distance_sensor": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")),
+        "soil_moisture_sensor": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")),
+        "motion_sensor": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")),
+        "orientation_sensor": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")),
         "conceptual_sensor": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")),
         "indicator": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "control_input")),
         "fan": (("power", "electrical_power_in"), ("ground", "electrical_ground")),
@@ -35,6 +38,10 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
         "small_dc_pump": (("power", "electrical_power_in"), ("ground", "electrical_ground")),
         "mosfet_driver": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "control_input"), ("load-output", "electrical_power_out")),
         "motor_driver": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "control_input"), ("load-output", "electrical_power_out")),
+        "relay_module": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "control_input"), ("load-output", "electrical_power_out")),
+        "bare_relay": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("load-output", "electrical_power_out")),
+        "flyback_diode": (("anode", "passive_terminal"), ("cathode", "passive_terminal")),
+        "resistor": (("terminal-a", "passive_terminal"), ("terminal-b", "passive_terminal")),
         "wireless_module": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")),
     }
     electrical_ports = electrical.get(family, ())
@@ -45,7 +52,7 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
         # has a deterministic world-resolvable location for future wire routing.
         if family == "servo":
             position = (width / 2, -length / 2, -height * .25 + index * 2)
-        elif family in {"controller", "microcontroller_board", "mosfet_driver", "motor_driver", "wireless_module"}:
+        elif family in {"controller", "microcontroller_board", "mosfet_driver", "motor_driver", "relay_module", "bare_relay", "wireless_module"}:
             position = (-width / 2 + min(index, 4) * width / 4, -length / 2, height / 2)
         elif family in {"low_voltage_power_source", "system power"}:
             position = ((-1 if index else 1) * width * .22, -length / 2, height / 2)
@@ -119,7 +126,7 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
                 result.append(InterfaceDefinition(f"mount-face-{index}", "structural_face", (width * x, length * y, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)))
     elif family == "hinge":
         result.append(InterfaceDefinition("axis", "hinge_axis", (0, 0, 0), axis=(0, 1, 0), compatible=("rotating_input",)))
-    if family in {"controller", "microcontroller_board", "low_voltage_power_source", "system power", "temperature_sensor", "light_sensor", "environmental_sensor", "distance_sensor", "conceptual_sensor", "mosfet_driver", "motor_driver", "wireless_module", "indicator"}:
+    if family in {"controller", "microcontroller_board", "low_voltage_power_source", "system power", "temperature_sensor", "light_sensor", "environmental_sensor", "distance_sensor", "soil_moisture_sensor", "motion_sensor", "orientation_sensor", "conceptual_sensor", "mosfet_driver", "motor_driver", "relay_module", "bare_relay", "wireless_module", "indicator", "flyback_diode", "resistor"}:
         result.append(InterfaceDefinition("body-mount", "fixed_mount", (0, 0, -height / 2), axis=(0, 0, -1), compatible=("structural_face",)))
     return tuple(result)
 
