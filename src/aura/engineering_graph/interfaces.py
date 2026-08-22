@@ -124,6 +124,9 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
         if family in {"mounting_plate", "base", "structural_frame"}:
             for index, (x, y) in enumerate(((-.28, -.28), (-.28, .28), (.28, -.28), (.28, .28)), 1):
                 result.append(InterfaceDefinition(f"mount-face-{index}", "structural_face", (width * x, length * y, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)))
+        if family in {"mounting_plate", "base", "structural_frame"}:
+            for index, (x, y) in enumerate(((-.28, -.28), (-.28, .28), (.28, -.28), (.28, .28)), 1):
+                result.append(InterfaceDefinition(f"drive-mount-{index}", "structural_face", (width * x, length * y, -height / 2), axis=(0, 0, -1), compatible=("fixed_mount",)))
     elif family == "hinge":
         result.append(InterfaceDefinition("axis", "hinge_axis", (0, 0, 0), axis=(0, 1, 0), compatible=("rotating_input",)))
     if family in {"controller", "microcontroller_board", "low_voltage_power_source", "system power", "temperature_sensor", "light_sensor", "environmental_sensor", "distance_sensor", "soil_moisture_sensor", "motion_sensor", "orientation_sensor", "conceptual_sensor", "mosfet_driver", "motor_driver", "relay_module", "bare_relay", "wireless_module", "indicator", "flyback_diode", "resistor"}:

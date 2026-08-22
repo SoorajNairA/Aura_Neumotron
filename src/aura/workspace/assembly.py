@@ -37,6 +37,7 @@ class PhysicalPart:
             "verificationState":self.verification,"family":self.family,"functionalRoles":list(self.functional_roles),
             "transformSource":self.transform_source,"generatorFamily":self.generator_family,
             "representationClass":self.representation_class,"representationFeatures":list(_representation_features(self.family)),
+            "representationParameters":_representation_parameters(self.family,self.dimensions),
             "outputAxis":list(self.output_axis) if self.output_axis else None,"visualKind":self.visual_kind or self.family}
 
 
@@ -128,6 +129,8 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
                     source_axis=_rotate(rotations[source_owner],source.axis)
                     desired=source_axis if source.kind in {"rotating_output","hinge_axis","linear_output"} else tuple(-value for value in source_axis)
                     rotations[target_owner]=_from_to(target.axis,desired)
+                    if source.name.startswith("drive-mount-") and by_id[target_owner].family=="small_dc_motor" and source.position[1]>0:
+                        rotations[target_owner]=_quat_multiply(_axis_angle((0,0,1),radians(180)),rotations[target_owner])
                     if source.kind in {"rotating_output","hinge_axis"}:
                         angle=(18.,-24.,22.,-16.)[joint_pose_index%4];joint_pose_index+=1
                         rotations[target_owner]=_quat_multiply(_axis_angle(source_axis,radians(angle)),rotations[target_owner])
@@ -170,11 +173,19 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
         secondary_ids=[component_id for component_id in sorted(placement) if component_id not in primary_ids and placement[component_id]=="INDEPENDENT_LAYOUT"]
         cell_width=max((by_id[component_id].dimensions[0] for component_id in secondary_ids),default=45.0)+12.0
         cell_depth=max((by_id[component_id].dimensions[1] for component_id in secondary_ids),default=30.0)+12.0
+        host_layout=anchor.family in {"mounting_plate","base","structural_frame"} and any("drive_output" in part.functional_roles for part in parts)
         occupied_right=max((positions[component_id][0]+by_id[component_id].dimensions[0]/2 for component_id in placement if placement[component_id]!="INDEPENDENT_LAYOUT"),default=positions[anchor_id][0]+anchor.dimensions[0]/2)
         for component_id in sorted(placement):
             if component_id in primary_ids or placement[component_id]!="INDEPENDENT_LAYOUT": continue
             part=by_id[component_id];column=secondary_index%3;row=secondary_index//3;secondary_index+=1
-            positions[component_id]=[occupied_right+part.dimensions[0]/2+12.0+column*cell_width,positions[anchor_id][1]-anchor.dimensions[1]*.3+row*cell_depth,positions[anchor_id][2]+anchor.dimensions[2]/2+part.dimensions[2]/2]
+            if host_layout:
+                columns=min(3,max(1,len(secondary_ids)))
+                rows=max(1,(len(secondary_ids)+columns-1)//columns)
+                x_step=min(cell_width,max(24.0,(anchor.dimensions[0]-20.0)/columns))
+                y_step=min(cell_depth,max(24.0,(anchor.dimensions[1]-16.0)/rows))
+                positions[component_id]=[positions[anchor_id][0]+(column-(columns-1)/2)*x_step,positions[anchor_id][1]+(row-(rows-1)/2)*.9*y_step,positions[anchor_id][2]+anchor.dimensions[2]/2+part.dimensions[2]/2]
+            else:
+                positions[component_id]=[occupied_right+part.dimensions[0]/2+12.0+column*cell_width,positions[anchor_id][1]-anchor.dimensions[1]*.3+row*cell_depth,positions[anchor_id][2]+anchor.dimensions[2]/2+part.dimensions[2]/2]
             placement[component_id]="SEMANTIC_SUPPORT"
             independent_mounts[component_id]=anchor_id
     unresolved_primary=[]
@@ -281,7 +292,7 @@ def _representation_features(family:str)->tuple[str,...]:
         "microcontroller_board":("pcb","usb_connector","header_rows","module_blocks"),
         "controller":("pcb","connector","header_rows","module_blocks"),
         "small_dc_motor":("motor_body","output_shaft","rear_cap"),
-        "drive_wheel":("tire","hub"),
+        "drive_wheel":("rounded_tire","sidewall","rim","spokes","hub","axle_bore","bounded_tread"),
         "light_sensor":("sensor_pcb","four_quadrant_head","divider_cross"),
         "temperature_sensor":("sensor_pcb","sensing_element","header"),
         "environmental_sensor":("sensor_pcb","sensing_element","header"),
@@ -300,6 +311,12 @@ def _representation_features(family:str)->tuple[str,...]:
         "structural_frame":("stationary_frame","side_rails","top_rail","mounting_face"),
     }
     return features.get(family,("family_aware_body",))
+
+def _representation_parameters(family:str,dimensions:tuple[float,float,float])->dict[str,float]:
+    if family!="drive_wheel":return {}
+    diameter=max(dimensions[0],dimensions[1]);width=max(8.0,dimensions[2])
+    return {"outerDiameter":diameter,"tireWidth":width,"rimDiameter":diameter*.58,
+        "hubDiameter":diameter*.21,"axleBore":diameter*.08,"treadDepth":max(1.4,diameter*.026)}
 
 def _axis_angle(axis:tuple[float,float,float],angle:float)->tuple[float,float,float,float]:
     length=max(sqrt(sum(value*value for value in axis)),1e-9);scale=sin(angle/2)/length

@@ -10,7 +10,7 @@ from aura.engineering_graph.model import EngineeringGraph, EntityKind
 from aura.planner.schemas import ConnectionSpec, ProjectRequest
 from aura.planner.service import PlannerService
 from aura.verification.service import VerificationService
-from aura.workspace.assembly import engineering_assembly
+from aura.workspace.assembly import _representation_parameters, engineering_assembly
 from aura.workspace.bridge import WorkspaceBridge
 from aura.workspace.representation_service import CircuitGeneratorAdapter, representation_specs
 from aura.workspace.representations import RepresentationType
@@ -96,6 +96,43 @@ def test_remote_car_has_two_driven_wheels_and_shared_motor_driver():
     assert any(item.metadata.get("family") == "wireless_module" for item in components)
     assert not assembly["unresolvedPrimaryMechanism"]
     assert_wire_fidelity(graph, assembly)
+
+
+def test_four_wheel_mobile_system_is_compactly_assembled_on_its_chassis():
+    objective = "Build a remote-controlled four-wheel rover with a microcontroller, motor driver, battery, and DC gear motors."
+    _, _, graph, assembly, _ = compile_project(objective)
+    parts = assembly["parts"]
+    wheels = [item for item in parts if item["family"] == "drive_wheel"]
+    motors = [item for item in parts if item["family"] == "small_dc_motor"]
+    chassis = next(item for item in parts if item["family"] == "mounting_plate")
+    electronics = [item for item in parts if item["family"] in {"microcontroller_board", "motor_driver", "low_voltage_power_source", "wireless_module"}]
+    assert len(wheels) == len(motors) == 4
+    assert all({"rounded_tire", "rim", "hub", "axle_bore", "bounded_tread"} <= set(item["representationFeatures"]) for item in wheels)
+    for wheel in wheels:
+        parameters = wheel["representationParameters"]
+        assert parameters["outerDiameter"] == max(wheel["dimensions"][:2])
+        assert 0 < parameters["axleBore"] < parameters["hubDiameter"] < parameters["rimDiameter"] < parameters["outerDiameter"]
+        assert 0 < parameters["treadDepth"] < parameters["tireWidth"]
+    assert len([item for item in electronics if item["family"] == "motor_driver"]) == 1
+    assert len({round(item["assembledTransform"]["position"][0]) for item in wheels}) == 2
+    assert len({round(item["assembledTransform"]["position"][1]) for item in wheels}) == 2
+    assert all(abs(item["assembledTransform"]["position"][0] - chassis["assembledTransform"]["position"][0]) <= chassis["dimensions"][0] / 2 for item in electronics)
+    assert all(abs(item["assembledTransform"]["position"][1] - chassis["assembledTransform"]["position"][1]) <= chassis["dimensions"][1] / 2 for item in electronics)
+    assert all(item["mountSource"].startswith("semantic_support:") for item in electronics)
+    assert all(item["assembledTransform"] != item["explodedTransform"] for item in wheels + motors + electronics)
+    assert not assembly["unresolvedPrimaryMechanism"]
+    assert_wire_fidelity(graph, assembly)
+
+
+@pytest.mark.parametrize("dimensions", ((36.0, 36.0, 10.0), (64.0, 64.0, 18.0), (120.0, 120.0, 34.0)))
+def test_drive_wheel_representation_parameters_scale_with_part_dimensions(dimensions):
+    parameters = _representation_parameters("drive_wheel", dimensions)
+    assert parameters["outerDiameter"] == dimensions[0]
+    assert parameters["tireWidth"] == dimensions[2]
+    assert parameters["rimDiameter"] == pytest.approx(dimensions[0] * 0.58)
+    assert parameters["hubDiameter"] == pytest.approx(dimensions[0] * 0.21)
+    assert parameters["axleBore"] == pytest.approx(dimensions[0] * 0.08)
+    assert parameters["treadDepth"] == pytest.approx(max(1.4, dimensions[0] * 0.026))
 
 
 def test_relay_module_avoids_duplicate_transistor_but_bare_relay_gets_support():

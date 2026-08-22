@@ -231,7 +231,9 @@ class PlannerService:
                     trace.update({"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"external motor driver is incompatible with the selected self-driven servo architecture"})
         if families.get("fan") or families.get("pump"):
             load_count=families.get("fan",0)+families.get("pump",0);include("driver",load_count);include("flyback-diode",load_count)
-        if families.get("motor"): include("motor-driver",families["motor"])
+        if families.get("motor"):
+            explicit_driver_count=self._named_component_count(intent_text,"motor driver")
+            families["motor-driver"]=max(raw_counts.get("motor-driver",0),explicit_driver_count,families["motor"] if "independent" in text else 1)
         if families.get("motor") and not (families.get("fan") or families.get("pump")):
             families.pop("driver",None)
         moving_families={"mechanism","linear-mechanism","sliding-panel","controlled-platform","camera-platform","panel","tool-platform","conveyor","lid","dispensing-mechanism","drive-wheel"}
@@ -303,6 +305,7 @@ class PlannerService:
                 # rotating output remains available for the next driven link.
                 preferred=((x,y) for x in left for y in right if
                     (by_component[a].role in {"articulated_link","generic_mechanical_part","linear_drive"} and by_component[b].role=="servo" and x.name=="end-face" and y.name=="body-mount")
+                    or (by_component[a].role in {"mounting_plate","base","structural_frame"} and by_component[b].role=="small_dc_motor" and x.name.startswith("drive-mount-") and y.name=="body-mount")
                     or (by_component[a].role in {"panel","rotating_platform","camera_platform","tool_platform"} and "sensor" in by_component[b].role and x.name=="sensor-mount" and y.name=="body-mount"))
                 compatible=((x,y) for x in left for y in right if y.kind in x.compatible)
                 pair=next((pair for pair in (*preferred,*compatible) if f"{a}:{pair[0].name}" not in mechanical_interfaces_used and f"{b}:{pair[1].name}" not in mechanical_interfaces_used),None)
@@ -407,7 +410,7 @@ class PlannerService:
     @staticmethod
     def _named_component_count(text: str, family: str) -> int:
         words={"one":1,"single":1,"two":2,"dual":2,"three":3,"tri":3,"four":4,"quad":4,"five":5,"six":6,"seven":7,"eight":8}
-        match=re.search(rf"\b(?P<count>\d+|{'|'.join(words)})\s+(?:(?:independently\s+)?(?:controlled|driven)\s+)?(?:(?:hobby|small|dc|raw)\s+)?{re.escape(family)}s?\b",text.lower())
+        match=re.search(rf"\b(?P<count>\d+|{'|'.join(words)})(?:\s+|-)\s*(?:(?:independently\s+)?(?:controlled|driven)\s+)?(?:(?:hobby|small|dc|raw)\s+)?{re.escape(family)}s?\b",text.lower())
         if not match: return 0
         token=match.group("count");return int(token) if token.isdigit() else words[token]
 
