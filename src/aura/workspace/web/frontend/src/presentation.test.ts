@@ -20,5 +20,11 @@ describe("workspace presentation contracts",()=>{
   it("presents scenario output without deriving impact",()=>{
     const scenario=scenarioPresentation({id:"s1",summary:"Replace servo",changed_ids:["servo"],affected_ids:["mount"],derived_impacts:["Mount changed"],applicable:true});
     expect(scenario).toMatchObject({scenarioId:"s1",changedIds:["servo"],affectedIds:["mount"],derivedImpacts:[{summary:"Mount changed"}]});
+    const integrated=scenarioPresentation({scenarioId:"s2",baseRevisionId:"r1",analysis:{
+      diff:{changedComponents:["servo"]},impact:{affectedComponentIds:["servo","mount"]},
+      verification:{delta:{readinessBefore:"BUILD_INCOMPLETE",readinessAfter:"SUPPORTED_WITH_LIMITATIONS"}},confidence:"MEDIUM",
+      explanations:[{kind:"KNOWN_CHANGE",message:"Servo replaced"},{kind:"DERIVED_IMPACT",message:"Mount must be checked"},{kind:"UNCERTAINTY",message:"Torque is estimated"}],
+    }});
+    expect(integrated).toMatchObject({scenarioId:"s2",changedIds:["servo"],affectedIds:["servo","mount"],verificationBefore:"BUILD_INCOMPLETE",verificationAfter:"SUPPORTED_WITH_LIMITATIONS",derivedImpacts:[{summary:"Mount must be checked"}],uncertainties:["Torque is estimated"]});
   });
 });
