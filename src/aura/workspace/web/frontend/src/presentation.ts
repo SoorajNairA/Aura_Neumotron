@@ -70,7 +70,6 @@ export interface ScenarioImpactPresentation {
   applicable:boolean;
   compatibilityDecision?:string;
   analysisSource?:string;
-  analysisModel?:string;
 }
 
 const words=(value:unknown)=>String(value||"").trim().toLowerCase().replaceAll("-","_");
@@ -164,7 +163,6 @@ export function scenarioPresentation(raw:any):ScenarioImpactPresentation {
     applicable:Boolean(raw?.applicable??analysis?.applicable??false),
     compatibilityDecision:analysis?.semanticAssessment?.decision,
     analysisSource:analysis?.ai?.source,
-    analysisModel:analysis?.ai?.model,
   };
 }
 

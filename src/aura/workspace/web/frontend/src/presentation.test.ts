@@ -26,6 +26,7 @@ describe("workspace presentation contracts",()=>{
       applicable:false,semanticAssessment:{decision:"INCOMPATIBLE"},ai:{source:"structured_model",model:"gemini-test"},
       explanations:[{kind:"KNOWN_CHANGE",message:"Servo replaced"},{kind:"DERIVED_IMPACT",message:"Mount must be checked"},{kind:"UNCERTAINTY",message:"Torque is estimated"}],
     }});
-    expect(integrated).toMatchObject({scenarioId:"s2",changedIds:["servo"],affectedIds:["servo","mount"],verificationBefore:"BUILD_INCOMPLETE",verificationAfter:"SUPPORTED_WITH_LIMITATIONS",derivedImpacts:[{summary:"Mount must be checked"}],uncertainties:["Torque is estimated"],applicable:false,compatibilityDecision:"INCOMPATIBLE",analysisSource:"structured_model",analysisModel:"gemini-test"});
+    expect(integrated).toMatchObject({scenarioId:"s2",changedIds:["servo"],affectedIds:["servo","mount"],verificationBefore:"BUILD_INCOMPLETE",verificationAfter:"SUPPORTED_WITH_LIMITATIONS",derivedImpacts:[{summary:"Mount must be checked"}],uncertainties:["Torque is estimated"],applicable:false,compatibilityDecision:"INCOMPATIBLE",analysisSource:"structured_model"});
+    expect(integrated).not.toHaveProperty("analysisModel");
   });
 });

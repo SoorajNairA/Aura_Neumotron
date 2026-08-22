@@ -41,7 +41,7 @@ from .assembly import engineering_assembly
 from .events import WorkspaceEvent
 from .representation_service import RepresentationService, initial_records, representation_specs
 from .representations import RepresentationRecord, RepresentationStatus, RepresentationType
-from .modifications import LiveModificationPlanner,ModificationProposal,inverse_proposal,propose
+from .modifications import LiveModificationPlanner,ModificationError,ModificationProposal,inverse_proposal,propose
 from .narration import NarrationService
 from .work_items import EngineeringWorkService, WorkDomainError
 from .scenarios import EngineeringScenario,LiveScenarioAnalyzer,ScenarioError,analyze as analyze_scenario
@@ -642,15 +642,27 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         if body.projectId!=project_id: raise HTTPException(422,"Project ID mismatch")
         if body.operationId and body.operationId in application.modification_operations:return application.modification_operations[body.operationId].to_dict()
         try:
-            if record.planning_mode=="live_model" and application.provider is not None and hasattr(application.provider,"generate_structured"):
-                try:proposal=await run_in_threadpool(LiveModificationPlanner(application.provider).propose,record.graph,body.baseRevision,body.selectedSemanticIds,body.request,body.mode)
-                except Exception as model_exc:
-                    if model_exc.__class__.__name__=="VertexAuthenticationError":raise HTTPException(503,detail={"code":"vertex_authentication_error","message":str(model_exc)}) from model_exc
-                    proposal=propose(record.graph,body.baseRevision,body.selectedSemanticIds,body.request,body.mode)
-            else:proposal=propose(record.graph,body.baseRevision,body.selectedSemanticIds,body.request,body.mode)
+            # deterministic_test is an explicit test harness. User-facing edits
+            # require structured model intent and never fall back to phrase rules.
+            if record.planning_mode=="deterministic_test":
+                proposal=propose(record.graph,body.baseRevision,body.selectedSemanticIds,body.request,body.mode)
+            else:
+                provider=application.provider or application._default_provider()
+                if provider is None or not hasattr(provider,"generate_structured"):
+                    raise ModificationError("MODIFICATION_AI_UNAVAILABLE","Editing requires a configured structured AI provider.",503)
+                application.provider=provider
+                proposal=await run_in_threadpool(LiveModificationPlanner(provider).propose,record.graph,body.baseRevision,body.selectedSemanticIds,body.request,body.mode)
+        except ModificationError as exc:
+            raise HTTPException(exc.status,detail={"code":exc.code,"message":exc.message,"currentRevision":len(record.graph.revisions)}) from exc
         except ValueError as exc:
             code=str(exc);status=409 if code=="stale_revision" else 422
-            raise HTTPException(status,detail={"code":code,"currentRevision":len(record.graph.revisions)}) from exc
+            raise HTTPException(status,detail={"code":code,"message":"That edit is not supported by the deterministic test harness.","currentRevision":len(record.graph.revisions)}) from exc
+        except Exception as model_exc:
+            error_name=model_exc.__class__.__name__
+            if error_name=="VertexAuthenticationError":status,code=503,"MODIFICATION_AI_AUTHENTICATION"
+            elif error_name=="VertexTimeoutError":status,code=504,"MODIFICATION_AI_TIMEOUT"
+            else:status,code=502,"MODIFICATION_AI_UNAVAILABLE"
+            raise HTTPException(status,detail={"code":code,"message":str(model_exc)}) from model_exc
         application.modification_proposals[proposal.proposal_id]=proposal
         if body.operationId:application.modification_operations[body.operationId]=proposal
         events=application.repository.append_events(project_id,len(record.graph.revisions),[

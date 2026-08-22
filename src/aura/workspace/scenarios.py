@@ -70,7 +70,7 @@ class LiveScenarioAnalyzer:
         candidate_roles={str(role) for role in assessment.candidateFunctionalRoles if str(role)}
         role_preserved=required_roles<=candidate_roles and not assessment.missingRequiredRoles
         applicable=(assessment.decision=="COMPATIBLE" and assessment.interfaceCompatibility=="COMPATIBLE" and role_preserved)
-        metadata={"source":"structured_model","model":getattr(result,"model",None),"inputTokens":getattr(result,"input_tokens",None),
+        metadata={"source":"structured_model","inputTokens":getattr(result,"input_tokens",None),
             "outputTokens":getattr(result,"output_tokens",None),"totalTokens":getattr(result,"total_tokens",None),"roleContractPreserved":role_preserved,
             "applicable":applicable}
         return assessment,metadata
