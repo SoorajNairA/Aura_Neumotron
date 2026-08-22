@@ -6,6 +6,7 @@ from typing import Any
 
 from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
 from aura.engineering_graph.interfaces import component_interfaces, interface_dict
+from aura.engineering_graph.electrical import electrical_nets
 
 
 @dataclass(frozen=True)
@@ -58,7 +59,7 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
             source="family-aware procedural representation"
             roles=tuple(str(value) for value in meta.get("parameters",{}).get("functional_roles",()))
             output_axis=tuple(float(value) for value in meta.get("parameters",{}).get("output_axis",())) or None
-            visual_kind=str(meta.get("parameters",{}).get("surface_kind",family))
+            visual_kind=str(meta.get("parameters",{}).get("visual_template") or meta.get("parameters",{}).get("surface_kind",family))
             parts.append(PhysicalPart(entity.id,entity.name,role,parent,source,dimensions,assembled,exploded,(0,0,0,1),"conceptual",family,"INDEPENDENT_LAYOUT",roles,f"{family or 'unknown'}-proxy",representation_class,output_axis,visual_kind))
     by_id={part.semantic_id:part for part in parts};interfaces=[];by_owner={}
     for entity in components:
@@ -153,6 +154,12 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
     # A disconnected controlled actuator is still a primary-mechanism defect,
     # not a secondary item eligible for independent layout.
     primary_ids.update(actuator_ids)
+    # An explicit support with no mechanical relationships is still a valid
+    # deterministic assembly root for electronics-only or enclosure projects.
+    standalone_supports=sorted(component_id for component_id,roles in role_index.items() if "support" in roles and placement[component_id]=="INDEPENDENT_LAYOUT")
+    for support_index,component_id in enumerate(standalone_supports):
+        positions[component_id]=[support_index*220.0,0.0,by_id[component_id].dimensions[2]/2]
+        placement[component_id]="FIXED_ROOT"
     # Secondary electronics and auxiliary components may use a bounded layout,
     # but that layout is anchored to a real support instead of a remote global
     # subsystem grid.  This does not invent a graph mate or change topology.
@@ -160,10 +167,15 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
     independent_mounts={};secondary_index=0
     if support_ids:
         anchor_id=support_ids[0];anchor=by_id[anchor_id]
+        secondary_ids=[component_id for component_id in sorted(placement) if component_id not in primary_ids and placement[component_id]=="INDEPENDENT_LAYOUT"]
+        cell_width=max((by_id[component_id].dimensions[0] for component_id in secondary_ids),default=45.0)+12.0
+        cell_depth=max((by_id[component_id].dimensions[1] for component_id in secondary_ids),default=30.0)+12.0
+        occupied_right=max((positions[component_id][0]+by_id[component_id].dimensions[0]/2 for component_id in placement if placement[component_id]!="INDEPENDENT_LAYOUT"),default=positions[anchor_id][0]+anchor.dimensions[0]/2)
         for component_id in sorted(placement):
             if component_id in primary_ids or placement[component_id]!="INDEPENDENT_LAYOUT": continue
             part=by_id[component_id];column=secondary_index%3;row=secondary_index//3;secondary_index+=1
-            positions[component_id]=[positions[anchor_id][0]-anchor.dimensions[0]*.3+column*max(anchor.dimensions[0]*.3,part.dimensions[0]+8),positions[anchor_id][1]-anchor.dimensions[1]*.3+row*max(28.,part.dimensions[1]+8),positions[anchor_id][2]+anchor.dimensions[2]/2+part.dimensions[2]/2]
+            positions[component_id]=[occupied_right+part.dimensions[0]/2+12.0+column*cell_width,positions[anchor_id][1]-anchor.dimensions[1]*.3+row*cell_depth,positions[anchor_id][2]+anchor.dimensions[2]/2+part.dimensions[2]/2]
+            placement[component_id]="SEMANTIC_SUPPORT"
             independent_mounts[component_id]=anchor_id
     unresolved_primary=[]
     for component_id in sorted(primary_ids):
@@ -196,11 +208,46 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
         else: value["placementClass"]="UNRESOLVED"
         half=[dimension/2 for dimension in part.dimensions];value["representationBounds"]={"min":[part.assembled[i]-half[i] for i in range(3)],"max":[part.assembled[i]+half[i] for i in range(3)]}
         value["independentMountAnchor"]=independent_mounts.get(part.semantic_id)
+        value["mountSource"]=(f"semantic_support:{independent_mounts[part.semantic_id]}" if part.semantic_id in independent_mounts
+            else "graph_mate" if placement[part.semantic_id] in {"FIXED_ROOT","MATE_SOLVED"}
+            else "unresolved")
         part_dicts.append(value)
     world_interfaces=[]
     for item in interfaces:
         owner=by_id[item["semanticId"]];world=dict(item);world["worldPosition"]=list(_world_point(owner,tuple(item["localPosition"])))
         world["worldAxis"]=list(_world_axis(owner,tuple(item["axis"]))) if item.get("axis") else None;world_interfaces.append(world)
+    # Harness geometry is a projection of graph-owned nets. Routes terminate
+    # at interface frames, never at arbitrary component centres.
+    interface_positions={item["interfaceId"]:item["worldPosition"] for item in world_interfaces}
+    wires=[]
+    for net in electrical_nets(graph):
+        terminals=[]
+        for terminal in net.get("terminals",[]):
+            interface_id=f"{terminal['componentId']}:{terminal['interfaceId']}"
+            position=interface_positions.get(interface_id)
+            if position is not None:
+                terminals.append({**terminal,"interfaceId":interface_id,"worldPosition":position})
+        if len(terminals)<2: continue
+        terminals.sort(key=lambda item:item["interfaceId"])
+        clearance_z=max(item["worldPosition"][2] for item in terminals)+12.0
+        bus=[sum(item["worldPosition"][0] for item in terminals)/len(terminals),
+             sum(item["worldPosition"][1] for item in terminals)/len(terminals),clearance_z]
+        route_indices=range(1) if len(terminals)==2 else range(len(terminals))
+        for index in route_indices:
+            terminal=terminals[index];start=list(terminal["worldPosition"]);exit_point=[start[0],start[1],clearance_z]
+            if len(terminals)==2:
+                other=terminals[1]["worldPosition"]
+                points=[start,exit_point,[other[0],start[1],clearance_z],[other[0],other[1],clearance_z],list(other)]
+            else:
+                points=[start,exit_point,[bus[0],start[1],clearance_z],bus]
+            compact=[]
+            for point in points:
+                if not compact or point!=compact[-1]: compact.append(point)
+            role=str(net.get("role","signal"))
+            wires.append({"wireId":f"wire-{net['netId']}-{index+1}","netId":net["netId"],"role":role,
+                "color":net.get("displayStyle",{}).get("color","#81e6d9"),"thicknessClass":"power" if "power" in role else "signal",
+                "thicknessMm":2.2 if "power" in role else 1.4,"terminalInterfaceIds":[item["interfaceId"] for item in terminals],
+                "points":compact,"source":"ENGINEERING_GRAPH_NET"})
     severe_intersections=[]
     mated_pairs={frozenset((item["from"].rsplit(":",1)[0],item["to"].rsplit(":",1)[0])) for item in mated}
     for index,left in enumerate(parts):
@@ -208,10 +255,10 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
             if frozenset((left.semantic_id,right.semantic_id)) in mated_pairs: continue
             ratio=_overlap_ratio(left,right)
             if ratio>=.8: severe_intersections.append({"a":left.semantic_id,"b":right.semantic_id,"smallerVolumeOverlap":ratio})
-    sources=("MATE_SOLVED","FIXED_ROOT","INDEPENDENT_LAYOUT","CONCEPTUAL_TOPOLOGY","FALLBACK")
+    sources=("MATE_SOLVED","FIXED_ROOT","SEMANTIC_SUPPORT","INDEPENDENT_LAYOUT","CONCEPTUAL_TOPOLOGY","FALLBACK")
     source_counts={source:sum(part.transform_source==source for part in parts) for source in sources}
     physical_limitations=[{"componentId":part["semanticId"],"reason":"physical component lacks a resolved structural placement"} for part in part_dicts if part["placementClass"] in {"CONCEPTUAL_FREE","UNRESOLVED"}]
-    return {"assemblyId":f"assembly-{graph.project_id}","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"hierarchy":hierarchy,"parts":part_dicts,"interfaces":world_interfaces,"connectors":world_interfaces,"relationships":mated,"mateDiagnostics":mate_diagnostics,"visualizationPose":visualization_pose,"visualConnectivity":{"allMateOriginsWithinTolerance":all(item["originWithinTolerance"] for item in mate_diagnostics),"allMateAxesWithinTolerance":all(item["orientationWithinTolerance"] for item in mate_diagnostics),"severeIntersections":severe_intersections},"physicalRepresentationLimitations":physical_limitations,"unresolvedMechanicalRelations":unresolved,"primaryMechanismIds":sorted(primary_ids),"unresolvedPrimaryMechanism":unresolved_primary,"transformSourceCounts":source_counts,"revision":len(graph.revisions),"layoutStatus":"conceptual mechanical assembly","placementMethod":"interface-frame-mating"}
+    return {"assemblyId":f"assembly-{graph.project_id}","units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"hierarchy":hierarchy,"parts":part_dicts,"interfaces":world_interfaces,"connectors":world_interfaces,"wires":wires,"wireCount":len(wires),"relationships":mated,"mateDiagnostics":mate_diagnostics,"visualizationPose":visualization_pose,"visualConnectivity":{"allMateOriginsWithinTolerance":all(item["originWithinTolerance"] for item in mate_diagnostics),"allMateAxesWithinTolerance":all(item["orientationWithinTolerance"] for item in mate_diagnostics),"severeIntersections":severe_intersections},"physicalRepresentationLimitations":physical_limitations,"unresolvedMechanicalRelations":unresolved,"primaryMechanismIds":sorted(primary_ids),"unresolvedPrimaryMechanism":unresolved_primary,"transformSourceCounts":source_counts,"revision":len(graph.revisions),"layoutStatus":"conceptual mechanical assembly","placementMethod":"interface-frame-mating"}
 
 def _world_point(part:PhysicalPart,local:tuple[float,float,float])->tuple[float,float,float]:
     rotated=_rotate(part.rotation,local);return tuple(part.assembled[i]+rotated[i] for i in range(3))
