@@ -786,13 +786,21 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         scenario=application.scenarios.get(scenario_id);record=_record(application,project_id)
         if not scenario or scenario.project_id!=project_id:raise HTTPException(404,detail={"code":"SCENARIO_NOT_FOUND"})
         if scenario.base_revision!=len(record.graph.revisions) or scenario.base_revision_id!=record.graph.current_revision_id:raise HTTPException(409,detail={"code":"SCENARIO_STALE","message":"Project changed; re-run analysis."})
-        verified=VerificationService().verify_modification(record.graph,scenario.patch)
-        if not verified.accepted or verified.patch is None:raise HTTPException(422,detail={"code":"SCENARIO_INVALID","reasons":list(verified.reasons)})
-        updated=WorkspaceBridge().commit(record.graph,verified); now=datetime.now(timezone.utc).isoformat()
-        updated_record=StoredProject(record.project_id,record.objective,record.planning_mode,record.fallback_reason,"ready",updated,record.representations,record.created_at,now)
-        diff=scenario.analysis["diff"];events=application.repository.save_commit(updated_record,scenario.patch,{"kind":"scenario","analysis":scenario.analysis},[{"type":"scenario.applied","semantic_ids":scenario.analysis["impact"]["affectedComponentIds"],"payload":{"scenarioId":scenario.id,"diff":diff}}])
-        await application.publish_with_narration(events,updated,record.representations);application.scenarios.pop(scenario_id,None)
-        return {"projectId":project_id,"revision":len(updated.revisions),"diff":diff}
+        lock=application.modification_locks.setdefault(project_id,threading.Lock())
+        if not lock.acquire(blocking=False):raise HTTPException(409,detail={"code":"SCENARIO_APPLY_IN_PROGRESS"})
+        try:
+            record=_record(application,project_id)
+            if scenario.base_revision!=len(record.graph.revisions) or scenario.base_revision_id!=record.graph.current_revision_id:raise HTTPException(409,detail={"code":"SCENARIO_STALE","message":"Project changed; re-run analysis."})
+            verified=VerificationService().verify_modification(record.graph,scenario.patch)
+            if not verified.accepted or verified.patch is None:raise HTTPException(422,detail={"code":"SCENARIO_INVALID","reasons":list(verified.reasons)})
+            updated=WorkspaceBridge().commit(record.graph,verified); now=datetime.now(timezone.utc).isoformat()
+            updated_record=StoredProject(record.project_id,record.objective,record.planning_mode,record.fallback_reason,"ready",updated,record.representations,record.created_at,now)
+            diff=scenario.analysis["diff"];affected=scenario.analysis["impact"]["affectedComponentIds"]
+            result={"projectId":project_id,"previousRevisionId":scenario.base_revision_id,"newRevisionId":updated.current_revision_id,"revision":len(updated.revisions),"targetSemanticId":scenario.target_id,"changedComponentIds":diff["changedComponents"],"affectedComponentIds":affected,"changedRelationshipIds":diff["changedRelationships"],"diff":diff}
+            events=application.repository.save_commit(updated_record,scenario.patch,{"kind":"scenario","analysis":scenario.analysis},[{"type":"scenario.applied","semantic_ids":affected,"payload":{"scenarioId":scenario.id,"result":result}}])
+            await application.publish_with_narration(events,updated,record.representations);application.scenarios.pop(scenario_id,None)
+            return result
+        finally:lock.release()
 
     @app.post("/api/projects/{project_id}/scenarios/{scenario_id}/work",status_code=201)
     def scenario_work(project_id:str,scenario_id:str)->dict[str,Any]:

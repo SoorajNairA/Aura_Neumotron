@@ -94,6 +94,7 @@ export function WorkView({
       </header>
       <div className="work-grid">
         <nav>
+          {!data.items.length && <p>No engineering work yet.</p>}
           {data.items.map((x: any) => (
             <button key={x.id} onClick={() => setSelected(x)}>
               <b>{x.title}</b>
@@ -167,6 +168,7 @@ export function WorkView({
                 {scenario.analysis.candidate.component.name}
               </p>
               <b>CONFIDENCE: {scenario.analysis.confidence}</b>
+              <p>VERIFICATION: {scenario.analysis.verification.delta.current} → {scenario.analysis.verification.delta.candidate}</p>
               <p>
                 AFFECTED:{" "}
                 {scenario.analysis.impact.affectedComponentIds.join(", ")}

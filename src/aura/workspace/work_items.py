@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import uuid4
+from threading import RLock
 
 
 class WorkState(str, Enum):
@@ -65,14 +66,21 @@ class EngineeringWorkItem:
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "EngineeringWorkItem":
         history=tuple(WorkStateTransition(WorkState(x["fromState"]),WorkState(x["toState"]),x.get("reason"),x["timestamp"],x.get("actor")) for x in value.get("transitionHistory",()))
-        return cls(value["id"],value["projectId"],value["title"],value.get("description",""),value.get("category","engineering"),WorkState(value["state"]),
+        item=cls(value["id"],value["projectId"],value["title"],value.get("description",""),value.get("category","engineering"),WorkState(value["state"]),
             tuple(value.get("relatedComponentIds",())),tuple(value.get("relatedRequirementIds",())),tuple(value.get("relatedFindingIds",())),
             value["createdAt"],value["updatedAt"],history,value.get("revisionId"),value.get("source","manual"))
+        previous=WorkState.PLANNED; timestamp=""
+        for transition in item.transition_history:
+            if transition.from_state is not previous or transition.to_state not in VALID_TRANSITIONS[previous] or transition.timestamp < timestamp:
+                raise WorkDomainError("WORK_HISTORY_INVALID","Persisted work history violates transition invariants")
+            previous=transition.to_state;timestamp=transition.timestamp
+        if previous is not item.state:raise WorkDomainError("WORK_HISTORY_INVALID","Persisted work state does not match transition history")
+        return item
 
 
 class EngineeringWorkService:
     MAX_REASON_LENGTH = 1000
-    def __init__(self, repository: Any) -> None: self.repository=repository
+    def __init__(self, repository: Any) -> None: self.repository=repository;self._lock=RLock()
 
     def create(self, project_id: str, title: str, description: str = "", category: str = "engineering",
                related_component_ids: list[str] | None = None, related_requirement_ids: list[str] | None = None,
@@ -100,17 +108,18 @@ class EngineeringWorkService:
         return EngineeringWorkItem.from_dict(value)
 
     def transition(self, project_id: str, work_item_id: str, target_state: str, reason: str | None = None, actor: str | None = None) -> EngineeringWorkItem:
-        item=self.get(project_id,work_item_id)
-        try: target=WorkState(target_state)
-        except ValueError as exc: raise WorkDomainError("WORK_STATE_INVALID","Unknown work state") from exc
-        if target not in VALID_TRANSITIONS[item.state]:
-            raise WorkDomainError("WORK_TRANSITION_INVALID",f"{item.state.value.replace('_',' ').title()} work cannot transition directly to {target.value.replace('_',' ').title()}.")
-        normalized=reason.strip() if reason else None
-        if target in REASON_REQUIRED and not normalized: raise WorkDomainError("WORK_REASON_REQUIRED",f"A reason is required before work can be {target.value.lower()}.")
-        if normalized and len(normalized)>self.MAX_REASON_LENGTH: raise WorkDomainError("WORK_REASON_INVALID",f"Reason must not exceed {self.MAX_REASON_LENGTH} characters")
-        now=datetime.now(timezone.utc).isoformat(); transition=WorkStateTransition(item.state,target,normalized,now,actor.strip() if actor and actor.strip() else None)
-        updated=replace(item,state=target,updated_at=now,transition_history=(*item.transition_history,transition))
-        self.repository.save_work_item(updated.to_dict()); return updated
+        with self._lock:
+            item=self.get(project_id,work_item_id)
+            try: target=WorkState(target_state)
+            except ValueError as exc: raise WorkDomainError("WORK_STATE_INVALID","Unknown work state") from exc
+            if target not in VALID_TRANSITIONS[item.state]:
+                raise WorkDomainError("WORK_TRANSITION_INVALID",f"{item.state.value.replace('_',' ').title()} work cannot transition directly to {target.value.replace('_',' ').title()}.")
+            normalized=reason.strip() if reason else None
+            if target in REASON_REQUIRED and not normalized: raise WorkDomainError("WORK_REASON_REQUIRED",f"A reason is required before work can be {target.value.lower()}.")
+            if normalized and len(normalized)>self.MAX_REASON_LENGTH: raise WorkDomainError("WORK_REASON_INVALID",f"Reason must not exceed {self.MAX_REASON_LENGTH} characters")
+            now=datetime.now(timezone.utc).isoformat(); transition=WorkStateTransition(item.state,target,normalized,now,actor.strip() if actor and actor.strip() else None)
+            updated=replace(item,state=target,updated_at=now,transition_history=(*item.transition_history,transition))
+            self.repository.save_work_item(updated.to_dict()); return updated
 
     def summary(self, project_id: str) -> dict[str, Any]:
         items=self.list(project_id); counts={state.value:sum(x.state is state for x in items) for state in WorkState}
