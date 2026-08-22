@@ -1,7 +1,17 @@
 import {expect,test,APIRequestContext} from "@playwright/test";
 const backend="http://127.0.0.1:4184";
-async function project(r:APIRequestContext){const x=await r.post(`${backend}/api/projects`,{data:{objective:"Design a low voltage two axis robotic arm with servo actuators and controller for round two lifecycle",planningMode:"deterministic_test"}});expect(x.ok()).toBeTruthy();return x.json()}
+async function project(r:APIRequestContext){const x=await r.post(`${backend}/api/projects`,{data:{objective:`Design a low voltage two axis robotic arm with servo actuators and controller for round two lifecycle ${crypto.randomUUID()}`,planningMode:"deterministic_test"}});expect(x.ok()).toBeTruthy();return x.json()}
 async function work(r:APIRequestContext,p:string,title:string){const x=await r.post(`${backend}/api/projects/${p}/work`,{data:{title}});expect(x.ok()).toBeTruthy();return x.json()}
+
+test("real workspace exposes Work creation and non-passive schematic zoom",async({page,request})=>{
+ const errors:string[]=[];page.on("console",message=>{if(message.type()==="error")errors.push(message.text())});
+ const p=await project(request);await page.goto(`${backend}/?projectId=${p.projectId}`);
+ await expect(page.getByRole("button",{name:"WORK",exact:true})).toBeVisible();await page.getByRole("button",{name:"WORK",exact:true}).click();
+ page.once("dialog",async dialog=>{expect(dialog.type()).toBe("prompt");await dialog.accept("Verify actuator capability")});
+ await page.getByRole("button",{name:"CREATE WORK ITEM"}).click();await expect(page.getByTestId("work-item-info")).toContainText("Verify actuator capability");
+ await page.getByRole("button",{name:"SCHEMATIC",exact:true}).click();const camera=page.getByTestId("schematic-camera");await camera.hover();await page.mouse.wheel(0,-120);
+ expect(errors.filter(value=>value.includes("passive event listener"))).toEqual([]);
+});
 
 test("real Work lifecycle enforces reasons, persists history, and updates summary",async({page,request})=>{
  const p=await project(request);await work(request,p.projectId,"Verify pitch actuator capability");await page.goto(`${backend}/?projectId=${p.projectId}`);await page.getByRole("button",{name:"WORK",exact:true}).click();await page.getByRole("button",{name:/Verify pitch actuator capability/}).click();let d=page.getByTestId("work-item-info");await d.getByRole("button",{name:"IN PROGRESS"}).click();await d.getByRole("button",{name:"PAUSED"}).click();const dialog=page.getByRole("dialog");await expect(dialog.getByRole("button",{name:"PAUSED"})).toBeDisabled();await dialog.getByRole("textbox").fill("Waiting for verified panel mass.");await dialog.getByRole("button",{name:"PAUSED"}).click();await page.reload();await page.getByRole("button",{name:"WORK",exact:true}).click();await page.getByRole("button",{name:/Verify pitch actuator capability/}).click();d=page.getByTestId("work-item-info");await expect(d).toContainText("PLANNED → IN PROGRESS");await expect(d).toContainText("IN PROGRESS → PAUSED");await d.getByRole("button",{name:"IN PROGRESS"}).click();await d.getByRole("button",{name:"COMPLETED"}).click();await expect(d).toContainText("COMPLETED");

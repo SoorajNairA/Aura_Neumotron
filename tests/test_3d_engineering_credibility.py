@@ -74,6 +74,19 @@ def test_inductive_loads_receive_driver_protection_and_no_direct_gpio(objective,
     assert_wire_fidelity(graph, assembly)
 
 
+def test_fan_schematic_preserves_semantic_labels_without_undefined_values():
+    _, _, _, _, circuit = compile_project(
+        "Build an Arduino Nano controlled tabletop DC fan with adjustable speed."
+    )
+    result = CircuitGeneratorAdapter().generate(circuit)
+    payload = json.loads(result.artifact)
+    schematic = [item for item in payload if item.get("type") == "schematic_component"]
+    labels = {item.get("aura_display_name") for item in schematic}
+    assert {"Arduino Nano", "Logic-level N-channel MOSFET switch", "Desk fan", "D1 Flyback Diode", "Low-voltage power source"} <= labels
+    assert "undefined" not in json.dumps(payload).lower()
+    assert circuit.payload["fidelity"] == {"portsComplete": True, "netsComplete": True}
+
+
 def test_remote_car_has_two_driven_wheels_and_shared_motor_driver():
     _, _, graph, assembly, _ = compile_project("Build a remote-controlled two-wheel car with wireless control.")
     components = graph.find(kind=EntityKind.COMPONENT)
