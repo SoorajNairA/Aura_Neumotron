@@ -3,10 +3,20 @@ import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-const outputDirectory = resolve(__dirname, "../representation");
+// Integration validation can redirect build artifacts so feature/ui never has to
+// overwrite the representation runtime owned by feature/3d.
+const outputDirectory = process.env.AURA_FRONTEND_OUT_DIR
+  ? resolve(process.env.AURA_FRONTEND_OUT_DIR)
+  : resolve(__dirname, "../representation");
 
 export default defineConfig({
   base: "/assets/representation/",
+  server: process.env.AURA_BACKEND_PROXY_TARGET ? {
+    proxy: {
+      "/api": {target: process.env.AURA_BACKEND_PROXY_TARGET, ws: true},
+      "/health": {target: process.env.AURA_BACKEND_PROXY_TARGET},
+    },
+  } : undefined,
   plugins: [
     react(),
     {

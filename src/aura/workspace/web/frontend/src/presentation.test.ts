@@ -1,0 +1,24 @@
+import {describe,expect,it} from "vitest";
+import {findingPresentation,projectStatus,requiresReason,scenarioPresentation,workItemPresentation,workSummary} from "./presentation";
+
+describe("workspace presentation contracts",()=>{
+  it("keeps verification categories distinct from project status",()=>{
+    expect(projectStatus({status:"ready",capability:{status:"SUPPORTED"}},{summary:{tool_verified:4,failed:0}})).toBe("READY");
+    expect(projectStatus({status:"ready",capability:{status:"SUPPORTED_WITH_LIMITATIONS"}},{summary:{estimated:1,failed:0}})).toBe("READY WITH LIMITATIONS");
+    expect(findingPresentation({id:"f1",state:"conceptual",entity_ids:["component-a"]})).toMatchObject({findingId:"f1",status:"conceptual",semanticTargets:["component-a"]});
+  });
+
+  it("normalizes backend work items without deciding their transitions",()=>{
+    const item=workItemPresentation({id:"w1",title:"Verify actuator",state:"PAUSED",allowed_transitions:["in_progress"],reason:"Awaiting mass"});
+    expect(item.state).toBe("paused");
+    expect(item.allowedTransitions).toEqual(["in_progress"]);
+    expect(workSummary([item])).toEqual({paused:1});
+    expect(requiresReason("PAUSED")).toBe(true);
+    expect(requiresReason("COMPLETED")).toBe(false);
+  });
+
+  it("presents scenario output without deriving impact",()=>{
+    const scenario=scenarioPresentation({id:"s1",summary:"Replace servo",changed_ids:["servo"],affected_ids:["mount"],derived_impacts:["Mount changed"],applicable:true});
+    expect(scenario).toMatchObject({scenarioId:"s1",changedIds:["servo"],affectedIds:["mount"],derivedImpacts:[{summary:"Mount changed"}]});
+  });
+});

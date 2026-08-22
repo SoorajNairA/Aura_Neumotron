@@ -1,7 +1,6 @@
 import {Component,ErrorInfo,ReactNode} from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
-import "./compatibility.css";
 import { WorkspaceApp } from "./WorkspaceApp";
 
 class WorkspaceErrorBoundary extends Component<{children:ReactNode},{failed:boolean}>{
