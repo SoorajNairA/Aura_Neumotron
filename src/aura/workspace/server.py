@@ -35,6 +35,7 @@ from aura.planner.service import PlannerService
 from aura.verification.service import VerificationService
 from aura.verification.catalogue import CATALOGUE, search as search_catalogue
 from aura.verification.results import VerificationState
+from aura.verification.delta import verification_readiness
 from .bridge import WorkspaceBridge
 from .assembly import engineering_assembly
 from .events import WorkspaceEvent
@@ -330,7 +331,8 @@ class WorkspaceApplication:
             and not assembly.get("unresolvedMechanicalRelations") and not assembly.get("unresolvedPrimaryMechanism")
             and all(source in {"MATE_SOLVED","FIXED_ROOT"} for source in primary_sources.values()))
         required_failed = any(item.status is RepresentationStatus.FALLBACK for item in completed) or not physical_complete or not circuit_fidelity or critical_semantic
-        record.status = "build_incomplete" if required_failed else ("ready_with_limitations" if capability == "SUPPORTED_WITH_LIMITATIONS" else "ready")
+        verification_limited=verified.state in {VerificationState.ESTIMATED,VerificationState.CONCEPTUAL,VerificationState.STALE,VerificationState.UNSUPPORTED} or any(item.severity=="warning" for item in verified.findings)
+        record.status = "build_incomplete" if required_failed else ("ready_with_limitations" if capability == "SUPPORTED_WITH_LIMITATIONS" or verification_limited else "ready")
         self.repository.update_project_status(project_id, record.status)
         representation_events=[]
         for item in completed:
@@ -688,11 +690,12 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
                 if regenerated.status is RepresentationStatus.FALLBACK:
                     lifecycle.append({"type":"representation.failed","semantic_ids":list(current.semantic_ids),"payload":{"representationId":current.representation_id,"error":regenerated.error}})
                 lifecycle.append({"type":f"representation.{regenerated.status.value}","semantic_ids":list(current.semantic_ids),"payload":{"representationId":current.representation_id,"artifactId":regenerated.artifact_id,"error":regenerated.error}})
-            updated_record=StoredProject(record.project_id,record.objective,record.planning_mode,record.fallback_reason,"ready",updated,reps,record.created_at,datetime.now(timezone.utc).isoformat())
+            readiness_status={"BUILD_INCOMPLETE":"build_incomplete","SUPPORTED_WITH_LIMITATIONS":"ready_with_limitations","SUPPORTED":"ready"}[verification_readiness(result)]
+            updated_record=StoredProject(record.project_id,record.objective,record.planning_mode,record.fallback_reason,readiness_status,updated,reps,record.created_at,datetime.now(timezone.utc).isoformat())
             diff={"changed":list(proposal.operations),"regenerated":list(proposal.regenerate),"affected":list(proposal.affected_ids),"unchanged":list(proposal.unaffected)}
-            response={"projectId":project_id,"revision":len(updated.revisions),"summary":proposal.summary,"diff":diff,"representations":reps}
+            response={"projectId":project_id,"revision":len(updated.revisions),"summary":proposal.summary,"diff":diff,"representations":reps,"status":readiness_status,"verificationDelta":result.verification_delta}
             drafts=[{"type":"modification.committed","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal_id,"diff":diff}},{"type":"revision.committed","semantic_ids":list(proposal.affected_ids),"payload":{"diff":diff}},*lifecycle,{"type":"modification.operation_completed","semantic_ids":list(proposal.affected_ids),"payload":{"operationId":operation_id,"result":response}}]
-            verification={"outcome":proposal.verification,"diff":diff,"kind":"undo" if proposal.mode=="undo" else "modification"}
+            verification={"outcome":proposal.verification,"diff":diff,"verificationDelta":result.verification_delta,"kind":"undo" if proposal.mode=="undo" else "modification"}
             committed=application.repository.save_commit(updated_record,result.patch,verification,drafts)
             await application.publish_with_narration(committed,updated,reps)
             application.modification_proposals.pop(proposal_id,None)

@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import replace
-from uuid import uuid4
+from hashlib import sha256
 
-from aura.engineering_graph.model import EngineeringEntity, EntityKind
-from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation
+from aura.engineering_graph.electrical import electrical_nets, materialize_electrical_nets
+from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
+from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation, apply_patch
 from aura.engineering_graph.interfaces import component_interfaces
 from aura.planner.schemas import ProjectPlan
 
 from .catalogue import CATALOGUE, CATALOGUE_VERSION, evidence_records, search
 from .evidence import EvidenceKind
 from .results import VerificationDecision, VerificationFinding, VerificationResult, VerificationState
+from .plausibility import evaluate_plausibility
+from .graph_rules import evaluate_graph
+from .delta import DeltaClassification, compare_verification
 from .units import convert, in_range
 
 
@@ -128,8 +133,11 @@ class VerificationService:
                 for target in adjacency[current]-seen:
                     seen.add(target); pending.append(target)
             mechanical_reach[actuator.id]=seen
-            driven=sorted((seen & moving)-{actuator.id})
-            if not driven and not any(finding.check=="MECH_301" for finding in findings):
+            # A stationary support can connect several actuators into one
+            # mechanical component, but it must not make one actuator appear
+            # to drive another actuator's moving output.
+            driven=sorted(adjacency[actuator.id] & moving)
+            if not driven:
                 add("MECH_301",VerificationState.FAILED,"critical",f"Actuator {actuator.name} is not mechanically connected to a required moving component.",(actuator.id,),actual={"mechanicalReach":sorted(seen)})
             supports={component_id for component_id,roles in role_index.items() if "support" in roles}
             if driven and supports and not seen & supports:
@@ -200,20 +208,31 @@ class VerificationService:
                         f"{component.name} expects electrical ports {', '.join(sorted(missing))} that have no graph connection.",(component.id,),
                         expected={"ports":sorted(expected)},actual={"connectedPorts":sorted(connected_ports[component.id])})
         if drivers and controllers:
-            dv=float(drivers[0].parameters.get("logic_voltage_v",3.3)); cv=float(controllers[0].parameters.get("logic_voltage_v",3.3))
-            logic_min=float(drivers[0].parameters.get("logic_voltage_min_v",dv));logic_max=float(drivers[0].parameters.get("logic_voltage_max_v",dv));compatible=logic_min<=cv<=logic_max
-            add("logic-compatibility",VerificationState.CROSS_CHECKED if compatible else VerificationState.FAILED,"info" if compatible else "critical","Driver logic is compatible with controller logic." if compatible else "Driver logic is incompatible with controller logic.",(controllers[0].id,drivers[0].id),expected={"minimum":logic_min,"maximum":logic_max,"unit":"V"},actual={"value":cv,"unit":"V"},machine_result={"inRange":compatible})
+            dv=drivers[0].parameters.get("logic_voltage_v");cv=controllers[0].parameters.get("logic_voltage_v")
+            if dv is not None and cv is not None:
+                logic_min=float(drivers[0].parameters.get("logic_voltage_min_v",dv));logic_max=float(drivers[0].parameters.get("logic_voltage_max_v",dv));compatible=logic_min<=float(cv)<=logic_max
+                add("ELEC_LOGIC_VOLTAGE_COMPATIBLE" if compatible else "ELEC_LOGIC_VOLTAGE_INCOMPATIBLE",
+                    VerificationState.CROSS_CHECKED if compatible else VerificationState.FAILED,
+                    "info" if compatible else "critical",
+                    "Driver logic is compatible with controller logic." if compatible else "Driver logic is incompatible with controller logic.",
+                    (controllers[0].id,drivers[0].id),category="electrical",expected={"minimum":logic_min,"maximum":logic_max,"unit":"V"},actual={"value":cv,"unit":"V"},machine_result={"inRange":compatible},blocking=not compatible)
+            else:
+                add("ELEC_VOLTAGE_NOT_PROVEN",VerificationState.ESTIMATED,"warning","Controller-to-driver logic voltage compatibility is not proven.",(controllers[0].id,drivers[0].id),category="electrical",expected={"knownLogicVoltages":True},actual={"controllerLogicVoltageV":cv,"driverLogicVoltageV":dv})
         if powers:
-            pv=float(powers[0].parameters.get("voltage_v",0)); capacity=float(powers[0].parameters.get("available_current_a",0)); total=0.; complete=True
+            pv=powers[0].parameters.get("voltage_v");capacity=powers[0].parameters.get("available_current_a");total=0.;complete=capacity is not None
             for load in loads:
-                lv=float(load.parameters.get("voltage_v",pv)); ok=in_range(lv,"V",pv,pv,"V")
-                evidence=resolved.get(load.id); evid=tuple(evidence.evidence_ids) if evidence else ()
-                add("voltage",VerificationState.CROSS_CHECKED if ok and evid else VerificationState.ESTIMATED if ok else VerificationState.FAILED,"info" if ok else "critical","Supply voltage is compatible with load." if ok else "Load voltage is incompatible with supply.",(powers[0].id,load.id),expected={"value":lv,"unit":"V"},actual={"value":pv,"unit":"V"},evidence_ids=evid,machine_result={"inRange":ok})
+                lv=load.parameters.get("voltage_v")
+                if pv is not None and lv is not None:
+                    ok=in_range(float(lv),"V",float(pv),float(pv),"V");evidence=resolved.get(load.id);evid=tuple(evidence.evidence_ids) if evidence else ()
+                    add("ELEC_LOAD_VOLTAGE_COMPATIBLE" if ok else "ELEC_VOLTAGE_INCOMPATIBLE",VerificationState.CROSS_CHECKED if ok and evid else VerificationState.ESTIMATED if ok else VerificationState.FAILED,"info" if ok else "critical","Supply voltage is compatible with load." if ok else "Load voltage is incompatible with supply.",(powers[0].id,load.id),category="electrical",expected={"value":lv,"unit":"V"},actual={"value":pv,"unit":"V"},evidence_ids=evid,machine_result={"inRange":ok},blocking=not ok)
                 if "current_a" in load.parameters: total+=float(load.parameters["current_a"])
                 else: complete=False
             if loads:
-                ok=capacity>=total
-                add("power-budget",VerificationState.CROSS_CHECKED if ok and complete else VerificationState.ESTIMATED if ok else VerificationState.FAILED,"info" if ok else "critical",f"Modeled peak load {total:.3g} A {'fits' if ok else 'exceeds'} {capacity:.3g} A supply capacity.",(powers[0].id,*[x.id for x in loads]),expected={"maximum":capacity,"unit":"A"},actual={"value":total,"unit":"A","qualifier":"modeled_peak"},machine_result={"withinCapacity":ok,"complete":complete})
+                if complete:
+                    ok=float(capacity)>=total
+                    add("POWER_BUDGET_WITHIN_CAPACITY" if ok else "POWER_BUDGET_EXCEEDED",VerificationState.CROSS_CHECKED if ok else VerificationState.FAILED,"info" if ok else "critical",f"Modeled peak load {total:.3g} A {'fits' if ok else 'exceeds'} {float(capacity):.3g} A supply capacity.",(powers[0].id,*[x.id for x in loads]),category="electrical",expected={"maximum":capacity,"unit":"A"},actual={"value":total,"unit":"A","qualifier":"modeled_peak"},machine_result={"withinCapacity":ok,"complete":True},blocking=not ok)
+                else:
+                    add("POWER_BUDGET_NOT_PROVEN",VerificationState.ESTIMATED,"warning","Power budget is not proven because one or more source/load current values are unavailable.",(powers[0].id,*[x.id for x in loads]),category="electrical",expected={"completeCurrentData":True},actual={"modeledLoadA":total,"sourceCapacityA":capacity})
         for c in components.values():
             if not c.dimensions: add("dimensions",VerificationState.CONCEPTUAL,"warning",f"Exact dimensions are unavailable for {c.name}.",(c.id,)); continue
             valid=True
@@ -245,8 +264,18 @@ class VerificationService:
             authoritative=all(evidence_by_id[eid].kind is not EvidenceKind.ENGINEERING_ASSUMPTION for eid in definition.evidence_ids)
             add("catalogue-properties",VerificationState.SOURCE_VERIFIED if authoritative else VerificationState.ESTIMATED,"info" if authoritative else "warning",f"Authoritative properties available from {definition.manufacturer} {definition.part_number}." if authoritative else f"{definition.part_number} uses a bounded curated engineering assumption.",(c.id,),evidence_ids=definition.evidence_ids,dependency_ids=(c.id,),source_versions={eid:"curated-record-v1" for eid in definition.evidence_ids})
 
-        critical=[x for x in findings if x.severity=="critical" and x.state==VerificationState.FAILED]
-        if critical: return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,tuple(x.message for x in critical),None,tuple(findings))
+        evaluate_plausibility(plan, add)
+        candidate=self._with_authoritative_nets(apply_patch(EngineeringGraph(project.id),plan.patch))
+        graph_result=self.verify_graph(candidate)
+        existing={(item.check,item.entity_ids) for item in findings}
+        findings.extend(item for item in graph_result.findings if (item.check,item.entity_ids) not in existing)
+        findings.sort(key=lambda item: (
+            {"critical": 0, "warning": 1, "info": 2}.get(item.severity, 3),
+            item.check, item.entity_ids, item.id,
+        ))
+
+        critical=[x for x in findings if x.blocking or (x.severity=="critical" and x.state==VerificationState.FAILED)]
+        if critical: return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,tuple(x.message for x in critical),None,tuple(findings),self._confidence(tuple(findings)))
         project_id=next(e.id for e in plan.entities if e.kind==EntityKind.PROJECT); operations=[]
         for op in plan.patch.operations:
             if op.operation==PatchOperation.ADD_ENTITY and op.entity:
@@ -266,16 +295,61 @@ class VerificationService:
         for f in findings:
             operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=EngineeringEntity(f.id,EntityKind.VERIFICATION_RESULT,f.message,project_id,f.to_dict(),source_refs=f.evidence_ids,verification_status=f.state.value)))
         patch=replace(plan.patch,operations=tuple(operations))
-        overall=VerificationState.CROSS_CHECKED if any(x.state==VerificationState.CROSS_CHECKED for x in findings) else VerificationState.ESTIMATED
-        return VerificationResult(VerificationDecision.MODIFY,overall,("Evidence and deterministic verification completed.",),patch,tuple(findings))
+        limited=any(x.severity=="warning" or x.state in {VerificationState.ESTIMATED,VerificationState.CONCEPTUAL,VerificationState.STALE,VerificationState.UNSUPPORTED} for x in findings)
+        overall=VerificationState.ESTIMATED if limited else VerificationState.CROSS_CHECKED
+        return VerificationResult(VerificationDecision.MODIFY,overall,("Evidence and deterministic verification completed.",),patch,tuple(findings),self._confidence(tuple(findings)))
+
+    def verify_graph(self, graph: EngineeringGraph) -> VerificationResult:
+        """Purely verify an arbitrary complete candidate graph.
+
+        Graph-owned electrical nets are authoritative when present. The input
+        graph, its metadata, nets, evidence, and revisions are never mutated.
+        """
+        try: graph.validate()
+        except ValueError as exc:
+            finding=self._finding("GRAPH_INVALID",VerificationState.FAILED,"critical",str(exc),(graph.project_id,),category="graph",blocking=True)
+            return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,(str(exc),),None,(finding,),self._confidence((finding,)))
+        candidate=self._with_authoritative_nets(deepcopy(graph))
+        findings=[];revision=len(graph.revisions)
+        def add(check,state,severity,message,ids,**kwargs):
+            findings.append(self._finding(check,state,severity,message,tuple(ids),revision=revision,**kwargs))
+        evaluate_graph(candidate,add)
+        findings.sort(key=lambda item: ({"critical":0,"warning":1,"info":2}.get(item.severity,3),item.check,item.entity_ids,item.id))
+        blocking=[item for item in findings if item.blocking or (item.severity=="critical" and item.state is VerificationState.FAILED)]
+        limited=any(item.severity=="warning" or item.state in {VerificationState.ESTIMATED,VerificationState.CONCEPTUAL,VerificationState.STALE,VerificationState.UNSUPPORTED} for item in findings)
+        state=VerificationState.FAILED if blocking else VerificationState.ESTIMATED if limited else VerificationState.CROSS_CHECKED
+        decision=VerificationDecision.REJECT if blocking else VerificationDecision.ACCEPT
+        reasons=tuple(item.message for item in blocking) or ("Complete Engineering Graph verification passed.",)
+        return VerificationResult(decision,state,reasons,None,tuple(findings),self._confidence(tuple(findings)))
+
+    @staticmethod
+    def _confidence(findings: tuple[VerificationFinding,...]) -> dict[str,int]:
+        return {
+            "blockingFailures":sum(item.blocking for item in findings),
+            "warnings":sum(item.severity=="warning" for item in findings),
+            "criticalConceptualProperties":sum(item.category=="evidence" and item.state is VerificationState.CONCEPTUAL for item in findings),
+            "criticalUnresolvedProperties":sum(item.check=="COMPONENT_CRITICAL_UNRESOLVED" for item in findings),
+            "staleEvidence":sum(item.state is VerificationState.STALE for item in findings),
+            "conflictedEvidence":sum(item.check=="EVIDENCE_PROPERTY_CONFLICT" for item in findings),
+        }
+
+    @staticmethod
+    def _with_authoritative_nets(graph: EngineeringGraph) -> EngineeringGraph:
+        # Persisted/candidate graph nets are graph truth. Older plan-derived
+        # graphs receive deterministic materialized nets as a compatibility fallback.
+        return graph if electrical_nets(graph) else materialize_electrical_nets(graph)
 
     @staticmethod
     def _finding(check,state,severity,message,ids,revision=1,**kwargs):
         kwargs.setdefault("dependency_ids",ids)
-        return VerificationFinding(f"verification-{check}-{uuid4().hex[:10]}",check,state,severity,message,ids,revision=revision,**kwargs)
+        kwargs.setdefault("blocking",severity=="critical" and state is VerificationState.FAILED)
+        fingerprint="|".join((check,*ids))
+        finding_id=f"verification-{check.lower().replace('_','-')}-{sha256(fingerprint.encode()).hexdigest()[:10]}"
+        return VerificationFinding(finding_id,check,state,severity,message,ids,revision=revision,**kwargs)
 
-    def verify_modification(self, graph, patch: GraphPatch) -> VerificationResult:
-        affected={x.target_id for x in patch.operations if x.target_id}; operations=[]; stale=[]; attached=()
+    def verify_modification(self, graph: EngineeringGraph, patch: GraphPatch) -> VerificationResult:
+        before=self.verify_graph(graph)
+        affected={x.target_id for x in patch.operations if x.target_id};operations=[];stale=[];attached=()
         for operation in patch.operations:
             exact=operation.changes.get("metadata",{}).get("component_definition_id") if operation.changes else None
             if exact:
@@ -284,14 +358,42 @@ class VerificationService:
                 attached=definition.evidence_ids
                 operation=replace(operation,changes=dict(operation.changes)|{"source_refs":attached,"verification_status":VerificationState.SOURCE_VERIFIED.value})
             operations.append(operation)
+        candidate_patch=replace(patch,operations=tuple(operations))
+        try: candidate=self._with_authoritative_nets(apply_patch(graph,candidate_patch))
+        except ValueError as exc: return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,(str(exc),),None)
+        verified=self.verify_graph(candidate)
+        delta=compare_verification(before,verified)
+        incremental=delta.classification in {DeltaClassification.IMPROVES,DeltaClassification.RESOLVES_ALL} and delta.blocking_introduced_count==0
+        if not verified.accepted and not incremental:
+            return VerificationResult(VerificationDecision.REJECT,verified.state,verified.reasons,None,verified.findings,verified.confidence_ingredients,delta.to_dict())
         for result in graph.find(kind=EntityKind.VERIFICATION_RESULT):
             dependencies=set(result.metadata.get("dependencyIds",result.metadata.get("entity_ids",[])))
             if dependencies & affected:
                 operations.append(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=result.id,changes={"verification_status":VerificationState.STALE.value,"metadata":dict(result.metadata)|{"status":"stale"}})); stale.append(result.id)
+        for evidence in graph.find(kind=EntityKind.EVIDENCE):
+            targets=set(evidence.metadata.get("appliesTo",evidence.metadata.get("applies_to",())))
+            if targets & affected and evidence.id not in attached:
+                operations.append(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=evidence.id,changes={"verification_status":VerificationState.STALE.value,"metadata":dict(evidence.metadata)|{"status":"stale"}}))
         for evidence in evidence_records():
             if evidence.evidence_id in attached and evidence.evidence_id not in graph.entities:
                 record=evidence.for_targets(*affected)
                 operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=EngineeringEntity(record.evidence_id,EntityKind.EVIDENCE,record.title,graph.project_id,record.to_dict(),verification_status=VerificationState.SOURCE_VERIFIED.value)))
-        finding=VerificationFinding("verification-mosfet-update" if "verification-mosfet-update" not in graph.entities else f"verification-modification-{uuid4().hex[:10]}","driver-update",VerificationState.ESTIMATED,"warning","Modified driver values require implementation confirmation.",tuple(affected),revision=len(graph.revisions)+1,machine_result={"staleFindings":stale})
-        operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=EngineeringEntity(finding.id,EntityKind.VERIFICATION_RESULT,finding.message,graph.project_id,finding.to_dict(),verification_status=finding.state.value)))
-        return VerificationResult(VerificationDecision.MODIFY,VerificationState.ESTIMATED,("Affected evidence applications were invalidated and bounded checks reran.",),replace(patch,operations=tuple(operations)),(finding,))
+        for finding in verified.findings:
+            entity=EngineeringEntity(finding.id,EntityKind.VERIFICATION_RESULT,finding.message,graph.project_id,finding.to_dict(),source_refs=finding.evidence_ids,verification_status=finding.state.value)
+            if finding.id in graph.entities:
+                operations.append(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=finding.id,changes={"name":finding.message,"metadata":finding.to_dict(),"source_refs":finding.evidence_ids,"verification_status":finding.state.value}))
+            else: operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=entity))
+        reason=("The candidate incrementally improves the design; remaining blockers keep the project incomplete."
+                if incremental and verified.state is VerificationState.FAILED else
+                "The complete candidate Engineering Graph passed re-verification.")
+        update_finding=self._finding(
+            "driver-update",VerificationState.ESTIMATED,"warning",
+            "Modified driver values require implementation confirmation.",tuple(sorted(affected)),
+            revision=len(graph.revisions)+1,machine_result={"staleFindings":stale},
+        )
+        update_entity=EngineeringEntity(update_finding.id,EntityKind.VERIFICATION_RESULT,update_finding.message,graph.project_id,update_finding.to_dict(),verification_status=update_finding.state.value)
+        if update_finding.id in graph.entities:
+            operations.append(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=update_finding.id,changes={"name":update_finding.message,"metadata":update_finding.to_dict(),"verification_status":update_finding.state.value}))
+        else:
+            operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=update_entity))
+        return VerificationResult(VerificationDecision.MODIFY,verified.state,(reason,),replace(patch,operations=tuple(operations)),verified.findings+(update_finding,),verified.confidence_ingredients,delta.to_dict())
