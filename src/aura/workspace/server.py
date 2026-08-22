@@ -43,6 +43,8 @@ from .representation_service import RepresentationService, initial_records, repr
 from .representations import RepresentationRecord, RepresentationStatus
 from .modifications import LiveModificationPlanner,ModificationProposal,inverse_proposal,propose
 from .narration import NarrationService
+from .work_items import EngineeringWorkService, WorkDomainError
+from .scenarios import EngineeringScenario,ScenarioError,analyze as analyze_scenario
 
 LOGGER = logging.getLogger("aura.workspace")
 
@@ -84,6 +86,23 @@ class RepresentationUpdateBody(BaseModel):
 class ProposalBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     projectId:str=Field(min_length=1,max_length=160);baseRevision:int=Field(ge=0);selectedSemanticIds:list[str]=Field(min_length=1,max_length=16);request:str=Field(min_length=5,max_length=2000);mode:Literal["automatic","parameter_change"]="automatic";operationId:Optional[str]=Field(default=None,max_length=128)
+
+class WorkItemBody(BaseModel):
+    model_config=ConfigDict(extra="forbid")
+    title:str=Field(min_length=1,max_length=200);description:str=Field(default="",max_length=2000);category:str=Field(default="engineering",max_length=80)
+    relatedComponentIds:list[str]=Field(default_factory=list,max_length=32);relatedRequirementIds:list[str]=Field(default_factory=list,max_length=32);relatedFindingIds:list[str]=Field(default_factory=list,max_length=32);source:str=Field(default="manual",max_length=80)
+
+class WorkTransitionBody(BaseModel):
+    model_config=ConfigDict(extra="forbid")
+    targetState:str=Field(min_length=1,max_length=32);reason:Optional[str]=Field(default=None,max_length=1000);actor:Optional[str]=Field(default=None,max_length=100)
+
+class WorkCommandBody(BaseModel):
+    model_config=ConfigDict(extra="forbid")
+    command:str=Field(min_length=3,max_length=2000);reason:Optional[str]=Field(default=None,max_length=1000);actor:Optional[str]=Field(default="AURA",max_length=100)
+
+class ScenarioBody(BaseModel):
+    model_config=ConfigDict(extra="forbid")
+    targetSemanticId:str;changeType:Literal["REPLACE_COMPONENT","REMOVE_COMPONENT","MODIFY_PROPERTY"];value:Any=None
 
 
 class EventBroker:
@@ -155,6 +174,8 @@ class WorkspaceApplication:
         self.modification_locks:dict[str,threading.Lock]={}
         self.creation_lock=threading.Lock()
         self.active_representation_operations:set[str]=set()
+        self.work_service=EngineeringWorkService(self.repository)
+        self.scenarios:dict[str,EngineeringScenario]={}
 
     def _request(self, objective: str) -> ProjectRequest:
         words=[word.capitalize() for word in objective.strip().rstrip(".").split() if word.lower() not in {"design","build","make","a","an","the","small"}]
@@ -718,6 +739,81 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         events=application.repository.append_events(project_id,result["revision"],[{"type":"undo.operation_completed","semantic_ids":list(proposal.affected_ids),"payload":{"operationId":operation_id,"result":result}}])
         await application.publish_with_narration(events,_record(application,project_id).graph,result["representations"])
         return result
+
+    def work_error(exc:WorkDomainError): raise HTTPException(exc.status,detail=exc.to_dict()) from exc
+
+    @app.get("/api/projects/{project_id}/work")
+    def list_work(project_id:str)->dict[str,Any]:
+        _record(application,project_id); items=[item.to_dict() for item in application.work_service.list(project_id)]
+        return {"items":items,"summary":application.work_service.summary(project_id)}
+
+    @app.post("/api/projects/{project_id}/work",status_code=201)
+    def create_work(project_id:str,body:WorkItemBody)->dict[str,Any]:
+        try:return application.work_service.create(project_id,body.title,body.description,body.category,body.relatedComponentIds,body.relatedRequirementIds,body.relatedFindingIds,_record(application,project_id).graph.current_revision_id,body.source).to_dict()
+        except WorkDomainError as exc:return work_error(exc)
+
+    @app.post("/api/projects/{project_id}/work/{work_item_id}/transition")
+    def transition_work(project_id:str,work_item_id:str,body:WorkTransitionBody)->dict[str,Any]:
+        try:return application.work_service.transition(project_id,work_item_id,body.targetState,body.reason,body.actor).to_dict()
+        except WorkDomainError as exc:return work_error(exc)
+
+    @app.post("/api/projects/{project_id}/work/command")
+    def command_work(project_id:str,body:WorkCommandBody)->dict[str,Any]:
+        command=body.command.lower(); verbs=(("pause","PAUSED"),("skip","SKIPPED"),("abandon","ABANDONED"),("resume","IN_PROGRESS"),("start","IN_PROGRESS"),("complete","COMPLETED")); target=next((state for verb,state in verbs if verb in command),None)
+        if not target: raise HTTPException(422,detail={"code":"WORK_COMMAND_UNSUPPORTED","message":"State action was not recognized."})
+        items=application.work_service.list(project_id); matches=[item for item in items if item.title.lower() in command or all(word in command for word in item.title.lower().split() if len(word)>3)]
+        if len(matches)!=1: raise HTTPException(422,detail={"code":"WORK_ITEM_AMBIGUOUS","message":"Name one engineering work item."})
+        reason=body.reason
+        if not reason and " because " in command: reason=body.command[command.index(" because ")+9:]
+        try:return application.work_service.transition(project_id,matches[0].id,target,reason,body.actor).to_dict()
+        except WorkDomainError as exc:return work_error(exc)
+
+    @app.post("/api/projects/{project_id}/scenarios")
+    def create_scenario(project_id:str,body:ScenarioBody)->dict[str,Any]:
+        record=_record(application,project_id)
+        try:scenario=analyze_scenario(record.graph,body.targetSemanticId,body.changeType,body.value)
+        except ScenarioError as exc:raise HTTPException(exc.status,detail={"code":exc.code,"message":exc.message}) from exc
+        revisions=application.repository.list_revisions(project_id)
+        current_verification=revisions[-1].get("verification",{}) if revisions else {}
+        scenario.analysis["verification"]["delta"]["current"]=str(current_verification.get("state",current_verification.get("outcome","UNKNOWN"))).upper()
+        application.scenarios={scenario.id:scenario};return scenario.to_dict()
+
+    @app.delete("/api/projects/{project_id}/scenarios/{scenario_id}")
+    def discard_scenario(project_id:str,scenario_id:str)->dict[str,bool]:
+        scenario=application.scenarios.get(scenario_id)
+        if not scenario or scenario.project_id!=project_id:raise HTTPException(404,detail={"code":"SCENARIO_NOT_FOUND"})
+        application.scenarios.pop(scenario_id,None);return {"discarded":True}
+
+    @app.post("/api/projects/{project_id}/scenarios/{scenario_id}/apply")
+    async def apply_scenario(project_id:str,scenario_id:str)->dict[str,Any]:
+        scenario=application.scenarios.get(scenario_id);record=_record(application,project_id)
+        if not scenario or scenario.project_id!=project_id:raise HTTPException(404,detail={"code":"SCENARIO_NOT_FOUND"})
+        if scenario.base_revision!=len(record.graph.revisions) or scenario.base_revision_id!=record.graph.current_revision_id:raise HTTPException(409,detail={"code":"SCENARIO_STALE","message":"Project changed; re-run analysis."})
+        lock=application.modification_locks.setdefault(project_id,threading.Lock())
+        if not lock.acquire(blocking=False):raise HTTPException(409,detail={"code":"SCENARIO_APPLY_IN_PROGRESS"})
+        try:
+            record=_record(application,project_id)
+            if scenario.base_revision!=len(record.graph.revisions) or scenario.base_revision_id!=record.graph.current_revision_id:raise HTTPException(409,detail={"code":"SCENARIO_STALE","message":"Project changed; re-run analysis."})
+            verified=VerificationService().verify_modification(record.graph,scenario.patch)
+            if not verified.accepted or verified.patch is None:raise HTTPException(422,detail={"code":"SCENARIO_INVALID","reasons":list(verified.reasons)})
+            updated=WorkspaceBridge().commit(record.graph,verified); now=datetime.now(timezone.utc).isoformat()
+            updated_record=StoredProject(record.project_id,record.objective,record.planning_mode,record.fallback_reason,"ready",updated,record.representations,record.created_at,now)
+            diff=scenario.analysis["diff"];affected=scenario.analysis["impact"]["affectedComponentIds"]
+            result={"projectId":project_id,"previousRevisionId":scenario.base_revision_id,"newRevisionId":updated.current_revision_id,"revision":len(updated.revisions),"targetSemanticId":scenario.target_id,"changedComponentIds":diff["changedComponents"],"affectedComponentIds":affected,"changedRelationshipIds":diff["changedRelationships"],"diff":diff}
+            events=application.repository.save_commit(updated_record,scenario.patch,{"kind":"scenario","analysis":scenario.analysis},[{"type":"scenario.applied","semantic_ids":affected,"payload":{"scenarioId":scenario.id,"result":result}}])
+            await application.publish_with_narration(events,updated,record.representations);application.scenarios.pop(scenario_id,None)
+            return result
+        finally:lock.release()
+
+    @app.post("/api/projects/{project_id}/scenarios/{scenario_id}/work",status_code=201)
+    def scenario_work(project_id:str,scenario_id:str)->dict[str,Any]:
+        scenario=application.scenarios.get(scenario_id)
+        if not scenario or scenario.project_id!=project_id:raise HTTPException(404,detail={"code":"SCENARIO_NOT_FOUND"})
+        uncertainties=[x for x in scenario.analysis["explanations"] if x["kind"]=="UNCERTAINTY"]
+        if not uncertainties:raise HTTPException(409,detail={"code":"SCENARIO_HAS_NO_UNCERTAINTY"})
+        title=f"Verify {scenario.analysis['candidate']['component']['name'] if scenario.analysis['candidate']['component'] else scenario.analysis['current']['component']['name']} capability"
+        findings=[x.get("findingId") for x in uncertainties if x.get("findingId")]
+        return application.work_service.create(project_id,title,"Resolve uncertainty introduced by What-If analysis.","verification",[scenario.target_id],[],findings,scenario.base_revision_id,"what_if").to_dict()
 
     @app.websocket("/api/projects/{project_id}/events")
     async def events(websocket: WebSocket, project_id: str,

@@ -26,3 +26,8 @@ CREATE TABLE IF NOT EXISTS artifacts (
     format TEXT NOT NULL, status TEXT NOT NULL, content_hash TEXT, relative_path TEXT,
     generator TEXT, generator_version TEXT, created_at TIMESTAMPTZ, error TEXT
 );
+CREATE TABLE IF NOT EXISTS work_items (
+    project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+    work_item_id TEXT NOT NULL, item_json JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY(project_id, work_item_id)
+);
