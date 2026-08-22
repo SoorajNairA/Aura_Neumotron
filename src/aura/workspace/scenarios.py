@@ -4,6 +4,7 @@ from typing import Any
 from uuid import uuid4
 from aura.engineering_graph.model import EngineeringGraph, EntityKind
 from aura.engineering_graph.patches import GraphOperation,GraphPatch,PatchOperation,apply_patch
+from aura.verification.delta import compare_verification
 from aura.verification.service import VerificationService
 
 class ScenarioError(ValueError):
@@ -40,7 +41,10 @@ def analyze(graph:EngineeringGraph,target_id:str,change_type:str,value:Any)->Eng
     patch=GraphPatch(f"scenario-patch-{uuid4().hex}",operations,f"What-If {change_type.lower().replace('_',' ')}",graph.current_revision_id)
     try:candidate=apply_patch(graph,patch)
     except Exception as exc:raise ScenarioError("SCENARIO_CANDIDATE_INVALID",str(exc)) from exc
-    verification=VerificationService().verify_modification(graph,patch)
+    verifier=VerificationService()
+    verification=verifier.verify_modification(graph,patch)
+    candidate_verification=verifier.verify_graph(candidate)
+    verification_delta=compare_verification(verifier.verify_graph(graph),candidate_verification).to_dict()
     direct={target_id};adjacent=set();relationship_changes=[]
     for relation in graph.relationships.values():
         if target_id in {relation.source_id,relation.target_id}:
@@ -50,12 +54,12 @@ def analyze(graph:EngineeringGraph,target_id:str,change_type:str,value:Any)->Eng
         if relation.source_id in adjacent:indirect.add(relation.target_id)
         if relation.target_id in adjacent:indirect.add(relation.source_id)
     indirect-=direct|adjacent
-    findings=[x.to_dict() for x in verification.findings]
+    findings=[x.to_dict() for x in candidate_verification.findings]
     derived=[{"kind":"DERIVED_IMPACT","message":f"Relationship {rid} must be re-evaluated","semanticIds":[target_id]} for rid in relationship_changes]
     uncertainty=[{"kind":"UNCERTAINTY","message":x["summary"],"semanticIds":x.get("semanticIds",[]),"findingId":x["findingId"]} for x in findings if x.get("severity") in {"WARN","FAIL"}]
     analysis={"current":{"revision":len(graph.revisions),"component":{"id":target.id,"name":target.name}},"candidate":{"component":None if change_type=="REMOVE_COMPONENT" else {"id":target.id,"name":candidate.get(target.id).name}},
         "diff":{"changedComponents":[] if change_type=="REMOVE_COMPONENT" else [target_id],"addedComponents":[],"removedComponents":[target_id] if change_type=="REMOVE_COMPONENT" else [],"changedRelationships":relationship_changes},
         "impact":{"directlyChanged":sorted(direct),"directlyAffected":sorted(adjacent),"indirectlyAffected":sorted(indirect),"affectedComponentIds":sorted((direct|adjacent|indirect)&{x.id for x in graph.find(kind=EntityKind.COMPONENT)})},
-        "verification":{"accepted":verification.accepted,"state":verification.state.value,"findings":findings,"delta":verification.verification_delta},
-        "confidence":_confidence(verification.findings),"explanations":[*known,*derived,*uncertainty]}
+        "verification":{"accepted":verification.accepted,"state":candidate_verification.state.value,"findings":findings,"delta":verification_delta},
+        "confidence":_confidence(candidate_verification.findings),"explanations":[*known,*derived,*uncertainty]}
     return EngineeringScenario(f"scenario-{uuid4().hex}",graph.project_id,len(graph.revisions),graph.current_revision_id,target_id,change_type,patch,candidate,analysis)
