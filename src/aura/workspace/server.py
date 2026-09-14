@@ -263,6 +263,37 @@ class WorkspaceApplication:
         finally:
             self.creation_lock.release()
 
+    async def _resume_incomplete_representations(self, record: StoredProject) -> StoredProject:
+        records=[RepresentationRecord.from_dict(value) for value in record.representations]
+        retryable={RepresentationStatus.REQUESTED,RepresentationStatus.FAILED,RepresentationStatus.FALLBACK}
+        if not any(item.status in retryable for item in records):
+            return record
+        specs={(spec.kind,spec.semantic_ids):spec for spec in representation_specs(record.graph)}
+        completed=[];events=[]
+        for item in records:
+            spec=specs.get((item.type,item.semantic_ids))
+            if item.status not in retryable or spec is None:
+                completed.append(item)
+                continue
+            regenerated=(await run_in_threadpool(self.representation_service.persist_specs,record.project_id,
+                len(record.graph.revisions),[item],[spec]))[0]
+            completed.append(regenerated)
+            events.append({"type":"representation.generating","semantic_ids":list(item.semantic_ids),
+                "payload":{"representationId":item.representation_id,"retry":True}})
+            if regenerated.status is RepresentationStatus.FALLBACK:
+                events.append({"type":"representation.failed","semantic_ids":list(item.semantic_ids),
+                    "payload":{"representationId":item.representation_id,"error":regenerated.error,"retry":True}})
+            events.append({"type":f"representation.{regenerated.status.value}","semantic_ids":list(item.semantic_ids),
+                "payload":{"representationId":item.representation_id,"artifactId":regenerated.artifact_id,"error":regenerated.error,"retry":True}})
+        record.representations=[item.to_dict() for item in completed]
+        record.status="build_incomplete" if any(item.status is not RepresentationStatus.READY for item in completed) else "ready_with_limitations"
+        self.repository.update_representations(record.project_id,record.representations)
+        self.repository.update_project_status(record.project_id,record.status)
+        if events:
+            committed=self.repository.append_events(record.project_id,len(record.graph.revisions),events)
+            await self.publish_with_narration(committed,record.graph,record.representations)
+        return record
+
     async def _create_serialized(self, body: CreateProjectBody) -> StoredProject:
         if body.operationId:
             completed=self.find_operation("project.operation_completed",body.operationId)
@@ -271,7 +302,7 @@ class WorkspaceApplication:
                 if existing:return existing
         existing=self.repository.get_project(PlannerService._id(body.objective,"project"))
         if existing is not None:
-            return existing
+            return await self._resume_incomplete_representations(self.recover_interrupted(existing))
         try:
             outcome = await run_in_threadpool(self.plan, body)
         except ValueError as exc:
@@ -290,7 +321,7 @@ class WorkspaceApplication:
         # Project IDs are objective-derived. Repeating the same create request is
         # idempotent in every planner mode, not only in deterministic tests.
         if existing is not None:
-            return existing
+            return await self._resume_incomplete_representations(self.recover_interrupted(existing))
         planner_metadata = dict(outcome.provider_metadata or {})
         planner_metadata.update({"provider": "vertex" if outcome.mode == "live_model" else "deterministic", "fallbackUsed": outcome.mode != "live_model", "planId": plan.patch.id, "componentCount": len(plan.components), "relationshipCount": len(plan.relationships)})
         event_drafts = [{"type": "project.started", "payload": {"planningMode": outcome.mode,"operationId":body.operationId,"planner":planner_metadata}, "semantic_ids": []}]

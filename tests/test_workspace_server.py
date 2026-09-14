@@ -57,6 +57,35 @@ def create_project(client: TestClient, mode="deterministic_test"):
 
 
 @pytest.mark.integration
+def test_repeating_create_resumes_failed_representation_without_new_revision(tmp_path) -> None:
+    app=create_app(storage_mode="sqlite",db_path=tmp_path/"workspace.db",artifact_dir=tmp_path/"artifacts")
+    repository=app.state.workspace.repository
+    write_artifact=repository.write_artifact
+    failed=False
+
+    def fail_first_write(*args,**kwargs):
+        nonlocal failed
+        if not failed:
+            failed=True
+            raise OSError("disk full")
+        return write_artifact(*args,**kwargs)
+
+    repository.write_artifact=fail_first_write
+    with TestClient(app) as client:
+        first=create_project(client)
+        failed_id=next(item["representationId"] for item in first["representations"] if item["status"]=="fallback")
+        repository.write_artifact=write_artifact
+
+        retried=create_project(client)
+
+        assert retried["projectId"]==first["projectId"]
+        assert retried["revision"]==first["revision"]==1
+        recovered=next(item for item in retried["representations"] if item["representationId"]==failed_id)
+        assert recovered["status"]=="ready"
+        assert recovered["artifactId"]
+
+
+@pytest.mark.integration
 def test_project_graph_revision_and_frontend_apis() -> None:
     app = create_app(storage_mode="memory")
     with TestClient(app) as client:
