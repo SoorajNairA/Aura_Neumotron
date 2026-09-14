@@ -191,6 +191,44 @@ def test_explicit_two_wheel_vehicle_count_caps_conflicting_planner_components():
     assert any(item["resolutionQuality"] == "UNRESOLVED" and "exceeds" in item["reason"] for item in trace)
 
 
+def test_generated_project_name_cannot_override_unspecified_four_wheel_car_default():
+    request = ProjectRequest(
+        "Two-wheel solar car",
+        "make a solar powered rc car",
+        ("Use low-voltage power",),
+    )
+    plan = PlannerService().plan(request)
+    assert len([item for item in plan.components if item.role == "drive_wheel"]) == 4
+    assert len([item for item in plan.components if item.role == "small_dc_motor"]) == 4
+
+
+def test_unspecified_car_caps_excess_planner_wheels_motors_and_structures():
+    request = ProjectRequest(
+        "Solar car",
+        "make a solar powered rc car with a protective enclosure",
+        ("Use low-voltage power",),
+        components=(
+            *("drive wheel",) * 6,
+            *("small dc motor",) * 6,
+            "mounting plate", "structural support",
+            "enclosure", "protective housing",
+            "solar panel", "photovoltaic panel",
+        ),
+    )
+    plan = PlannerService().plan(request)
+    verification = VerificationService().verify(plan)
+    assert verification.accepted
+    graph = WorkspaceBridge().commit(EngineeringGraph(plan.entities[0].id), verification)
+    assembly = engineering_assembly(graph)
+    assert len([item for item in assembly["parts"] if item["family"] == "drive_wheel"]) == 4
+    assert len([item for item in assembly["parts"] if item["family"] == "small_dc_motor"]) == 4
+    assert len([item for item in assembly["parts"] if item["family"] == "mounting_plate"]) == 1
+    assert len([item for item in assembly["parts"] if item["family"] == "enclosure"]) == 1
+    assert len([item for item in assembly["parts"] if "energy_collection" in item["functionalRoles"]]) == 1
+    assert assembly["transformSourceCounts"]["FIXED_ROOT"] == 1
+    assert not assembly["visualConnectivity"]["severeIntersections"]
+
+
 def test_explicit_vehicle_enclosure_is_mated_to_the_single_chassis_root():
     request = ProjectRequest(
         "Enclosed solar car",

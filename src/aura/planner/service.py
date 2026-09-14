@@ -84,9 +84,9 @@ class PlannerService:
         axis_count=self._requested_axis_count(intent_text)
         if not axis_count and (("pan" in text and "tilt" in text) or "balanc" in text): axis_count=2
         servo_count=self._named_component_count(f"{intent_text} {planner_labels}","servo")
-        explicit_wheel_count=self._named_component_count(intent_text,"wheel")
+        explicit_wheel_count=self._named_component_count(objective_text,"wheel")
         requested_wheels=explicit_wheel_count
-        if mobile_drive and not requested_wheels: requested_wheels=4 if has_term(intent_text.lower(),"car") else 2
+        if mobile_drive and not requested_wheels: requested_wheels=4 if has_term(objective_text,"car") else 2
         requested_counts={
             "fan":self._named_component_count(intent_text,"fan"),
             "pump":self._named_component_count(intent_text,"pump"),
@@ -220,9 +220,8 @@ class PlannerService:
             identity_overrides["light-sensor"]=[]
             for index in range(4): identity("light-sensor",f"LDR Direction Sensor {index+1}","photoresistor-module","ldr",(32,14,7))
         raw_trace=[];raw_counts={};raw_seen={}
-        raw_limits={"chassis":1} if mobile_drive else {}
-        if mobile_drive and explicit_wheel_count:
-            raw_limits.update({"drive-wheel":explicit_wheel_count,"motor":explicit_wheel_count})
+        raw_limits=({"chassis":1,"drive-wheel":requested_wheels,"motor":requested_wheels,"enclosure":1,"panel":1}
+                    if mobile_drive else {})
         for raw in request.components:
             resolved=self._resolve_component_intent(raw,objective_text)
             if mobile_drive and resolved.get("normalizedFamily")=="mounting-plate":
@@ -230,12 +229,13 @@ class PlannerService:
             elif mobile_drive and resolved.get("normalizedFamily")=="enclosure" and not explicit_enclosure:
                 resolved={"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"the Planner-added enclosure is not required by the vehicle objective"}
             family=resolved.get("normalizedFamily")
-            if family in raw_limits and raw_seen.get(family,0)>=raw_limits[family]:
-                resolved={"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":f"Planner component exceeds the objective-authoritative {family} count of {raw_limits[family]}"}
-                family=None
-            raw_trace.append({"plannerIntent":raw,**resolved})
             if family:
-                raw_seen[family]=raw_seen.get(family,0)+1;raw_counts[family]=raw_counts.get(family,0)+1
+                occurrence=raw_seen.get(family,0)+1;raw_seen[family]=occurrence
+                if family in raw_limits and occurrence>raw_limits[family]:
+                    resolved={"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":f"Planner component entry {occurrence} exceeds the objective-authoritative {family} count of {raw_limits[family]}"}
+                    family=None
+            raw_trace.append({"plannerIntent":raw,**resolved})
+            if family: raw_counts[family]=raw_counts.get(family,0)+1
         for family,count in raw_counts.items(): include(family,count)
         # Choose a fallback actuator only after structured Planner intent has
         # been normalized. Otherwise a valid requested motor architecture also
