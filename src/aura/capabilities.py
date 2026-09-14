@@ -46,7 +46,7 @@ def classify_objective(objective:str)->dict[str,Any]:
         return {"status":CapabilityStatus.UNSUPPORTED.value,"reasons":[f"Current capability excludes {', '.join(hits)}."],"supportedAlternative":"A small low-voltage conceptual mechatronic analogue may be created instead."}
     if has("robotic arm") or has("robot arm"):
         return {"status":CapabilityStatus.SUPPORTED_WITH_LIMITATIONS.value,"reasons":["A low-voltage servo-driven conceptual arm is supported; payload, structural analysis, precision kinematics, and manufacturing readiness are not verified."]}
-    keywords=("esp32","sensor","fan","feeder","weather","tank","servo","motor","pump","monitor","controller","automation","robotic","temperature","humidity","lid","irrigation")
+    keywords=("esp32","arduino","sensor","fan","feeder","weather","tank","servo","motor","pump","monitor","controller","automation","robotic","temperature","humidity","light","display","tracker","shade","ventilation","lid","irrigation")
     if any(has(word) for word in keywords):
         return {"status":CapabilityStatus.SUPPORTED.value,"reasons":["Objective is within bounded small low-voltage mechatronics."]}
     return {"status":CapabilityStatus.NEEDS_CLARIFICATION.value,"reasons":["The objective does not identify a supported low-voltage mechatronic function."],"questions":["What should the device sense, move, or control using low-voltage components?"]}

@@ -61,7 +61,7 @@ def test_scenario_work_and_stale_protection():
             stale=client.post(f"/api/projects/{pid}/scenarios/{first['scenarioId']}/apply")
             assert stale.status_code==409 and stale.json()["detail"]["code"]=="SCENARIO_STALE"
 
-def test_scenario_project_isolation_one_active_rule_and_no_implicit_work():
+def test_scenarios_remain_isolated_per_project_and_create_no_implicit_work():
     app=create_app(provider=ScenarioProvider(),storage_mode="memory")
     with TestClient(app) as client:
         first,component=setup(client);a=first["projectId"]
@@ -70,7 +70,9 @@ def test_scenario_project_isolation_one_active_rule_and_no_implicit_work():
         second=client.post("/api/projects",json={"objective":"Design a low voltage temperature monitor with sensor and display","planningMode":"deterministic_test"}).json();b=second["projectId"]
         graph=client.get(f"/api/projects/{b}/graph").json();target=next(x for x in graph["entities"] if x["kind"]=="component")
         replacement=client.post(f"/api/projects/{b}/scenarios",json={"targetSemanticId":target["id"],"changeType":"REPLACE_COMPONENT","value":{"name":"Candidate sensor"}}).json()
-        assert client.post(f"/api/projects/{a}/scenarios/{scenario['scenarioId']}/apply").status_code==404
+        applied=client.post(f"/api/projects/{a}/scenarios/{scenario['scenarioId']}/apply")
+        assert applied.status_code==200,applied.text
+        assert applied.json()["projectId"]==a
         assert client.post(f"/api/projects/{a}/scenarios/{replacement['scenarioId']}/apply").status_code==404
         assert client.get(f"/api/projects/{b}/work").json()["summary"]["total"]==0
 

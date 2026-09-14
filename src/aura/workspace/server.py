@@ -828,7 +828,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             error_name=exc.__class__.__name__
             status=503 if error_name=="VertexAuthenticationError" else 504 if error_name=="VertexTimeoutError" else 502
             raise HTTPException(status,detail={"code":"SCENARIO_AI_UNAVAILABLE","message":str(exc)}) from exc
-        application.scenarios={scenario.id:scenario};return scenario.to_dict()
+        application.scenarios[scenario.id]=scenario;return scenario.to_dict()
 
     @app.delete("/api/projects/{project_id}/scenarios/{scenario_id}")
     def discard_scenario(project_id:str,scenario_id:str)->dict[str,bool]:
