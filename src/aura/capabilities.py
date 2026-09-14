@@ -46,8 +46,10 @@ def classify_objective(objective:str)->dict[str,Any]:
         return {"status":CapabilityStatus.UNSUPPORTED.value,"reasons":[f"Current capability excludes {', '.join(hits)}."],"supportedAlternative":"A small low-voltage conceptual mechatronic analogue may be created instead."}
     if has("robotic arm") or has("robot arm"):
         return {"status":CapabilityStatus.SUPPORTED_WITH_LIMITATIONS.value,"reasons":["A low-voltage servo-driven conceptual arm is supported; payload, structural analysis, precision kinematics, and manufacturing readiness are not verified."]}
-    keywords=("esp32","arduino","sensor","fan","feeder","weather","tank","servo","motor","pump","monitor","controller","automation","robotic","temperature","humidity","light","display","tracker","shade","ventilation","lid","irrigation")
-    if any(has(word) for word in keywords):
+    tokens=set(text.split())
+    singular_tokens={token[:-1] if token.endswith("s") and len(token)>3 else token for token in tokens}
+    keywords={"esp32","arduino","sensor","detector","fan","feeder","dispensing","mechanism","weather","tank","servo","motor","pump","monitor","controller","automation","robotic","temperature","humidity","light","display","tracker","shade","ventilation","lid","irrigation","hc","sr04","car","wheel","camera","mount","platform","door","drive","rover","turntable","plate","balancing","conveyor","machine","axis","panel","structural","graph"}
+    if singular_tokens & keywords:
         return {"status":CapabilityStatus.SUPPORTED.value,"reasons":["Objective is within bounded small low-voltage mechatronics."]}
     return {"status":CapabilityStatus.NEEDS_CLARIFICATION.value,"reasons":["The objective does not identify a supported low-voltage mechatronic function."],"questions":["What should the device sense, move, or control using low-voltage components?"]}
 
