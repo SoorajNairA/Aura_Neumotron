@@ -157,12 +157,17 @@ class RepresentationService:
     def persist_specs(self, project_id: str, revision: int, records: list[RepresentationRecord], specs: list[RepresentationSpec]) -> list[RepresentationRecord]:
         updated=[]
         for record,spec in zip(records,specs):
-            artifact=self.repository.create_artifact(project_id,revision,list(spec.semantic_ids),spec.kind.value,
-                "representation-spec" if spec.kind is RepresentationType.MECHANICAL_3D else "circuit-json")  # type: ignore[attr-defined]
-            if spec.kind is RepresentationType.MECHANICAL_3D:
-                self.repository.write_artifact(artifact.artifact_id,json.dumps(spec.to_dict(),separators=(",", ":")).encode(),"aura-spec","1")  # type: ignore[attr-defined]
-                updated.append(record.transition(RepresentationStatus.GENERATING).transition(RepresentationStatus.READY,artifact_id=artifact.artifact_id,error=None))
-            else: updated.append(self._generate_circuit(record,spec,artifact.artifact_id))
+            try:
+                artifact=self.repository.create_artifact(project_id,revision,list(spec.semantic_ids),spec.kind.value,
+                    "representation-spec" if spec.kind is RepresentationType.MECHANICAL_3D else "circuit-json")  # type: ignore[attr-defined]
+                if spec.kind is RepresentationType.MECHANICAL_3D:
+                    self.repository.write_artifact(artifact.artifact_id,json.dumps(spec.to_dict(),separators=(",", ":")).encode(),"aura-spec","1")  # type: ignore[attr-defined]
+                    updated.append(record.transition(RepresentationStatus.GENERATING).transition(RepresentationStatus.READY,artifact_id=artifact.artifact_id,error=None))
+                else:
+                    updated.append(self._generate_circuit(record,spec,artifact.artifact_id))
+            except Exception as exc:
+                failed=record.transition(RepresentationStatus.GENERATING).transition(RepresentationStatus.FAILED,error=str(exc))
+                updated.append(failed.transition(RepresentationStatus.FALLBACK))
         return updated
 
     def _generate_circuit(self, record: RepresentationRecord, spec: RepresentationSpec, artifact_id: str) -> RepresentationRecord:
