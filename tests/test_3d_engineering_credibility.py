@@ -124,6 +124,41 @@ def test_four_wheel_mobile_system_is_compactly_assembled_on_its_chassis():
     assert_wire_fidelity(graph, assembly)
 
 
+def test_live_style_solar_rc_car_restores_objective_components_and_one_chassis_layout():
+    request = ProjectRequest(
+        "Solar-Powered RC Rover",
+        "make a solar powered rc car",
+        ("Use low-voltage power",),
+        components=(
+            "microcontroller_board", "small_dc_motor", "motor_driver",
+            "low_voltage_power_source", "enclosure", "mounting_plate",
+            "diode", "resistor",
+        ),
+    )
+    plan = PlannerService().plan(request)
+    verification = VerificationService().verify(plan)
+    assert verification.accepted
+    graph = WorkspaceBridge().commit(EngineeringGraph(plan.entities[0].id), verification)
+    assembly = engineering_assembly(graph)
+    parts = assembly["parts"]
+
+    wheels = [item for item in parts if item["family"] == "drive_wheel"]
+    motors = [item for item in parts if item["family"] == "small_dc_motor"]
+    chassis = [item for item in parts if item["family"] == "mounting_plate"]
+    solar_panel = next(item for item in parts if "energy_collection" in item["functionalRoles"])
+
+    assert len(wheels) == len(motors) == 4
+    assert len(chassis) == 1
+    assert any(item["family"] == "wireless_module" for item in parts)
+    assert all(item["family"] != "enclosure" for item in parts)
+    assert solar_panel["label"] == "Solar panel"
+    assert solar_panel["mechanicalParents"] == [chassis[0]["semanticId"]]
+    assert solar_panel["transformSource"] == "MATE_SOLVED"
+    assert assembly["transformSourceCounts"]["FIXED_ROOT"] == 1
+    assert not assembly["unresolvedPrimaryMechanism"]
+    assert not assembly["visualConnectivity"]["severeIntersections"]
+
+
 @pytest.mark.parametrize("dimensions", ((36.0, 36.0, 10.0), (64.0, 64.0, 18.0), (120.0, 120.0, 34.0)))
 def test_drive_wheel_representation_parameters_scale_with_part_dimensions(dimensions):
     parameters = _representation_parameters("drive_wheel", dimensions)
