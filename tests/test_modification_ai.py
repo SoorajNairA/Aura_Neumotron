@@ -11,15 +11,15 @@ class PlacementProvider:
     def generate_structured(self, messages, **kwargs):
         context = json.loads(messages[0]["content"])
         target = context["selectedSemanticId"]
-        axis_two = next(item for item in context["components"] if "axis-2" in item["drivenAxisIds"])
+        panel = next(item for item in context["components"] if item["id"] == "component-panel")
         return SimpleNamespace(
             text=json.dumps({
                 "action": "ATTACH_TO_INTERFACE",
                 "targetSemanticId": target,
                 "summary": "Mount the light sensor at the tip of the second axis",
-                "rationale": "The axis-2 driven link exposes an unused compatible distal interface.",
-                "referenceSemanticId": axis_two["id"],
-                "referenceInterface": "end-face",
+                "rationale": "The panel at the axis-2 tip exposes an unused compatible sensor interface.",
+                "referenceSemanticId": panel["id"],
+                "referenceInterface": "sensor-mount",
                 "targetInterface": "body-mount",
                 "scalePercent": None,
                 "preserveDimensions": [],
@@ -68,5 +68,5 @@ def test_natural_language_placement_creates_verified_interface_mate():
         app.state.workspace.repository.get_project = original_get
         assembly = client.get(f"/api/projects/{project_id}/assembly").json()
         part = next(item for item in assembly["parts"] if item["semanticId"] == target)
-        assert "component-mechanism-2" in part["mechanicalParents"]
-        assert any(item["from"] == "component-mechanism-2:end-face" for item in part["mateInterfaces"])
+        assert "component-panel" in part["mechanicalParents"]
+        assert any(item["from"] == "component-panel:sensor-mount" for item in part["mateInterfaces"])

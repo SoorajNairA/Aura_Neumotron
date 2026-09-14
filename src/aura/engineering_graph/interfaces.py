@@ -103,7 +103,7 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
         ]
     elif family in {"panel", "tool_platform"}:
         result += [
-            InterfaceDefinition("fixed-input", "fixed_mount", (0, 0, -height / 2), axis=(0, 0, -1), compatible=("structural_face",)),
+            InterfaceDefinition("fixed-input", "fixed_mount", (0, 0, -height / 2), axis=(0, 0, -1), compatible=("structural_face",), clearance_mm=float((parameters or {}).get("mount_clearance_mm", 0))),
             InterfaceDefinition("front-face", "structural_face", (0, 0, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)),
             InterfaceDefinition("sensor-mount", "structural_face", (width * .34, length * .32, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)),
         ]
