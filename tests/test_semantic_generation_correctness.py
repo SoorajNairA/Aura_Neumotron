@@ -67,6 +67,26 @@ def test_unrelated_planner_sensor_intent_is_preserved_as_unresolved():
     assert any(finding.check == "FAMILY_104" for finding in verified.findings)
 
 
+def test_multiple_unresolved_planner_intents_produce_a_committable_patch():
+    request = ProjectRequest(
+        "Temperature Controlled Desk Fan",
+        "Design a small ESP32 desk fan that turns on when it gets too warm.",
+        ("Turn on above the configured temperature",),
+        components=(
+            "microcontroller_board", "temperature_sensor", "fan", "mosfet_driver",
+            "low_voltage_power_source", "enclosure", "diode", "resistor",
+        ),
+    )
+    plan = PlannerService().plan(request)
+    verified = VerificationService().verify(plan)
+    unresolved = [finding for finding in verified.findings if finding.check == "FAMILY_104"]
+
+    assert verified.accepted
+    assert len(unresolved) == 2
+    assert len({finding.id for finding in unresolved}) == 2
+    WorkspaceBridge().commit(EngineeringGraph(plan.entities[0].id), verified)
+
+
 @pytest.mark.integration
 def test_ball_project_has_renderable_proxies_and_honest_circuit_artifact():
     with TestClient(create_app(storage_mode="memory")) as client:
