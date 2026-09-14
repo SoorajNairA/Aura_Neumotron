@@ -10,8 +10,18 @@ CORPUS=json.loads((Path(__file__).parent/"data"/"goal5_benchmarks.json").read_te
 def test_manifest_and_structured_classification():
  assert CAPABILITY_MANIFEST["domain"]=="low_voltage_mechatronics"
  assert classify_objective("Build a temperature controlled fan")["status"]==CapabilityStatus.SUPPORTED.value
+ assert classify_objective("We are building a temperature controlled fan")["status"]==CapabilityStatus.SUPPORTED.value
  assert classify_objective("Build me something cool.")["status"]==CapabilityStatus.NEEDS_CLARIFICATION.value
  assert classify_objective("Design a full passenger aircraft.")["status"]==CapabilityStatus.UNSUPPORTED.value
+
+def test_out_of_domain_objectives_are_not_compiled_as_mechatronics():
+ for objective in (
+  "Build a social media website for local musicians",
+  "Create a cryptocurrency trading dashboard for investors",
+  "Design a full passenger ship propulsion system",
+ ):
+  result=classify_objective(objective)
+  assert result["status"]==CapabilityStatus.UNSUPPORTED.value,(objective,result)
 
 def test_benchmark_corpus_satisfies_graph_representation_and_reload_invariants(tmp_path):
  app=create_app(storage_mode="sqlite",db_path=tmp_path/"workspace.db",artifact_dir=tmp_path/"artifacts");created=[]

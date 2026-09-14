@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Any
 
@@ -23,19 +24,32 @@ CAPABILITY_MANIFEST:dict[str,Any]={
 }
 
 def classify_objective(objective:str)->dict[str,Any]:
-    text=objective.lower().strip()
+    text=re.sub(r"[^a-z0-9]+"," ",objective.lower()).strip()
+    padded=f" {text} "
+    has=lambda phrase:f" {phrase} " in padded
     if len(text.split()) < 4 or text in {"build me something cool.","build me something cool"}:
         return {"status":CapabilityStatus.NEEDS_CLARIFICATION.value,"reasons":["The objective does not identify a device, function, or measurable behavior."],"questions":["What should the device sense, move, or control?"]}
-    outside={"aircraft":"aircraft engineering","passenger jet":"aircraft engineering","welding cell":"industrial machinery","factory robot":"industrial machinery","medical":"medical devices","weapon":"weapons","building":"building engineering","mains":"mains electrical engineering"}
-    hits=sorted({label for word,label in outside.items() if word in text})
+    outside={
+        "aircraft":"aircraft engineering","passenger jet":"aircraft engineering",
+        "passenger ship":"marine engineering","ship propulsion":"marine engineering",
+        "welding cell":"industrial machinery","factory robot":"industrial machinery",
+        "industrial machinery":"industrial machinery","medical":"medical devices",
+        "weapon":"weapons","building design":"building engineering",
+        "commercial building":"building engineering","residential building":"building engineering",
+        "skyscraper":"building engineering","mains":"mains electrical engineering",
+        "website":"software applications","social media":"software applications",
+        "web application":"software applications","mobile app":"software applications",
+        "cryptocurrency":"financial systems","trading dashboard":"financial systems",
+    }
+    hits=sorted({label for phrase,label in outside.items() if has(phrase)})
     if hits:
         return {"status":CapabilityStatus.UNSUPPORTED.value,"reasons":[f"Current capability excludes {', '.join(hits)}."],"supportedAlternative":"A small low-voltage conceptual mechatronic analogue may be created instead."}
-    if "robotic arm" in text or "robot arm" in text:
+    if has("robotic arm") or has("robot arm"):
         return {"status":CapabilityStatus.SUPPORTED_WITH_LIMITATIONS.value,"reasons":["A low-voltage servo-driven conceptual arm is supported; payload, structural analysis, precision kinematics, and manufacturing readiness are not verified."]}
     keywords=("esp32","sensor","fan","feeder","weather","tank","servo","motor","pump","monitor","controller","automation","robotic","temperature","humidity","lid","irrigation")
-    if any(word in text for word in keywords):
+    if any(has(word) for word in keywords):
         return {"status":CapabilityStatus.SUPPORTED.value,"reasons":["Objective is within bounded small low-voltage mechatronics."]}
-    return {"status":CapabilityStatus.SUPPORTED_WITH_LIMITATIONS.value,"reasons":["Only supported low-voltage mechatronic portions will be constructed; other claims remain conceptual."]}
+    return {"status":CapabilityStatus.NEEDS_CLARIFICATION.value,"reasons":["The objective does not identify a supported low-voltage mechatronic function."],"questions":["What should the device sense, move, or control using low-voltage components?"]}
 
 def compact_capability_context()->str:
     m=CAPABILITY_MANIFEST
