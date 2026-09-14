@@ -142,6 +142,16 @@ class PostgresProjectRepository:
             rows = cursor.fetchall()
         return [StoredEvent(int(row[0]), row[1], row[2], row[3], list(row[4]), dict(row[5]), _iso(row[6])) for row in rows]
 
+    def find_operation_event(self, event_type: str, operation_id: str, project_id: str | None = None) -> StoredEvent | None:
+        query="SELECT event_id,project_id,revision,type,semantic_ids_json,payload_json,timestamp FROM events WHERE type=%s AND payload_json->>'operationId'=%s"
+        values:list[Any]=[event_type,operation_id]
+        if project_id is not None:
+            query+=" AND project_id=%s";values.append(project_id)
+        query+=" ORDER BY timestamp DESC,event_id DESC LIMIT 1"
+        with self._pool.connection() as connection,connection.cursor() as cursor:
+            cursor.execute(query,values);row=cursor.fetchone()
+        return None if row is None else StoredEvent(int(row[0]),row[1],row[2],row[3],list(row[4]),dict(row[5]),_iso(row[6]))
+
     def update_representations(self, project_id: str, representations: list[dict[str, Any]]) -> None:
         from psycopg.types.json import Jsonb
         with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:

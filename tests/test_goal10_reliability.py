@@ -1,9 +1,11 @@
+import asyncio
 from dataclasses import replace
 
 from fastapi.testclient import TestClient
 
 from aura.workspace.representations import RepresentationRecord, RepresentationStatus
-from aura.workspace.server import create_app
+from aura.infrastructure.persistence.project_repository import StoredEvent
+from aura.workspace.server import CreateProjectBody, EventBroker, _remember_bounded, create_app
 
 
 OBJECTIVE = "Design a small ESP32 irrigation controller with pump, sensor, driver, tubing, reservoir, enclosure, and low voltage power."
@@ -45,6 +47,20 @@ def test_writes_are_idempotent_and_durable_across_restart(tmp_path):
         assert client.get(f'/api/projects/{first["projectId"]}').json()["revision"]==3
 
 
+def test_idempotency_lookup_does_not_load_every_project_graph(tmp_path):
+    app=create_app(storage_mode="sqlite",db_path=tmp_path/"aura.db",artifact_dir=tmp_path/"artifacts")
+    with TestClient(app) as client:
+        first=create(client,operation="indexed-create")
+
+        def fail_if_scanned():
+            raise AssertionError("idempotency lookup scanned all projects")
+
+        app.state.workspace.repository.list_projects=fail_if_scanned
+        repeated=create(client,operation="indexed-create")
+
+        assert repeated["projectId"]==first["projectId"]
+
+
 def test_stale_representation_callbacks_are_ignored(tmp_path):
     app=create_app(storage_mode="sqlite",db_path=tmp_path/"db",artifact_dir=tmp_path/"a")
     with TestClient(app) as client:
@@ -83,3 +99,57 @@ def test_websocket_replay_is_monotonic_and_deduplicable(tmp_path):
             replay=[socket.receive_json() for _ in range(2)]
         assert [x["eventId"] for x in replay]==[after+1,after+2]
         assert len({x.event_id for x in events})==len(events)
+
+
+def test_event_broker_drops_a_slow_subscriber_without_blocking_publish(tmp_path):
+    app=create_app(storage_mode="sqlite",db_path=tmp_path/"db",artifact_dir=tmp_path/"a")
+    broker=EventBroker(app.state.workspace.repository,listener_queue_size=1,event_cache_size=2)
+    queue=asyncio.Queue(maxsize=1)
+    broker.listeners["project-x"]={queue}
+    first=StoredEvent(1,"project-x",1,"first",[],{},"2026-09-14T00:00:00Z")
+    second=StoredEvent(2,"project-x",1,"second",[],{},"2026-09-14T00:00:01Z")
+
+    async def publish():
+        await broker.publish_committed(first)
+        await asyncio.wait_for(broker.publish_committed(second),timeout=.1)
+
+    asyncio.run(publish())
+
+    assert queue not in broker.listeners["project-x"]
+    assert len(broker.events["project-x"])==2
+
+
+def test_pending_state_evicts_the_oldest_entry_at_its_bound():
+    pending={}
+    for index in range(3):
+        _remember_bounded(pending,f"item-{index}",index,max_entries=2)
+
+    assert pending=={"item-1":1,"item-2":2}
+
+
+def test_different_project_objectives_are_not_globally_serialized():
+    workspace=create_app(storage_mode="memory").state.workspace
+    active=0
+    maximum=0
+
+    async def controlled_create(body):
+        nonlocal active,maximum
+        active+=1
+        maximum=max(maximum,active)
+        await asyncio.sleep(.05)
+        active-=1
+        return body.objective
+
+    workspace._create_serialized=controlled_create
+
+    async def create_both():
+        return await asyncio.gather(
+            workspace.create(CreateProjectBody(objective="Design a temperature controlled fan")),
+            workspace.create(CreateProjectBody(objective="Design a low voltage irrigation pump")),
+        )
+
+    assert asyncio.run(create_both())==[
+        "Design a temperature controlled fan",
+        "Design a low voltage irrigation pump",
+    ]
+    assert maximum==2

@@ -4,7 +4,7 @@ import json
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from dataclasses import dataclass
-from threading import Event
+from threading import BoundedSemaphore, Event
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -13,6 +13,11 @@ from aura.infrastructure.llm.provider import ModelProvider
 from aura.capabilities import compact_capability_context
 from .schemas import ProjectPlan, ProjectRequest
 from .service import PlannerRepairAttempt, PlannerService
+
+
+_PLANNER_WORKERS = 4
+_PLANNER_CAPACITY = BoundedSemaphore(8)
+_PLANNER_EXECUTOR = ThreadPoolExecutor(max_workers=_PLANNER_WORKERS, thread_name_prefix="aura-planner")
 
 
 class StructuredPlannerResponse(BaseModel):
@@ -102,11 +107,17 @@ class LivePlanner:
                 "repairFailure":str(exc)})
 
     def _generate(self, prompt: str) -> str:
-        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="aura-planner")
-        if hasattr(self.provider,"generate_structured"):
-            future=executor.submit(self.provider.generate_structured,[{"role":"user","content":prompt}],system_prompt="You are AURA's bounded engineering Planner. Return one schema-valid object.",max_tokens=1200,response_schema=StructuredPlannerResponse.model_json_schema())
-        else:
-            future = executor.submit(self.provider.generate,[{"role": "user", "content": prompt}],system_prompt="Return exactly one JSON object and no prose.", max_tokens=1200)
+        if not _PLANNER_CAPACITY.acquire(blocking=False):
+            raise FutureTimeout("planner worker pool is saturated")
+        try:
+            if hasattr(self.provider,"generate_structured"):
+                future=_PLANNER_EXECUTOR.submit(self.provider.generate_structured,[{"role":"user","content":prompt}],system_prompt="You are AURA's bounded engineering Planner. Return one schema-valid object.",max_tokens=1200,response_schema=StructuredPlannerResponse.model_json_schema())
+            else:
+                future = _PLANNER_EXECUTOR.submit(self.provider.generate,[{"role": "user", "content": prompt}],system_prompt="Return exactly one JSON object and no prose.", max_tokens=1200)
+        except Exception:
+            _PLANNER_CAPACITY.release()
+            raise
+        future.add_done_callback(lambda _future:_PLANNER_CAPACITY.release())
         try:
             result=future.result(timeout=self.timeout_seconds)
             if hasattr(result,"text"):
@@ -115,8 +126,6 @@ class LivePlanner:
         except FutureTimeout:
             future.cancel()
             raise
-        finally:
-            executor.shutdown(wait=False, cancel_futures=True)
 
     @staticmethod
     def _prompt(request: ProjectRequest, errors: str) -> str:

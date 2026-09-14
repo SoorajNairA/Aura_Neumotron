@@ -8,6 +8,7 @@ import time
 import webbrowser
 import threading
 import os
+from collections import deque
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -47,6 +48,13 @@ from .work_items import EngineeringWorkService, WorkDomainError
 from .scenarios import EngineeringScenario,LiveScenarioAnalyzer,ScenarioError,analyze as analyze_scenario
 
 LOGGER = logging.getLogger("aura.workspace")
+MAX_PENDING_ENTRIES = 256
+
+
+def _remember_bounded(store: dict[str, Any], key: str, value: Any, max_entries: int = MAX_PENDING_ENTRIES) -> None:
+    store[key]=value
+    while len(store)>max_entries:
+        store.pop(next(iter(store)))
 
 
 class CreateProjectBody(BaseModel):
@@ -106,21 +114,26 @@ class ScenarioBody(BaseModel):
 
 
 class EventBroker:
-    def __init__(self, repository: ProjectRepository) -> None:
+    def __init__(self, repository: ProjectRepository, listener_queue_size: int = 128, event_cache_size: int = 512) -> None:
         self.repository = repository
-        self.events: dict[str, list[EventEnvelope]] = {}
+        self.listener_queue_size=listener_queue_size
+        self.event_cache_size=event_cache_size
+        self.events: dict[str, deque[EventEnvelope]] = {}
         self.listeners: dict[str, set[asyncio.Queue[EventEnvelope]]] = {}
 
     def reset(self, project_id: str) -> None:
-        self.events[project_id] = []
+        self.events[project_id] = deque(maxlen=self.event_cache_size)
 
     async def publish_committed(self, event: StoredEvent) -> EventEnvelope:
         envelope = EventEnvelope(eventId=event.event_id, projectId=event.project_id,
             revision=event.revision, type=event.type, semanticIds=event.semantic_ids,
             payload=event.payload, timestamp=event.timestamp)
-        self.events.setdefault(event.project_id, []).append(envelope)
+        self.events.setdefault(event.project_id, deque(maxlen=self.event_cache_size)).append(envelope)
         for queue in tuple(self.listeners.get(event.project_id, set())):
-            await queue.put(envelope)
+            try:
+                queue.put_nowait(envelope)
+            except asyncio.QueueFull:
+                self.listeners[event.project_id].discard(queue)
         return envelope
 
     def replay(self, project_id: str, after: int) -> list[EventEnvelope]:
@@ -172,7 +185,8 @@ class WorkspaceApplication:
         self.modification_proposals:dict[str,ModificationProposal]={}
         self.modification_operations:dict[str,ModificationProposal]={}
         self.modification_locks:dict[str,threading.Lock]={}
-        self.creation_lock=threading.Lock()
+        self.creation_locks:dict[str,list[Any]]={}
+        self.creation_locks_guard=threading.Lock()
         self.active_representation_operations:set[str]=set()
         self.work_service=EngineeringWorkService(self.repository)
         self.scenarios:dict[str,EngineeringScenario]={}
@@ -257,11 +271,19 @@ class WorkspaceApplication:
         return record
 
     async def create(self, body: CreateProjectBody) -> StoredProject:
-        await run_in_threadpool(self.creation_lock.acquire)
+        key=PlannerService._id(body.objective,"project")
+        with self.creation_locks_guard:
+            entry=self.creation_locks.setdefault(key,[threading.Lock(),0])
+            entry[1]+=1
+        lock=entry[0]
+        await run_in_threadpool(lock.acquire)
         try:
             return await self._create_serialized(body)
         finally:
-            self.creation_lock.release()
+            lock.release()
+            with self.creation_locks_guard:
+                entry[1]-=1
+                if entry[1]==0:self.creation_locks.pop(key,None)
 
     async def _resume_incomplete_representations(self, record: StoredProject) -> StoredProject:
         records=[RepresentationRecord.from_dict(value) for value in record.representations]
@@ -415,6 +437,9 @@ class WorkspaceApplication:
             await self.broker.publish_committed(event)
 
     def find_operation(self,event_type:str,operation_id:str,project_id:str|None=None)->StoredEvent|None:
+        indexed=getattr(self.repository,"find_operation_event",None)
+        if indexed is not None:
+            return indexed(event_type,operation_id,project_id)
         projects=[self.repository.get_project(project_id)] if project_id else self.repository.list_projects()
         for project in (x for x in projects if x is not None):
             for event in reversed(self.repository.get_events_after(project.project_id,0)):
@@ -491,7 +516,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     app = FastAPI(title="AURA Engineering Workspace", version="0.2.0")
     app.state.workspace = application
     web_root = Path(__file__).with_name("web")
-    app.mount("/assets", StaticFiles(directory=web_root), name="workspace-assets")
+    app.mount("/assets/representation",StaticFiles(directory=web_root/"representation"),name="workspace-assets")
 
     @app.middleware("http")
     async def correlate_request(request, call_next):
@@ -694,8 +719,8 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             elif error_name=="VertexTimeoutError":status,code=504,"MODIFICATION_AI_TIMEOUT"
             else:status,code=502,"MODIFICATION_AI_UNAVAILABLE"
             raise HTTPException(status,detail={"code":code,"message":str(model_exc)}) from model_exc
-        application.modification_proposals[proposal.proposal_id]=proposal
-        if body.operationId:application.modification_operations[body.operationId]=proposal
+        _remember_bounded(application.modification_proposals,proposal.proposal_id,proposal)
+        if body.operationId:_remember_bounded(application.modification_operations,body.operationId,proposal)
         events=application.repository.append_events(project_id,len(record.graph.revisions),[
             {"type":"modification.requested","semantic_ids":body.selectedSemanticIds,"payload":{"request":body.request}},
             {"type":"modification.preview_ready","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal.proposal_id,"affected":list(proposal.affected_ids),"regenerated":list(proposal.regenerate),"unchanged":list(proposal.unaffected)}}])
@@ -711,7 +736,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         driver="component-driver" if "component-driver" in record.graph.entities else next((x for x in targets if x in record.graph.entities),None)
         if check not in {"flyback","missing-driver","direct-pump-gpio"} or not driver: raise HTTPException(422,detail={"code":"no_bounded_repair"})
         proposal=propose(record.graph,len(record.graph.revisions),[driver],"Replace with a logic-level MOSFET and flyback protection","verification_repair")
-        application.modification_proposals[proposal.proposal_id]=proposal
+        _remember_bounded(application.modification_proposals,proposal.proposal_id,proposal)
         events=application.repository.append_events(project_id,len(record.graph.revisions),[{"type":"modification.preview_ready",
             "semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal.proposal_id,"affected":list(proposal.affected_ids),
             "regenerated":list(proposal.regenerate),"unchanged":list(proposal.unaffected)}}])
@@ -764,7 +789,9 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             await application.publish_with_narration(committed,updated,reps)
             application.modification_proposals.pop(proposal_id,None)
             return response
-        finally:lock.release()
+        finally:
+            lock.release()
+            application.modification_locks.pop(project_id,None)
 
     @app.post("/api/projects/{project_id}/revisions/undo")
     async def undo_revision(project_id:str,idempotency_key:Optional[str]=Header(None,alias="Idempotency-Key"))->dict[str,Any]:
@@ -777,7 +804,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         if source is None: raise HTTPException(409,detail={"code":"nothing_to_undo"})
         try: proposal=inverse_proposal(record.graph,source)
         except ValueError as exc: raise HTTPException(409,detail={"code":str(exc)}) from exc
-        application.modification_proposals[proposal.proposal_id]=proposal
+        _remember_bounded(application.modification_proposals,proposal.proposal_id,proposal)
         result=await commit_modification(project_id,proposal.proposal_id,operation_id)
         events=application.repository.append_events(project_id,result["revision"],[{"type":"undo.operation_completed","semantic_ids":list(proposal.affected_ids),"payload":{"operationId":operation_id,"result":result}}])
         await application.publish_with_narration(events,_record(application,project_id).graph,result["representations"])
@@ -828,7 +855,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             error_name=exc.__class__.__name__
             status=503 if error_name=="VertexAuthenticationError" else 504 if error_name=="VertexTimeoutError" else 502
             raise HTTPException(status,detail={"code":"SCENARIO_AI_UNAVAILABLE","message":str(exc)}) from exc
-        application.scenarios[scenario.id]=scenario;return scenario.to_dict()
+        _remember_bounded(application.scenarios,scenario.id,scenario);return scenario.to_dict()
 
     @app.delete("/api/projects/{project_id}/scenarios/{scenario_id}")
     def discard_scenario(project_id:str,scenario_id:str)->dict[str,bool]:
@@ -871,7 +898,9 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             events=application.repository.save_commit(updated_record,verified.patch,{"kind":"scenario","analysis":scenario.analysis,"verificationDelta":verified.verification_delta},[{"type":"scenario.applied","semantic_ids":affected,"payload":{"scenarioId":scenario.id,"result":result}},*lifecycle])
             await application.publish_with_narration(events,updated,representations);application.scenarios.pop(scenario_id,None)
             return result
-        finally:lock.release()
+        finally:
+            lock.release()
+            application.modification_locks.pop(project_id,None)
 
     @app.post("/api/projects/{project_id}/scenarios/{scenario_id}/work",status_code=201)
     def scenario_work(project_id:str,scenario_id:str)->dict[str,Any]:
@@ -887,7 +916,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     async def events(websocket: WebSocket, project_id: str,
                      after_event_id: int = Query(0, alias="afterEventId", ge=0)) -> None:
         await websocket.accept()
-        queue: asyncio.Queue[EventEnvelope] = asyncio.Queue()
+        queue: asyncio.Queue[EventEnvelope] = asyncio.Queue(maxsize=application.broker.listener_queue_size)
         application.broker.listeners.setdefault(project_id, set()).add(queue)
         try:
             for event in application.broker.replay(project_id, after_event_id):

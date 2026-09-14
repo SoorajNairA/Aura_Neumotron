@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import time
 
 import pytest
@@ -50,6 +51,17 @@ def test_live_planner_timeout_uses_honest_fallback() -> None:
     assert "timed out" in outcome.fallback_reason
 
 
+@pytest.mark.unit
+def test_repeated_planner_timeouts_use_a_bounded_worker_pool() -> None:
+    request=ProjectRequest("Automatic Irrigation System",OBJECTIVE,("Use low voltage",))
+    for _ in range(12):
+        outcome=LivePlanner(FakeProvider([VALID],delay=.2),.005).plan(request)
+        assert outcome.mode=="deterministic_fallback"
+
+    planner_threads=[thread for thread in threading.enumerate() if thread.name.startswith("aura-planner")]
+    assert len(planner_threads)<=4
+
+
 def create_project(client: TestClient, mode="deterministic_test"):
     response = client.post("/api/projects", json={"objective":OBJECTIVE,"planningMode":mode})
     assert response.status_code == 201, response.text
@@ -96,7 +108,9 @@ def test_project_graph_revision_and_frontend_apis() -> None:
         assert any(dict(item["metadata"]).get("family") == "microcontroller_board" for item in graph["entities"])
         assert len(client.get(f"/api/projects/{project_id}/revisions").json()) == 1
         assert client.get("/").status_code == 200
-        assert client.get("/assets/app.js").status_code == 200
+        assert client.get("/assets/app.js").status_code == 404
+        assert client.get("/assets/index.html").status_code == 404
+        assert client.get("/assets/representation/index.html").status_code == 200
         assert all(item["fallbackType"] == "placeholder" for item in project["representations"])
 
 

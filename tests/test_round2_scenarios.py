@@ -73,6 +73,7 @@ def test_scenarios_remain_isolated_per_project_and_create_no_implicit_work():
         applied=client.post(f"/api/projects/{a}/scenarios/{scenario['scenarioId']}/apply")
         assert applied.status_code==200,applied.text
         assert applied.json()["projectId"]==a
+        assert a not in app.state.workspace.modification_locks
         assert client.post(f"/api/projects/{a}/scenarios/{replacement['scenarioId']}/apply").status_code==404
         assert client.get(f"/api/projects/{b}/work").json()["summary"]["total"]==0
 

@@ -72,6 +72,7 @@ class ProjectRepository(Protocol):
                     verification: dict[str, Any], events: list[dict[str, Any]]) -> list[StoredEvent]: ...
     def list_revisions(self, project_id: str) -> list[dict[str, Any]]: ...
     def get_events_after(self, project_id: str, event_id: int) -> list[StoredEvent]: ...
+    def find_operation_event(self, event_type: str, operation_id: str, project_id: str | None = None) -> StoredEvent | None: ...
     def get_artifact(self, artifact_id: str) -> ArtifactMetadata | None: ...
     def update_representations(self, project_id: str, representations: list[dict[str, Any]]) -> None: ...
     def update_project_status(self, project_id: str, status: str) -> None: ...
@@ -211,6 +212,20 @@ class SQLiteProjectRepository:
             rows = self._connection.execute("SELECT * FROM events WHERE project_id=? AND event_id>? ORDER BY event_id", (project_id, event_id)).fetchall()
         return [StoredEvent(row["event_id"], row["project_id"], row["revision"], row["type"],
             json.loads(row["semantic_ids_json"]), json.loads(row["payload_json"]), row["timestamp"]) for row in rows]
+
+    def find_operation_event(self, event_type: str, operation_id: str, project_id: str | None = None) -> StoredEvent | None:
+        query="SELECT * FROM events WHERE type=?"
+        values:list[Any]=[event_type]
+        if project_id is not None:
+            query+=" AND project_id=?";values.append(project_id)
+        query+=" ORDER BY timestamp DESC,event_id DESC"
+        with self._lock:rows=self._connection.execute(query,values).fetchall()
+        for row in rows:
+            payload=json.loads(row["payload_json"])
+            if payload.get("operationId")==operation_id:
+                return StoredEvent(row["event_id"],row["project_id"],row["revision"],row["type"],
+                    json.loads(row["semantic_ids_json"]),payload,row["timestamp"])
+        return None
 
     def update_representations(self, project_id: str, representations: list[dict[str, Any]]) -> None:
         now = datetime.now(timezone.utc).isoformat()
