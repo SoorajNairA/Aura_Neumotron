@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,7 +13,7 @@ from aura.planner.schemas import ProjectRequest
 from aura.planner.service import PlannerService
 from aura.verification.service import VerificationService
 from aura.workspace.bridge import WorkspaceBridge
-from aura.workspace.representation_service import CircuitGeneratorAdapter, representation_specs
+from aura.workspace.representation_service import CircuitGeneratorAdapter, RepresentationService, representation_specs
 from aura.workspace.representations import (RepresentationRecord, RepresentationSpec,
     RepresentationSpecValidator, RepresentationStatus, RepresentationType, SpecValidationError)
 from aura.workspace.server import create_app
@@ -40,6 +41,25 @@ def test_mechanical_and_circuit_specs_are_bounded_and_non_executable():
     assert {"loft","pipe","filleted_enclosure"} <= operations
     invalid=RepresentationSpec(RepresentationType.MECHANICAL_3D,("component-reservoir",),{"units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"geometry":{"operation":"loft","sections":[{"z":0,"radius":float("inf")},{"z":1,"radius":2}]},"script":"bad"})
     with pytest.raises(SpecValidationError): RepresentationSpecValidator().validate(invalid,{"component-reservoir"})
+
+
+@pytest.mark.unit
+def test_mechanical_artifact_write_failure_returns_visible_fallback():
+    class FailingRepository:
+        def create_artifact(self,*_args,**_kwargs):
+            return SimpleNamespace(artifact_id="artifact-mechanical")
+
+        def write_artifact(self,*_args,**_kwargs):
+            raise OSError("disk full")
+
+    record=RepresentationRecord("repr-x","project-x",1,("component-pump",),RepresentationType.MECHANICAL_3D)
+    spec=RepresentationSpec(RepresentationType.MECHANICAL_3D,("component-pump",),{"units":"mm","geometry":{"operation":"box","size":{"x":1,"y":1,"z":1}}})
+
+    result=RepresentationService(FailingRepository()).persist_specs("project-x",1,[record],[spec])
+
+    assert len(result)==1
+    assert result[0].status is RepresentationStatus.FALLBACK
+    assert result[0].error=="disk full"
 
 
 @pytest.mark.integration
