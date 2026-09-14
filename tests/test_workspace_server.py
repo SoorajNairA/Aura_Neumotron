@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
+import socket
+import subprocess
+import sys
 import threading
 import time
 
@@ -133,6 +137,49 @@ def test_websocket_order_and_replay_after_event_id() -> None:
 
 
 @pytest.mark.integration
+def test_installed_server_accepts_a_real_websocket_upgrade() -> None:
+    with socket.socket() as reservation:
+        reservation.bind(("127.0.0.1", 0))
+        port = reservation.getsockname()[1]
+    environment = dict(os.environ, AURA_WORKSPACE_STORAGE_MODE="memory")
+    process = subprocess.Popen(
+        [sys.executable, "-m", "uvicorn", "aura.workspace.server:create_app", "--factory",
+         "--host", "127.0.0.1", "--port", str(port), "--log-level", "error"],
+        env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    try:
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=.2):
+                    break
+            except OSError:
+                if process.poll() is not None:
+                    pytest.fail(process.stderr.read())
+                time.sleep(.05)
+        else:
+            pytest.fail("Uvicorn did not start within 10 seconds")
+
+        with socket.create_connection(("127.0.0.1", port), timeout=2) as client:
+            client.sendall(
+                b"GET /api/projects/probe/events?afterEventId=0 HTTP/1.1\r\n"
+                + f"Host: 127.0.0.1:{port}\r\n".encode()
+                + b"Connection: Upgrade\r\nUpgrade: websocket\r\n"
+                + b"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+                + b"Sec-WebSocket-Version: 13\r\n\r\n"
+            )
+            response = client.recv(4096)
+        assert response.startswith(b"HTTP/1.1 101"), response
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+
+
+@pytest.mark.integration
 def test_modification_endpoint_is_partial_and_revalidated() -> None:
     app = create_app(storage_mode="memory")
     with TestClient(app) as client:
@@ -199,7 +246,6 @@ def test_concurrent_duplicate_create_commits_one_revision() -> None:
 
 @pytest.mark.unit
 def test_server_import_does_not_load_heavy_optional_systems() -> None:
-    import subprocess, sys
     code="""
 import sys
 import aura
