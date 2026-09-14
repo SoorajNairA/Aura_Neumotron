@@ -66,9 +66,12 @@ class PlannerService:
                       or bool(re.search(r"\bdrive(?:s|n|ing)?\b",text))
                       or bool(re.search(r"\bdrive(?:s|n|ing)?\b",planner_labels)))
         solar_powered=has_term(text,"solar")
-        remote_controlled=any(has_term(text,word) or has_term(planner_labels,word) for word in ("remote","wireless","receiver","bluetooth","rc"))
+        remote_controlled=(any(has_term(text,word) or has_term(planner_labels,word) for word in ("remote","wireless","receiver","bluetooth"))
+                           or (mobile_drive and has_term(text,"rc")))
         explicit_enclosure=any(has_term(objective_text,word) for word in ("enclosure","housing","body"))
-        if any(word in text for word in ("plate","panel","platform","surface","conveyor")): require("moving-surface","Moving surface or platform",("moving_surface",))
+        moving_surface_requested=(any(word in text for word in ("plate","platform","surface","conveyor"))
+                                  or ("panel" in text and not (mobile_drive and solar_powered)))
+        if moving_surface_requested: require("moving-surface","Moving surface or platform",("moving_surface",))
         if any(word in text for word in ("ball","object","drawer","lid","camera")): require("moving-body","Required moving body",("moving_body",))
         if needs_motion and any(word in text for word in ("support","plate","panel","platform","conveyor","lid","drawer","camera")): require("support","Stationary support",("support",))
         if needs_motion: require("controlled-motion","Controlled actuation",("controlled_motion",))
@@ -81,9 +84,9 @@ class PlannerService:
         axis_count=self._requested_axis_count(intent_text)
         if not axis_count and (("pan" in text and "tilt" in text) or "balanc" in text): axis_count=2
         servo_count=self._named_component_count(f"{intent_text} {planner_labels}","servo")
-        requested_wheels=self._named_component_count(intent_text,"wheel")
-        if mobile_drive and not requested_wheels:
-            requested_wheels=4 if has_term(intent_text.lower(),"car") else 2
+        explicit_wheel_count=self._named_component_count(intent_text,"wheel")
+        requested_wheels=explicit_wheel_count
+        if mobile_drive and not requested_wheels: requested_wheels=4 if has_term(intent_text.lower(),"car") else 2
         requested_counts={
             "fan":self._named_component_count(intent_text,"fan"),
             "pump":self._named_component_count(intent_text,"pump"),
@@ -144,7 +147,7 @@ class PlannerService:
         if servo_count:
             include("servo",servo_count)
             if needs_motion: include("mechanism",servo_count)
-        motor_count=self._named_component_count(f"{intent_text} {planner_labels}","motor")
+        motor_count=self._named_component_count(intent_text,"motor")
         if motor_count>8:
             raise ValueError({"status":"UNSUPPORTED","reasons":["This bounded planner supports at most eight repeated actuators per project."]})
         if motor_count: include("motor",motor_count)
@@ -156,7 +159,7 @@ class PlannerService:
         specs={
           "controller":("ESP32 DevKit","microcontroller_board","electronics",{"logic_voltage_v":3.3,"gpio_max_current_ma":12,"functional_roles":["controller"],"resolution_quality":"EXACT","visual_template":"esp32_devkit"},(52,28,8)),
           "power":("Low-voltage power source","low_voltage_power_source","power",{"voltage_v":5.0,"available_current_a":max(3.0,families.get("servo",0)*0.8+families.get("motor",0)*0.6+0.5),"mains_exposed":False,"functional_roles":["power"],"resolution_quality":"COMPATIBLE_GENERIC"},(48,30,18)),
-          "enclosure":("Protective enclosure","enclosure","structure",{"contains":["component-controller"],"waterproofing":"splash-resistant" if "tank" in text else "basic","functional_roles":["support"],"resolution_quality":"COMPATIBLE_GENERIC"},(120,90,55)),
+          "enclosure":("Protective enclosure","enclosure","structure",{"contains":["component-controller"],"waterproofing":"splash-resistant" if "tank" in text else "basic","functional_roles":["support"],"mount_clearance_mm":28 if mobile_drive else 0,"resolution_quality":"COMPATIBLE_GENERIC"},(120,90,55)),
           "temperature-sensor":("Temperature sensor","temperature_sensor","sensor",{"supply_voltage_v":3.3,"signal_voltage_v":3.3,"threshold_c":26,"functional_roles":["feedback_temperature"],"measures":["temperature"],"resolution_quality":"EXACT"},(22,16,6)),
           "light-sensor":("Ambient light sensor","light_sensor","sensor",{"supply_voltage_v":3.3,"signal_voltage_v":3.3,"functional_roles":["feedback_light"],"measures":["light"],"resolution_quality":"COMPATIBLE_GENERIC"},(22,16,6)),
           "soil-sensor":("Capacitive soil moisture sensor","soil_moisture_sensor","sensor",{"supply_voltage_v":3.3,"signal_voltage_v":3.3,"functional_roles":["feedback_soil"],"measures":["soil_moisture"],"resolution_quality":"EXACT","visual_template":"soil_probe"},(23,98,4)),
@@ -190,7 +193,7 @@ class PlannerService:
           "sliding-panel":("Sliding panel","sliding_panel","mechanical",{"functional_roles":["moving_surface","moving_body"],"joint_type":"prismatic","resolution_quality":"CONCEPTUAL"},(160,12,90)),
           "controlled-platform":("Controlled platform","rotating_platform","mechanical",{"functional_roles":["moving_surface","moving_body"],"joint_type":"revolute","resolution_quality":"CONCEPTUAL"},(140,100,8)),
           "camera-platform":("Camera platform","camera_platform","mechanical",{"functional_roles":["moving_surface","moving_body"],"joint_type":"revolute","resolution_quality":"CONCEPTUAL"},(80,60,18)),
-          "panel":("Solar panel" if solar_powered else "Tracked panel","panel","mechanical",{"functional_roles":(["energy_collection"] if solar_powered else [])+([] if mobile_drive else ["moving_surface","moving_body"]),"joint_type":"fixed" if mobile_drive else "revolute","surface_kind":"energy_collection" if solar_powered else "generic_panel","mount_clearance_mm":28 if solar_powered and mobile_drive else 0,"resolution_quality":"CONCEPTUAL"},(180,120,8)),
+          "panel":("Solar panel" if solar_powered else "Tracked panel","panel","mechanical",{"functional_roles":(["energy_collection"] if solar_powered else [])+([] if mobile_drive else ["moving_surface","moving_body"]),"joint_type":"fixed" if mobile_drive else "revolute","surface_kind":"energy_collection" if solar_powered else "generic_panel","mount_clearance_mm":90 if solar_powered and mobile_drive and explicit_enclosure else 28 if solar_powered and mobile_drive else 0,"resolution_quality":"CONCEPTUAL"},(180,120,8)),
           "tool-platform":("End platform","tool_platform","mechanical",{"functional_roles":["moving_surface","moving_body","tool_mount"],"joint_type":"revolute","resolution_quality":"CONCEPTUAL"},(58,44,10)),
           "conveyor":("Conveyor surface","generic_mechanical_part","mechanical",{"functional_roles":["moving_surface","moving_body"],"resolution_quality":"CONCEPTUAL"},(180,70,20)),
           "tracked-object":("Tracked object","tracked_object","mechanical",{"functional_roles":["moving_body"],"resolution_quality":"CONCEPTUAL"},(24,24,24)),
@@ -216,16 +219,23 @@ class PlannerService:
         if directional_light:
             identity_overrides["light-sensor"]=[]
             for index in range(4): identity("light-sensor",f"LDR Direction Sensor {index+1}","photoresistor-module","ldr",(32,14,7))
-        raw_trace=[];raw_counts={}
+        raw_trace=[];raw_counts={};raw_seen={}
+        raw_limits={"chassis":1} if mobile_drive else {}
+        if mobile_drive and explicit_wheel_count:
+            raw_limits.update({"drive-wheel":explicit_wheel_count,"motor":explicit_wheel_count})
         for raw in request.components:
             resolved=self._resolve_component_intent(raw,objective_text)
             if mobile_drive and resolved.get("normalizedFamily")=="mounting-plate":
                 resolved={"normalizedFamily":"chassis","resolutionQuality":"CONCEPTUAL","reason":"the vehicle chassis already provides the requested structural mounting plate"}
             elif mobile_drive and resolved.get("normalizedFamily")=="enclosure" and not explicit_enclosure:
                 resolved={"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"the Planner-added enclosure is not required by the vehicle objective"}
-            raw_trace.append({"plannerIntent":raw,**resolved})
             family=resolved.get("normalizedFamily")
-            if family: raw_counts[family]=raw_counts.get(family,0)+1
+            if family in raw_limits and raw_seen.get(family,0)>=raw_limits[family]:
+                resolved={"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":f"Planner component exceeds the objective-authoritative {family} count of {raw_limits[family]}"}
+                family=None
+            raw_trace.append({"plannerIntent":raw,**resolved})
+            if family:
+                raw_seen[family]=raw_seen.get(family,0)+1;raw_counts[family]=raw_counts.get(family,0)+1
         for family,count in raw_counts.items(): include(family,count)
         # Choose a fallback actuator only after structured Planner intent has
         # been normalized. Otherwise a valid requested motor architecture also
@@ -387,6 +397,8 @@ class PlannerService:
             connect(component_by_family["motor"][0],component_by_family["conveyor"][0],"mechanical")
             if component_by_family.get("support",[]): connect(component_by_family["support"][0],component_by_family["motor"][0],"mechanical")
         motors=component_by_family.get("motor",[]);wheels=component_by_family.get("drive-wheel",[]);chassis=component_by_family.get("chassis",[])
+        if chassis and component_by_family.get("enclosure",[]):
+            connect(chassis[0],component_by_family["enclosure"][0],"mechanical")
         if chassis and component_by_family.get("panel",[]):
             connect(chassis[0],component_by_family["panel"][0],"mechanical")
         elif motors and platforms:
@@ -479,12 +491,14 @@ class PlannerService:
     def _resolve_component_intent(intent:str,objective:str)->dict[str,str|None]:
         """Resolve a Planner label only when its functional language is retained."""
         label=re.sub(r"[_-]+"," ",intent.lower()).strip()
+        if label in {"solar panel","photovoltaic panel","pv panel"}:
+            return {"normalizedFamily":"panel","resolutionQuality":"EXACT","reason":"explicit named hardware identity is preserved"}
         exact_named=(
             (("arduino nano","arduino uno","esp32 devkit","esp8266","nodemcu","raspberry pi pico"),"controller"),
             (("sg90","mg996r"),"servo"),(("hc sr04","hc-sr04"),"distance-sensor"),
             (("bh1750","ldr","photoresistor"),"light-sensor"),(("soil moisture sensor",),"soil-sensor"),
             (("l298n","tb6612","uln2003"),"motor-driver"),(("relay module",),"relay-module"),
-            (("flyback diode",),"flyback-diode"),(("solar panel","photovoltaic"),"panel"),
+            (("flyback diode",),"flyback-diode"),
         )
         for names,family in exact_named:
             if any(name in label for name in names):

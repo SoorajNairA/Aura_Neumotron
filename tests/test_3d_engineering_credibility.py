@@ -156,7 +156,76 @@ def test_live_style_solar_rc_car_restores_objective_components_and_one_chassis_l
     assert solar_panel["transformSource"] == "MATE_SOLVED"
     assert assembly["transformSourceCounts"]["FIXED_ROOT"] == 1
     assert not assembly["unresolvedPrimaryMechanism"]
+    assert assembly["visualConnectivity"]["allMateOriginsWithinTolerance"]
     assert not assembly["visualConnectivity"]["severeIntersections"]
+
+
+def test_explicit_solar_panel_wording_does_not_require_a_moving_vehicle_panel():
+    request = ProjectRequest(
+        "Solar car",
+        "make a solar panel powered rc car",
+        ("Use low-voltage power",),
+    )
+    verification = VerificationService().verify(PlannerService().plan(request))
+    assert verification.accepted, [
+        (item.check, item.message) for item in verification.findings if item.severity == "critical"
+    ]
+
+
+def test_explicit_two_wheel_vehicle_count_caps_conflicting_planner_components():
+    request = ProjectRequest(
+        "Two-wheel solar car",
+        "make a two-wheel solar powered rc car",
+        ("Use low-voltage power",),
+        components=(
+            "drive wheel", "drive wheel", "drive wheel", "drive wheel",
+            "small dc motor", "small dc motor", "small dc motor", "small dc motor",
+            "mounting plate", "structural support",
+        ),
+    )
+    plan = PlannerService().plan(request)
+    assert len([item for item in plan.components if item.role == "drive_wheel"]) == 2
+    assert len([item for item in plan.components if item.role == "small_dc_motor"]) == 2
+    assert len([item for item in plan.components if item.role == "mounting_plate"]) == 1
+    trace = dict(plan.entities[0].metadata)["plannerIntentTrace"]
+    assert any(item["resolutionQuality"] == "UNRESOLVED" and "exceeds" in item["reason"] for item in trace)
+
+
+def test_explicit_vehicle_enclosure_is_mated_to_the_single_chassis_root():
+    request = ProjectRequest(
+        "Enclosed solar car",
+        "make a solar powered rc car with a protective enclosure",
+        ("Use low-voltage power",),
+    )
+    plan = PlannerService().plan(request)
+    verification = VerificationService().verify(plan)
+    assert verification.accepted
+    graph = WorkspaceBridge().commit(EngineeringGraph(plan.entities[0].id), verification)
+    assembly = engineering_assembly(graph)
+    enclosure = next(item for item in assembly["parts"] if item["family"] == "enclosure")
+    chassis = next(item for item in assembly["parts"] if item["family"] == "mounting_plate")
+    assert enclosure["mechanicalParents"] == [chassis["semanticId"]]
+    assert assembly["transformSourceCounts"]["FIXED_ROOT"] == 1
+    assert not assembly["visualConnectivity"]["severeIntersections"]
+
+
+def test_rc_servo_planner_label_does_not_invent_remote_control_for_solar_tracker():
+    request = ProjectRequest(
+        "Solar tracker",
+        "design a dual-axis solar tracker",
+        ("Use two RC servo motors",),
+        components=("RC servo motor", "RC servo motor", "solar panel"),
+    )
+    plan = PlannerService().plan(request)
+    assert all(item.role != "wireless_module" for item in plan.components)
+    requirements = dict(plan.entities[0].metadata)["semanticRequirements"]
+    assert all(item["key"] != "remote-control-input" for item in requirements)
+
+
+@pytest.mark.parametrize("label", ("solar panel mounting bracket", "photovoltaic charge controller"))
+def test_compound_photovoltaic_labels_are_not_misclassified_as_panels(label):
+    resolution = PlannerService._resolve_component_intent(label, "build a battery powered monitor")
+    assert resolution["normalizedFamily"] != "panel"
 
 
 @pytest.mark.parametrize("dimensions", ((36.0, 36.0, 10.0), (64.0, 64.0, 18.0), (120.0, 120.0, 34.0)))

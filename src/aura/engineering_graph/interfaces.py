@@ -121,6 +121,8 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
         # A support may carry more than one component.  These are distinct,
         # stable interfaces rather than an implicitly reusable component centre.
         result.append(InterfaceDefinition("mount-face", "structural_face", (0, 0, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)))
+        if family == "enclosure":
+            result.append(InterfaceDefinition("fixed-input", "fixed_mount", (0, 0, -height / 2), axis=(0, 0, -1), compatible=("structural_face",), clearance_mm=float((parameters or {}).get("mount_clearance_mm", 0))))
         if family in {"mounting_plate", "base", "structural_frame"}:
             for index, (x, y) in enumerate(((-.28, -.28), (-.28, .28), (.28, -.28), (.28, .28)), 1):
                 result.append(InterfaceDefinition(f"mount-face-{index}", "structural_face", (width * x, length * y, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)))

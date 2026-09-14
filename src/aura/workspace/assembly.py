@@ -207,8 +207,10 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
         if source_axis and target_axis:
             dot=max(-1.,min(1.,abs(sum(a*b for a,b in zip(source_axis,target_axis)))))
             alignment=degrees(acos(dot))
+        expected_clearance=max(source.clearance_mm,target.clearance_mm)
         mate_diagnostics.append({**relationship,"originDistanceMm":distance,"axisAlignmentDegrees":alignment,
-            "originWithinTolerance":distance<=.5,"orientationWithinTolerance":alignment is None or alignment<=1.0})
+            "expectedClearanceMm":expected_clearance,"originWithinTolerance":abs(distance-expected_clearance)<=.5,
+            "orientationWithinTolerance":alignment is None or alignment<=1.0})
     part_dicts=[]
     for part in _resolve_exploded_collisions(parts):
         value=part.to_dict();value["mechanicalParents"]=sorted(mechanical_parents[part.semantic_id]);value["mechanicalChildren"]=sorted(mechanical_children[part.semantic_id])
