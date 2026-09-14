@@ -349,7 +349,7 @@ class VerificationService:
     def _finding(check,state,severity,message,ids,revision=1,**kwargs):
         kwargs.setdefault("dependency_ids",ids)
         kwargs.setdefault("blocking",severity=="critical" and state is VerificationState.FAILED)
-        fingerprint="|".join((check,*ids))
+        fingerprint="|".join((check,*ids,message))
         finding_id=f"verification-{check.lower().replace('_','-')}-{sha256(fingerprint.encode()).hexdigest()[:10]}"
         return VerificationFinding(finding_id,check,state,severity,message,ids,revision=revision,**kwargs)
 
