@@ -184,12 +184,32 @@ class WorkspaceApplication:
         self.narration_service = NarrationService()
         self.modification_proposals:dict[str,ModificationProposal]={}
         self.modification_operations:dict[str,ModificationProposal]={}
-        self.modification_locks:dict[str,threading.Lock]={}
+        self.modification_locks:dict[str,list[Any]]={}
+        self.modification_locks_guard=threading.Lock()
         self.creation_locks:dict[str,list[Any]]={}
         self.creation_locks_guard=threading.Lock()
         self.active_representation_operations:set[str]=set()
         self.work_service=EngineeringWorkService(self.repository)
         self.scenarios:dict[str,EngineeringScenario]={}
+
+    def try_modification_lock(self, project_id: str) -> threading.Lock | None:
+        with self.modification_locks_guard:
+            entry=self.modification_locks.setdefault(project_id,[threading.Lock(),0])
+            lock=entry[0]
+            if not lock.acquire(blocking=False):
+                return None
+            entry[1]+=1
+            return lock
+
+    def release_modification_lock(self, project_id: str, lock: threading.Lock) -> None:
+        with self.modification_locks_guard:
+            entry=self.modification_locks.get(project_id)
+            if entry is None or entry[0] is not lock:
+                raise RuntimeError("modification lock ownership was lost")
+            lock.release()
+            entry[1]-=1
+            if entry[1]==0:
+                self.modification_locks.pop(project_id,None)
 
     def _request(self, objective: str) -> ProjectRequest:
         words=[word.capitalize() for word in objective.strip().rstrip(".").split() if word.lower() not in {"design","build","make","a","an","the","small"}]
@@ -757,8 +777,8 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         if previous:return previous.payload["result"]
         proposal=application.modification_proposals.get(proposal_id)
         if not proposal: raise HTTPException(404,"Proposal not found")
-        lock=application.modification_locks.setdefault(project_id,threading.Lock())
-        if not lock.acquire(blocking=False): raise HTTPException(409,detail={"code":"modification_in_progress"})
+        lock=application.try_modification_lock(project_id)
+        if lock is None: raise HTTPException(409,detail={"code":"modification_in_progress"})
         try:
             record=_record(application,project_id)
             if len(record.graph.revisions)!=proposal.base_revision: raise HTTPException(409,detail={"code":"stale_revision","currentRevision":len(record.graph.revisions)})
@@ -790,8 +810,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             application.modification_proposals.pop(proposal_id,None)
             return response
         finally:
-            lock.release()
-            application.modification_locks.pop(project_id,None)
+            application.release_modification_lock(project_id,lock)
 
     @app.post("/api/projects/{project_id}/revisions/undo")
     async def undo_revision(project_id:str,idempotency_key:Optional[str]=Header(None,alias="Idempotency-Key"))->dict[str,Any]:
@@ -869,8 +888,8 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         if not scenario or scenario.project_id!=project_id:raise HTTPException(404,detail={"code":"SCENARIO_NOT_FOUND"})
         if not scenario.analysis.get("applicable",False):raise HTTPException(422,detail={"code":"SCENARIO_NOT_APPLICABLE","message":"AI compatibility analysis did not approve this direct replacement"})
         if scenario.base_revision!=len(record.graph.revisions) or scenario.base_revision_id!=record.graph.current_revision_id:raise HTTPException(409,detail={"code":"SCENARIO_STALE","message":"Project changed; re-run analysis."})
-        lock=application.modification_locks.setdefault(project_id,threading.Lock())
-        if not lock.acquire(blocking=False):raise HTTPException(409,detail={"code":"SCENARIO_APPLY_IN_PROGRESS"})
+        lock=application.try_modification_lock(project_id)
+        if lock is None:raise HTTPException(409,detail={"code":"SCENARIO_APPLY_IN_PROGRESS"})
         try:
             record=_record(application,project_id)
             if scenario.base_revision!=len(record.graph.revisions) or scenario.base_revision_id!=record.graph.current_revision_id:raise HTTPException(409,detail={"code":"SCENARIO_STALE","message":"Project changed; re-run analysis."})
@@ -899,8 +918,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             await application.publish_with_narration(events,updated,representations);application.scenarios.pop(scenario_id,None)
             return result
         finally:
-            lock.release()
-            application.modification_locks.pop(project_id,None)
+            application.release_modification_lock(project_id,lock)
 
     @app.post("/api/projects/{project_id}/scenarios/{scenario_id}/work",status_code=201)
     def scenario_work(project_id:str,scenario_id:str)->dict[str,Any]:

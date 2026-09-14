@@ -127,6 +127,22 @@ def test_pending_state_evicts_the_oldest_entry_at_its_bound():
     assert pending=={"item-1":1,"item-2":2}
 
 
+def test_modification_lock_cannot_be_replaced_while_an_operation_holds_it():
+    workspace=create_app(storage_mode="memory").state.workspace
+    first=workspace.try_modification_lock("project-x")
+
+    assert first is not None
+    assert workspace.try_modification_lock("project-x") is None
+    assert workspace.modification_locks["project-x"][0] is first
+
+    workspace.release_modification_lock("project-x",first)
+
+    assert "project-x" not in workspace.modification_locks
+    replacement=workspace.try_modification_lock("project-x")
+    assert replacement is not None and replacement is not first
+    workspace.release_modification_lock("project-x",replacement)
+
+
 def test_different_project_objectives_are_not_globally_serialized():
     workspace=create_app(storage_mode="memory").state.workspace
     active=0
