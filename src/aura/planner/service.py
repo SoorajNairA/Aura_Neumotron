@@ -59,9 +59,10 @@ class PlannerService:
         def has_term(value:str,term:str)->bool: return bool(re.search(rf"\b{re.escape(term)}\w*\b",value))
         # "Drawer opened" is a sensed state, not necessarily an instruction to
         # actuate the drawer.  Open/close only imply motion for a moving closure.
+        aerial_vehicle=any(has_term(objective_text,word) for word in ("quadcopter","quadrotor","drone"))
         non_indicator_motion=(has_term(text,"turn") and "turn on" not in text and "turns on" not in text)
         explicit_motion=bool(re.search(r"\b(?:move|moves|moving|rotate|rotates|rotating|lift|lifts|lifting|tilt|tilts|tilting|pan|pans|panning|balance|balances|balancing|conveyor|dispens\w*|arm|arms|drive|drives|driving|slid\w*)\b",text))
-        needs_motion=explicit_motion or non_indicator_motion or any(has_term(planner_labels,word) for word in ("motor","servo","actuator")) or (any(has_term(text,word) for word in ("lid","flap","shade")) and any(has_term(text,word) for word in ("open","close")))
+        needs_motion=aerial_vehicle or explicit_motion or non_indicator_motion or any(has_term(planner_labels,word) for word in ("motor","servo","actuator")) or (any(has_term(text,word) for word in ("lid","flap","shade")) and any(has_term(text,word) for word in ("open","close")))
         mobile_drive=(any(has_term(text,word) or has_term(planner_labels,word) for word in ("wheel","vehicle","car","chassis"))
                       or bool(re.search(r"\bdrive(?:s|n|ing)?\b",text))
                       or bool(re.search(r"\bdrive(?:s|n|ing)?\b",planner_labels)))
@@ -77,6 +78,10 @@ class PlannerService:
         if needs_motion: require("controlled-motion","Controlled actuation",("controlled_motion",))
         if mobile_drive:
             require("drive-output","Driven moving component",("drive_output",))
+            require("support","Stationary support",("support",))
+        if aerial_vehicle:
+            require("aerial-propulsion","Four independently represented aerial propulsion motors",("aerial_propulsion",),quantity=4)
+            require("thrust-output","Four independently represented propellers",("thrust_output",),quantity=4)
             require("support","Stationary support",("support",))
         if solar_powered: require("energy-collection","Solar energy collection",("energy_collection",))
         if remote_controlled:
@@ -120,9 +125,10 @@ class PlannerService:
         if any(word in text for word in ("humidity","pressure","weather","environment")): include("environmental-sensor")
         if any(word in text for word in ("distance","range")): include("distance-sensor")
         if any(word in text for word in ("airflow","fan","ventilation")): include("fan");include("driver")
-        if any(word in text for word in ("water","liquid","soil","pump","fluid","irrigation")): include("container");include("tube");include("pump");include("driver");include("enclosure")
+        fluid_dispensing=any(has_term(text,word) for word in ("water","liquid","soil","pump","fluid","irrigation","pesticide","spray","sprayer"))
+        if fluid_dispensing: include("container");include("tube");include("pump");include("driver");include("enclosure")
         if "soil" in text or "moisture" in text: include("soil-sensor")
-        if any(word in text for word in ("dispense","dispensing","food","portion")): include("container");include("servo");include("dispensing-mechanism");include("mounting-plate")
+        if any(word in text for word in ("dispense","dispensing","food","portion")) and not fluid_dispensing: include("container");include("servo");include("dispensing-mechanism");include("mounting-plate")
         if any(re.search(rf"\b{re.escape(word)}\b",text) for word in ("lid","flap","shade")): include("lid");include("hinge");include("servo");include("mounting-plate")
         if "drawer" in text: include("drawer");include("open-state-sensor")
         if "light" in text and any(word in text for word in ("turn on","turns on","output","illuminate")): include("indicator")
@@ -133,6 +139,8 @@ class PlannerService:
         if "conveyor" in text or "belt" in text: include("conveyor");include("motor");include("driver");include("support")
         if mobile_drive:
             wheel_count=requested_counts.get("drive-wheel",2);include("chassis");include("drive-wheel",wheel_count);include("motor",wheel_count);include("motor-driver",wheel_count if "independent" in text else 1)
+        if aerial_vehicle:
+            include("airframe");include("propulsion-motor",4);include("propeller",4);include("motor-driver",4)
         if remote_controlled: include("wireless-control")
         if explicit_enclosure or (not mobile_drive and any(word in planner_labels for word in ("enclosure","housing"))): include("enclosure")
         if "camera" in text: include("camera-platform")
@@ -158,7 +166,7 @@ class PlannerService:
 
         specs={
           "controller":("ESP32 DevKit","microcontroller_board","electronics",{"logic_voltage_v":3.3,"gpio_max_current_ma":12,"functional_roles":["controller"],"resolution_quality":"EXACT","visual_template":"esp32_devkit"},(52,28,8)),
-          "power":("Low-voltage power source","low_voltage_power_source","power",{"voltage_v":5.0,"available_current_a":max(3.0,families.get("servo",0)*0.8+families.get("motor",0)*0.6+0.5),"mains_exposed":False,"functional_roles":["power"],"resolution_quality":"COMPATIBLE_GENERIC"},(48,30,18)),
+          "power":("Low-voltage power source","low_voltage_power_source","power",{"voltage_v":5.0,"available_current_a":max(3.0,families.get("servo",0)*0.8+(families.get("motor",0)+families.get("propulsion-motor",0))*0.6+families.get("pump",0)*0.8+1.0),"mains_exposed":False,"functional_roles":["power"],"resolution_quality":"COMPATIBLE_GENERIC"},(48,30,18)),
           "enclosure":("Protective enclosure","enclosure","structure",{"contains":["component-controller"],"waterproofing":"splash-resistant" if "tank" in text else "basic","functional_roles":["support"],"mount_clearance_mm":28 if mobile_drive else 0,"resolution_quality":"COMPATIBLE_GENERIC"},(120,90,55)),
           "temperature-sensor":("Temperature sensor","temperature_sensor","sensor",{"supply_voltage_v":3.3,"signal_voltage_v":3.3,"threshold_c":26,"functional_roles":["feedback_temperature"],"measures":["temperature"],"resolution_quality":"EXACT"},(22,16,6)),
           "light-sensor":("Ambient light sensor","light_sensor","sensor",{"supply_voltage_v":3.3,"signal_voltage_v":3.3,"functional_roles":["feedback_light"],"measures":["light"],"resolution_quality":"COMPATIBLE_GENERIC"},(22,16,6)),
@@ -176,8 +184,11 @@ class PlannerService:
           "fan":("Desk fan","fan","actuator",{"voltage_v":5.0,"current_a":0.5,"inductive_load":True,"functional_roles":["airflow_output"],"resolution_quality":"EXACT"},(90,30,90)),
           "servo":("SG90 Servo","servo","actuator",{"voltage_v":5.0,"current_a":0.65,"inductive_load":False,"functional_roles":["controlled_motion"],"controlled_dof":1,"resolution_quality":"EXACT","visual_template":"sg90"},(23,12,29)),
           "motor":("Small DC motor","small_dc_motor","actuator",{"voltage_v":5.0,"current_a":0.6,"inductive_load":True,"functional_roles":["controlled_motion","conveyor_drive"],"controlled_dof":1,"resolution_quality":"COMPATIBLE_GENERIC"},(30,45,30)),
+          "propulsion-motor":("Quadcopter propulsion motor","small_dc_motor","actuator",{"voltage_v":5.0,"current_a":0.6,"inductive_load":True,"functional_roles":["controlled_motion","aerial_propulsion"],"controlled_dof":1,"output_axis":[0,0,1],"visual_template":"quadcopter_motor","resolution_quality":"CONCEPTUAL"},(28,28,34)),
           "chassis":("Structural chassis","mounting_plate","structure",{"functional_roles":["support"],"resolution_quality":"CONCEPTUAL"},(180,110,18)),
+          "airframe":("Quadcopter airframe","quadcopter_airframe","structure",{"functional_roles":["support"],"visual_template":"quadcopter_airframe","resolution_quality":"CONCEPTUAL"},(260,260,14)),
           "drive-wheel":("Drive wheel","drive_wheel","mechanical",{"functional_roles":["moving_body","drive_output"],"resolution_quality":"CONCEPTUAL"},(52,52,18)),
+          "propeller":("Propeller","propeller","mechanical",{"functional_roles":["moving_body","drive_output","thrust_output"],"visual_template":"propeller","resolution_quality":"CONCEPTUAL"},(110,110,8)),
           "wireless-control":("Conceptual wireless control module","wireless_module","electronics",{"functional_roles":["remote_control_input"],"resolution_quality":"CONCEPTUAL"},(32,20,8)),
           "container":("Container","container","mechanical",{"capacity_l":1.5,"wet_environment":any(word in text for word in ("water","liquid","soil","pump")),"functional_roles":["moving_body"],"resolution_quality":"COMPATIBLE_GENERIC"},(110,100,150)),
           "dispensing-mechanism":("Conceptual dispensing wheel","generic_mechanical_part","mechanical",{"functional_roles":["moving_surface"],"resolution_quality":"CONCEPTUAL"},(55,55,25)),
@@ -221,10 +232,18 @@ class PlannerService:
             for index in range(4): identity("light-sensor",f"LDR Direction Sensor {index+1}","photoresistor-module","ldr",(32,14,7))
         raw_trace=[];raw_counts={};raw_seen={}
         raw_limits=({"chassis":1,"drive-wheel":requested_wheels,"motor":requested_wheels,"enclosure":1,"panel":1}
-                    if mobile_drive else {})
+                    if mobile_drive else {"airframe":1,"propulsion-motor":4,"propeller":4,"enclosure":1} if aerial_vehicle else {})
         for raw in request.components:
             resolved=self._resolve_component_intent(raw,objective_text)
-            if mobile_drive and resolved.get("normalizedFamily")=="mounting-plate":
+            if aerial_vehicle and resolved.get("normalizedFamily")=="mounting-plate":
+                resolved={"normalizedFamily":"airframe","resolutionQuality":"CONCEPTUAL","reason":"the quadcopter airframe provides the requested structural mounting surface"}
+            elif aerial_vehicle and resolved.get("normalizedFamily")=="motor":
+                resolved={"normalizedFamily":"propulsion-motor","resolutionQuality":"CONCEPTUAL","reason":"the aerial objective requires a vertical-axis propulsion motor"}
+            elif aerial_vehicle and fluid_dispensing and resolved.get("normalizedFamily")=="servo" and not has_term(objective_text,"servo"):
+                resolved={"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"the fluid sprayer uses a pump rather than the Planner-added dry-material servo mechanism"}
+            elif aerial_vehicle and resolved.get("normalizedFamily")=="relay-module" and not has_term(objective_text,"relay"):
+                resolved={"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"the pump and propulsion loads already have dedicated driver stages"}
+            elif mobile_drive and resolved.get("normalizedFamily")=="mounting-plate":
                 resolved={"normalizedFamily":"chassis","resolutionQuality":"CONCEPTUAL","reason":"the vehicle chassis already provides the requested structural mounting plate"}
             elif mobile_drive and resolved.get("normalizedFamily")=="enclosure" and not explicit_enclosure:
                 resolved={"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"the Planner-added enclosure is not required by the vehicle objective"}
@@ -240,7 +259,7 @@ class PlannerService:
         # Choose a fallback actuator only after structured Planner intent has
         # been normalized. Otherwise a valid requested motor architecture also
         # inherits a phantom default servo (or vice versa).
-        if needs_motion and not any(family in families for family in ("servo","motor")): include("servo")
+        if needs_motion and not any(family in families for family in ("servo","motor","propulsion-motor")): include("servo")
         if raw_counts.get("mounting-plate") and "support" in families:
             families.pop("support")
         if (families.get("motor-driver") and not families.get("motor")
@@ -254,14 +273,15 @@ class PlannerService:
                     trace.update({"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"external motor driver is incompatible with the selected self-driven servo architecture"})
         if families.get("fan") or families.get("pump"):
             load_count=families.get("fan",0)+families.get("pump",0);include("driver",load_count);include("flyback-diode",load_count)
-        if families.get("motor"):
+        motor_total=families.get("motor",0)+families.get("propulsion-motor",0)
+        if motor_total:
             explicit_driver_count=self._named_component_count(intent_text,"motor driver")
-            families["motor-driver"]=max(raw_counts.get("motor-driver",0),explicit_driver_count,families["motor"] if "independent" in text else 1)
-        if families.get("motor") and not (families.get("fan") or families.get("pump")):
+            families["motor-driver"]=max(raw_counts.get("motor-driver",0),explicit_driver_count,motor_total if aerial_vehicle or "independent" in text else 1)
+        if motor_total and not (families.get("fan") or families.get("pump")):
             families.pop("driver",None)
-        moving_families={"mechanism","linear-mechanism","sliding-panel","controlled-platform","camera-platform","panel","tool-platform","conveyor","lid","dispensing-mechanism","drive-wheel"}
-        actuator_families={"servo","motor","fan","pump"}
-        support_families={"support","mounting-plate","chassis","frame","hinge","enclosure"}
+        moving_families={"mechanism","linear-mechanism","sliding-panel","controlled-platform","camera-platform","panel","tool-platform","conveyor","lid","dispensing-mechanism","drive-wheel","propeller"}
+        actuator_families={"servo","motor","propulsion-motor","fan","pump"}
+        support_families={"support","mounting-plate","chassis","airframe","frame","hinge","enclosure"}
         if needs_motion and not moving_families.intersection(families): include("mechanism")
         if not support_families.intersection(families): include("support")
         if axis_count >= 3 and not {"controlled-platform","camera-platform","panel","tool-platform"}.intersection(families): include("tool-platform")
@@ -329,6 +349,9 @@ class PlannerService:
                 preferred=((x,y) for x in left for y in right if
                     (by_component[a].role in {"articulated_link","generic_mechanical_part","linear_drive"} and by_component[b].role=="servo" and x.name=="end-face" and y.name=="body-mount")
                     or (by_component[a].role in {"mounting_plate","base","structural_frame"} and by_component[b].role=="small_dc_motor" and x.name.startswith("drive-mount-") and y.name=="body-mount")
+                    or (by_component[a].role=="quadcopter_airframe" and by_component[b].role=="small_dc_motor" and x.name.startswith("rotor-mount-") and y.name=="body-mount")
+                    or (by_component[a].role=="quadcopter_airframe" and by_component[b].role=="enclosure" and x.name=="enclosure-mount" and y.name=="fixed-input")
+                    or (by_component[a].role=="quadcopter_airframe" and by_component[b].role not in {"small_dc_motor","enclosure"} and x.name.startswith("deck-mount-") and y.name=="body-mount")
                     or (by_component[a].role in {"panel","rotating_platform","camera_platform","tool_platform"} and "sensor" in by_component[b].role and x.name=="sensor-mount" and y.name=="body-mount"))
                 compatible=((x,y) for x in left for y in right if y.kind in x.compatible)
                 pair=next((pair for pair in (*preferred,*compatible) if f"{a}:{pair[0].name}" not in mechanical_interfaces_used and f"{b}:{pair[1].name}" not in mechanical_interfaces_used),None)
@@ -373,7 +396,7 @@ class PlannerService:
             if drivers:
                 connect(drivers[min(index,len(drivers)-1)],diode,"switched-power");connect(diode,power,"ground")
         servos=component_by_family.get("servo",[]);mechanisms=component_by_family.get("mechanism",[]);platforms=component_by_family.get("controlled-platform",[])+component_by_family.get("camera-platform",[])+component_by_family.get("panel",[])+component_by_family.get("tool-platform",[])+component_by_family.get("conveyor",[])+component_by_family.get("lid",[])+component_by_family.get("dispensing-mechanism",[])
-        mounts=component_by_family.get("mounting-plate",[])+component_by_family.get("support",[])+component_by_family.get("frame",[])
+        mounts=component_by_family.get("mounting-plate",[])+component_by_family.get("support",[])+component_by_family.get("frame",[])+component_by_family.get("airframe",[])
         if servos and mounts: connect(mounts[0],servos[0],"mechanical")
         linear_drives=component_by_family.get("linear-mechanism",[]);sliding_panels=component_by_family.get("sliding-panel",[])
         if servos and linear_drives and sliding_panels:
@@ -396,7 +419,7 @@ class PlannerService:
         if component_by_family.get("motor",[]) and component_by_family.get("conveyor",[]):
             connect(component_by_family["motor"][0],component_by_family["conveyor"][0],"mechanical")
             if component_by_family.get("support",[]): connect(component_by_family["support"][0],component_by_family["motor"][0],"mechanical")
-        motors=component_by_family.get("motor",[]);wheels=component_by_family.get("drive-wheel",[]);chassis=component_by_family.get("chassis",[])
+        motors=component_by_family.get("motor",[])+component_by_family.get("propulsion-motor",[]);wheels=component_by_family.get("drive-wheel",[]);propellers=component_by_family.get("propeller",[]);chassis=component_by_family.get("chassis",[])+component_by_family.get("airframe",[])
         if chassis and component_by_family.get("enclosure",[]):
             connect(chassis[0],component_by_family["enclosure"][0],"mechanical")
         if chassis and component_by_family.get("panel",[]):
@@ -408,6 +431,8 @@ class PlannerService:
             for index,motor in enumerate(motors): connect(chassis[min(index,len(chassis)-1)],motor,"mechanical")
         if motors and wheels:
             for index,motor in enumerate(motors): connect(motor,wheels[min(index,len(wheels)-1)],"mechanical")
+        if motors and propellers:
+            for index,motor in enumerate(motors): connect(motor,propellers[min(index,len(propellers)-1)],"mechanical")
         entities=[PlannedEntity(project_id,EntityKind.PROJECT,request.project_name,metadata=(("objective",request.objective),("capability_status",capability_status),("plannerIntentTrace",raw_trace),("semanticRequirements",semantic_requirements)))]
         entities += [PlannedEntity(s.id,EntityKind.SUBSYSTEM,s.name,project_id,(("role",s.role),)) for s in subsystems]
         entities += [PlannedEntity(f"requirement-{item['key']}",EntityKind.REQUIREMENT,item["label"],project_id,tuple({"semantic_requirement":item["key"],"required_roles":item["roles"],"required_axes":item["axes"],"required_quantity":item["quantity"],"critical":item["critical"]}.items())) for item in semantic_requirements]
@@ -498,6 +523,7 @@ class PlannerService:
             (("sg90","mg996r"),"servo"),(("hc sr04","hc-sr04"),"distance-sensor"),
             (("bh1750","ldr","photoresistor"),"light-sensor"),(("soil moisture sensor",),"soil-sensor"),
             (("l298n","tb6612","uln2003"),"motor-driver"),(("relay module",),"relay-module"),
+            (("propeller",),"propeller"),
             (("flyback diode",),"flyback-diode"),
         )
         for names,family in exact_named:
@@ -511,7 +537,7 @@ class PlannerService:
             (("humidity","pressure","environmental"),"environmental-sensor","EXACT"),(("distance","range","level sensor"),"distance-sensor","COMPATIBLE_GENERIC"),
             (("position","tracking","camera-based"),"position-sensor","CONCEPTUAL"),(("drawer","open-state","reed"),"open-state-sensor","CONCEPTUAL"),
             (("conveyor","belt"),"conveyor","CONCEPTUAL"),(("motor driver","h-bridge"),"motor-driver","COMPATIBLE_GENERIC"),(("motor",),"motor","COMPATIBLE_GENERIC"),(("fan",),"fan","EXACT"),(("pump",),"pump","COMPATIBLE_GENERIC"),
-            (("driver","mosfet","relay"),"driver","EXACT"),(("wheel",),"drive-wheel","CONCEPTUAL"),(("chassis",),"chassis","CONCEPTUAL"),(("remote","wireless","receiver","bluetooth"),"wireless-control","CONCEPTUAL"),(("container","reservoir"),"container","COMPATIBLE_GENERIC"),(("tube","tubing"),"tube","COMPATIBLE_GENERIC"),
+            (("driver","mosfet","relay"),"driver","EXACT"),(("propeller","rotor blade"),"propeller","CONCEPTUAL"),(("wheel",),"drive-wheel","CONCEPTUAL"),(("airframe","drone frame","quadcopter frame"),"airframe","CONCEPTUAL"),(("chassis",),"chassis","CONCEPTUAL"),(("remote","wireless","receiver","bluetooth"),"wireless-control","CONCEPTUAL"),(("container","reservoir"),"container","COMPATIBLE_GENERIC"),(("tube","tubing"),"tube","COMPATIBLE_GENERIC"),
             (("enclosure","housing"),"enclosure","COMPATIBLE_GENERIC"),(("lid",),"lid","COMPATIBLE_GENERIC"),(("hinge",),"hinge","COMPATIBLE_GENERIC"),
             (("mounting plate","mount plate","bracket","structural support"),"mounting-plate","COMPATIBLE_GENERIC"),(("camera platform","camera mount"),"camera-platform","CONCEPTUAL"),(("plate","platform"),"controlled-platform","CONCEPTUAL"),
             (("ball","object"),"tracked-object","CONCEPTUAL"),(("camera",),"camera-platform","CONCEPTUAL"),(("arm","link","mechanism","shaft"),"mechanism","CONCEPTUAL"),

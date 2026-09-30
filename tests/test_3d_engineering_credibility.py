@@ -160,6 +160,55 @@ def test_live_style_solar_rc_car_restores_objective_components_and_one_chassis_l
     assert not assembly["visualConnectivity"]["severeIntersections"]
 
 
+def test_live_style_quadcopter_restores_four_propulsion_groups_and_valid_sprayer():
+    request = ProjectRequest(
+        "Automated Precision Dispensing System",
+        "make a quadcopter which can dispense pesticides for farming purposes with arduino uno",
+        (
+            "Implement a microcontroller-based control system for precise dispensing timing.",
+            "Utilize a small DC pump for fluid delivery.",
+            "Ensure all high-current inductive loads are managed via MOSFET or relay drivers with flyback protection.",
+            "Maintain common ground across all electrical components.",
+            "Ensure mechanical stability using mounting plates and enclosures.",
+            "Separate wet components from electronic control circuitry.",
+        ),
+        components=(
+            "microcontroller_board", "low_voltage_power_source", "small_dc_pump",
+            "servo", "mosfet_driver", "relay_module", "diode", "mounting_plate",
+            "enclosure", "container", "tube",
+        ),
+    )
+
+    plan = PlannerService().plan(request)
+    verification = VerificationService().verify(plan)
+    assert verification.accepted, [
+        (item.check, item.message) for item in verification.findings if item.severity == "critical"
+    ]
+
+    graph = WorkspaceBridge().commit(EngineeringGraph(plan.entities[0].id), verification)
+    assembly = engineering_assembly(graph)
+    parts = assembly["parts"]
+    airframes = [item for item in parts if item["family"] == "quadcopter_airframe"]
+    motors = [item for item in parts if item["visualKind"] == "quadcopter_motor"]
+    propellers = [item for item in parts if item["family"] == "propeller"]
+
+    assert len(airframes) == 1
+    assert len(motors) == len(propellers) == 4
+    assert all(item["mechanicalParents"] == [airframes[0]["semanticId"]] for item in motors)
+    assert {item["mechanicalParents"][0] for item in propellers} == {
+        item["semanticId"] for item in motors
+    }
+    assert all(item["transformSource"] == "MATE_SOLVED" for item in motors + propellers)
+    assert any(item["family"] == "small_dc_pump" for item in parts)
+    assert any(item["family"] == "container" for item in parts)
+    assert any(item["family"] == "tube" for item in parts)
+    assert any(item["visualKind"] == "arduino_uno" for item in parts)
+    assert all(item["family"] != "relay_module" for item in parts)
+    assert not assembly["unresolvedPrimaryMechanism"]
+    assert not assembly["unresolvedMechanicalRelations"]
+    assert not assembly["visualConnectivity"]["severeIntersections"]
+
+
 def test_explicit_solar_panel_wording_does_not_require_a_moving_vehicle_panel():
     request = ProjectRequest(
         "Solar car",

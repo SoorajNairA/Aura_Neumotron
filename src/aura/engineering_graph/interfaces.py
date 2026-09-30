@@ -61,7 +61,7 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
         result.append(InterfaceDefinition(name, kind, position, compatible=("electrical_connector",)))
     if family in {"servo", "small_dc_motor"}:
         output_name = "output" if family == "servo" else "shaft"
-        output_axis = tuple((parameters or {}).get("output_axis", (0, 0, 1))) if family == "servo" else (0, -1, 0)
+        output_axis = tuple((parameters or {}).get("output_axis", (0, 0, 1) if family == "servo" else (0, -1, 0)))
         half_extent = abs(output_axis[0])*width/2 + abs(output_axis[1])*length/2 + abs(output_axis[2])*height/2
         output_position = tuple(value*(half_extent+3) for value in output_axis)
         result += [
@@ -72,6 +72,8 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
             result.append(InterfaceDefinition("cable-exit", "cable_exit", (width / 2, -length / 2, -height * .25), axis=(1, 0, 0), compatible=("cable_exit",)))
     elif family == "drive_wheel":
         result.append(InterfaceDefinition("hub-input", "rotating_input", (0, 0, 0), axis=(0, 1, 0), compatible=("rotating_output",)))
+    elif family == "propeller":
+        result.append(InterfaceDefinition("hub-input", "rotating_input", (0, 0, -height / 2), axis=(0, 0, 1), compatible=("rotating_output",)))
     elif family == "linear_drive":
         # A reusable rotary-to-linear transmission.  The actuator mates to the
         # input; the moving panel mates to the linear output.  It is deliberately
@@ -117,6 +119,12 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
             # A driven lid can use one rotary interface for the actuator and a
             # distinct hinge interface for its stationary support.
             result.append(InterfaceDefinition("hinge-input", "rotating_input", (width / 2, 0, -length / 2), axis=(0, 1, 0), compatible=("hinge_axis",)))
+    elif family == "quadcopter_airframe":
+        for index, (x, y) in enumerate(((-.32, -.32), (-.32, .32), (.32, -.32), (.32, .32)), 1):
+            result.append(InterfaceDefinition(f"rotor-mount-{index}", "structural_face", (width * x, length * y, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)))
+        result.append(InterfaceDefinition("enclosure-mount", "structural_face", (0, 0, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",)))
+        for index, (x, y) in enumerate(((-.12, 0), (.12, 0), (0, -.12), (0, .12)), 1):
+            result.append(InterfaceDefinition(f"deck-mount-{index}", "structural_face", (width * x, length * y, height / 2), axis=(0, 0, 1), compatible=("fixed_mount",), clearance_mm=70))
     elif family in {"mounting_plate", "base", "structural_frame", "enclosure", "container"}:
         # A support may carry more than one component.  These are distinct,
         # stable interfaces rather than an implicitly reusable component centre.

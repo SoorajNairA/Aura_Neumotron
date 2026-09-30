@@ -173,7 +173,7 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
         secondary_ids=[component_id for component_id in sorted(placement) if component_id not in primary_ids and placement[component_id]=="INDEPENDENT_LAYOUT"]
         cell_width=max((by_id[component_id].dimensions[0] for component_id in secondary_ids),default=45.0)+12.0
         cell_depth=max((by_id[component_id].dimensions[1] for component_id in secondary_ids),default=30.0)+12.0
-        host_layout=anchor.family in {"mounting_plate","base","structural_frame"} and any("drive_output" in part.functional_roles for part in parts)
+        host_layout=anchor.family in {"mounting_plate","base","structural_frame","quadcopter_airframe"} and any("drive_output" in part.functional_roles for part in parts)
         occupied_right=max((positions[component_id][0]+by_id[component_id].dimensions[0]/2 for component_id in placement if placement[component_id]!="INDEPENDENT_LAYOUT"),default=positions[anchor_id][0]+anchor.dimensions[0]/2)
         for component_id in sorted(placement):
             if component_id in primary_ids or placement[component_id]!="INDEPENDENT_LAYOUT": continue
@@ -183,7 +183,16 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
                 rows=max(1,(len(secondary_ids)+columns-1)//columns)
                 x_step=min(cell_width,max(24.0,(anchor.dimensions[0]-20.0)/columns))
                 y_step=min(cell_depth,max(24.0,(anchor.dimensions[1]-16.0)/rows))
-                positions[component_id]=[positions[anchor_id][0]+(column-(columns-1)/2)*x_step,positions[anchor_id][1]+(row-(rows-1)/2)*.9*y_step,positions[anchor_id][2]+anchor.dimensions[2]/2+part.dimensions[2]/2]
+                if anchor.family=="quadcopter_airframe" and part.family=="container":
+                    positions[component_id]=[positions[anchor_id][0],positions[anchor_id][1],positions[anchor_id][2]-anchor.dimensions[2]/2-part.dimensions[2]/2]
+                elif anchor.family=="quadcopter_airframe" and part.family=="tube":
+                    positions[component_id]=[positions[anchor_id][0],positions[anchor_id][1],positions[anchor_id][2]-anchor.dimensions[2]/2-155.0]
+                elif anchor.family=="quadcopter_airframe" and part.family=="small_dc_pump":
+                    positions[component_id]=[positions[anchor_id][0]+75.0,positions[anchor_id][1],positions[anchor_id][2]-anchor.dimensions[2]/2-part.dimensions[2]/2]
+                elif anchor.family=="quadcopter_airframe":
+                    positions[component_id]=[positions[anchor_id][0]+(column-1)*38.0,positions[anchor_id][1]+(row-.5)*28.0,positions[anchor_id][2]+anchor.dimensions[2]/2+59.0+part.dimensions[2]/2]
+                else:
+                    positions[component_id]=[positions[anchor_id][0]+(column-(columns-1)/2)*x_step,positions[anchor_id][1]+(row-(rows-1)/2)*.9*y_step,positions[anchor_id][2]+anchor.dimensions[2]/2+part.dimensions[2]/2]
             else:
                 positions[component_id]=[occupied_right+part.dimensions[0]/2+12.0+column*cell_width,positions[anchor_id][1]-anchor.dimensions[1]*.3+row*cell_depth,positions[anchor_id][2]+anchor.dimensions[2]/2+part.dimensions[2]/2]
             placement[component_id]="SEMANTIC_SUPPORT"
@@ -294,6 +303,8 @@ def _representation_features(family:str)->tuple[str,...]:
         "microcontroller_board":("pcb","usb_connector","header_rows","module_blocks"),
         "controller":("pcb","connector","header_rows","module_blocks"),
         "small_dc_motor":("motor_body","output_shaft","rear_cap"),
+        "propeller":("central_hub","aerodynamic_blades","shaft_bore"),
+        "quadcopter_airframe":("central_body","four_arms","rotor_mounts","payload_deck"),
         "drive_wheel":("rounded_tire","sidewall","rim","spokes","hub","axle_bore","bounded_tread"),
         "light_sensor":("sensor_pcb","four_quadrant_head","divider_cross"),
         "temperature_sensor":("sensor_pcb","sensing_element","header"),
