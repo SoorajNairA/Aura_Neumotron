@@ -41,7 +41,7 @@ $env:PYTHONPYCACHEPREFIX = Join-Path $auraOut 'pycache'
 rtk proxy $auraPython -m pytest -q --basetemp "$auraOut/pytest" --junitxml "$auraOut/pytest.xml"
 ```
 
-Verify imported aura.__file__ points into this checkout. The frontend and browser commands with external build output are V2–V4 in the [implementation plan](../../superpowers/plans/2026-10-05-nebius-nvidia-hackathon-plan.md#verification-commands-and-artifact-discipline). Full normal launcher/build commands may install or overwrite tracked output, so do not use them during reconnaissance.
+Verify imported aura.__file__ points into this checkout. The frontend and browser commands with external build output are V2–V4 in the [active plan](../../active/README.md#10-verification-and-evidence-protocol). Full normal launcher/build commands may install or overwrite tracked output, so do not use them during reconnaissance.
 
 The backend workflow can be started with the existing WorkspaceApplication/create_app factory against a **new** database and artifact store in $auraOut. Inspect server.py WorkspaceApplication constructor and existing tests/test_workspace_server.py fixtures for current accepted constructor arguments; do not point to the user's persisted workspace. API port is arbitrary; the original audit used 8877. The existing e2e/aura_test_server.py supplies an isolated local browser test application on 4184, with explicit test-provider behavior that must not be mistaken for real model output.
 

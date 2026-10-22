@@ -9,11 +9,10 @@ Current engineering status: Stage 1 honest-status work is complete. Stage 2 rema
 ## Working references
 
 - [Progress checklist and test evidence](superpowers/plans/2026-10-05-nebius-nvidia-progress.md): update task completion here after verification.
-- [Master implementation plan](superpowers/plans/2026-10-05-nebius-nvidia-hackathon-plan.md): original scope and stage dependencies.
 - [Stage 1 assessment contract](superpowers/plans/2026-10-05-stage-1-honest-statuses.md): completed work whose semantics must be preserved.
 - [Capability audit](audits/2026-10-05/REPORT.md) and [reproduction evidence](audits/2026-10-05/README.md): failures and limitations to reproduce rather than erase.
 - [Architecture](ARCHITECTURE.md), [development](DEVELOPMENT.md), [validation](VALIDATION.md), [security](SECURITY.md) and [third-party notices](THIRD_PARTY_NOTICES.md): reference material; historical capability descriptions must be checked against the active plan and audit.
 
-## Archived / lower priority now
+## Historical planning
 
-[Archive index](archive/README.md) contains the September release-hardening and representation-recovery plans/specification. They are retained for historical context and are not the current execution queue. No document was deleted; links were repaired when files moved.
+Superseded September plans and the original master plan have been removed. Their earlier versions remain in Git history. The active plan is the current execution queue; the Stage 1 contract, progress log and audit evidence remain separate references.

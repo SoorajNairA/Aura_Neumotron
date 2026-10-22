@@ -146,7 +146,7 @@ and deployment caches.
 ## Documentation
 
 - [Active work and detailed remaining tasks](docs/active/README.md)
-- [Documentation index and archive](docs/README.md)
+- [Documentation index](docs/README.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Development guide](docs/DEVELOPMENT.md)
 - [Validation and failure behavior](docs/VALIDATION.md)

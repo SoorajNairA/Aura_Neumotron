@@ -5,7 +5,7 @@ Status: **Tasks 1.1–1.5 and the Stage 1 honest-status regression gate are DONE
 
 **Repository handoff, 22 October:** the working folder remains **Aura**, on **main**; **Aura_Neumotron** is the GitHub repository name, not a replacement working-folder name. This repository is independent of the old hackathon-integration worktree. Its origin is SoorajNairA/Aura_Neumotron. The published main history was retained as the base, and the integration working changes were carried onto local main for a reviewed local commit. Use git log/status for the current commit, not the historical baseline above. The old integration workspace was preserved. No push was performed. Environment secrets, dependencies and runtime data are excluded from the commit. This handoff does not complete any engineering or provider task.
 
-[Master plan](2026-10-05-nebius-nvidia-hackathon-plan.md) · [Stage 1 detailed tasks](2026-10-05-stage-1-honest-statuses.md) · [audit](../../audits/2026-10-05/REPORT.md) · [baseline/evidence](../../audits/2026-10-05/README.md).
+[Active implementation plan](../../active/README.md) · [Stage 1 detailed tasks](2026-10-05-stage-1-honest-statuses.md) · [audit](../../audits/2026-10-05/REPORT.md) · [baseline/evidence](../../audits/2026-10-05/README.md).
 
 Update one task at a time after verified completion. An unchecked box is not done. BLOCKED needs a specific external prerequisite, not a vague quality concern. Record the command and exit/test result; no implementation is authorized by this checklist.
 
@@ -545,7 +545,7 @@ All local commands completed exit 0; request script exit 0 means the HTTP failur
 
 The user explicitly requested a new independent local repository with the integration changes on main. The new repository retains Aura_Neumotron's published main history at f951a6a8f4aba9037866c11911c1bbfd4caa40fa as its base. Eight modified tracked files and 178 new integration files were carried over, then current documentation was organized. No product function or engineering rule was changed during consolidation. Original repositories/worktrees were preserved; nothing was pushed.
 
-Start at [the documentation index](../../README.md) and [active work / detailed remaining tasks](../../active/README.md). Four September plans/specifications moved to the [archive](../../archive/README.md); links were repaired. Stage 1 contracts and audit evidence remain working references. Six sanitized audit log files, previously hidden by the broad log ignore rule, were restored with a narrow audit-only exception. Runtime logs and private environment files remain ignored. The detailed active document still records Stage 2 unstarted, 3.1 blocked at its last preflight, and all later gates pending.
+Start at [the documentation index](../../README.md) and [active work / detailed remaining tasks](../../active/README.md). Four September plans/specifications were archived during consolidation; links were repaired at that time. Those superseded documents were subsequently removed during documentation cleanup; their earlier versions remain in Git history. Stage 1 contracts and audit evidence remain working references. Six sanitized audit log files, previously hidden by the broad log ignore rule, were restored with a narrow audit-only exception. Runtime logs and private environment files remain ignored. The detailed active document still records Stage 2 unstarted, 3.1 blocked at its last preflight, and all later gates pending.
 
 Fresh verification on the consolidated source (existing dependencies only):
 

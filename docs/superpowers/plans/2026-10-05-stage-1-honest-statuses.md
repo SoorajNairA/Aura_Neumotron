@@ -8,7 +8,7 @@
 
 **Tech Stack:** Existing Python dataclasses/Pydantic and graph/repository interfaces; React/TypeScript; pytest, Vitest and Playwright already in the project. No dependency addition is required.
 
-**Spec:** [master plan Stage 1](2026-10-05-nebius-nvidia-hackathon-plan.md), [full audit](../../audits/2026-10-05/REPORT.md), [progress](2026-10-05-nebius-nvidia-progress.md).
+**Spec:** [current implementation plan](../../active/README.md), [full audit](../../audits/2026-10-05/REPORT.md), [progress](2026-10-05-nebius-nvidia-progress.md).
 
 ## Global Constraints
 
@@ -183,7 +183,7 @@ Original objective obligations are an independent evaluator, not another generat
 
 ## Future verification commands
 
-Use V1–V4 and G1/G2 from the [master plan](2026-10-05-nebius-nvidia-hackathon-plan.md#verification-commands-and-artifact-discipline). These commands are not executed in this planning pass.
+Use V1–V4 and G1/G2 from the [active plan](../../active/README.md#10-verification-and-evidence-protocol). These commands are not executed in this planning pass.
 
 Stage 1 focused Python suite after the proposed file exists:
 

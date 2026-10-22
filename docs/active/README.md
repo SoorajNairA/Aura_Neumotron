@@ -2,13 +2,13 @@
 
 > **Current working document.** Repository consolidation and documentation organization are complete on local main; see the progress checklist's 22 October verification record and git log/status for the local commit. The next product task is **2.1: deterministic component-family/quantity correctness**. Stage 2 has not started. The independent Token Factory access preflight, 3.1, remains blocked until a real authenticated response is recorded. Do not start later engineering/provider tasks merely because their plans appear below.
 
-**Working folder: Aura. Branch: main. GitHub repository: SoorajNairA/Aura_Neumotron.** The integration changes and active/archive documents are consolidated here. The old integration worktree remains a preserved source, not the working root for this iteration.
+**Working folder: Aura. Branch: main. GitHub repository: SoorajNairA/Aura_Neumotron.** The integration changes and current documentation are consolidated here. The old integration worktree remains a preserved source, not the working root for this iteration.
 
 > For agentic workers: this is a documentation and handoff plan, not authorization to implement, commit, change remotes or push. When a task is separately authorized, use superpowers:executing-plans and execute only that task. Delegation requires explicit authorization.
 
-**Prepared:** 22 October 2026. **Integration baseline:** `eb5a756b3148bb1aa50bd36da6fd9aa5aae3b2b5`, branch `hackathon-integration`, with existing uncommitted Stage 1 changes.
+**Prepared:** 22 October 2026. **Original integration baseline (historical):** `eb5a756b3148bb1aa50bd36da6fd9aa5aae3b2b5`, branch `hackathon-integration`, with existing uncommitted Stage 1 changes.
 
-**Subsequent repository handoff, 22 October:** at the user's explicit request, the **Aura** working folder on **main**, already connected to the Aura_Neumotron remote, was consolidated with the integration changes for a reviewed local commit. The repository diagnosis and proposed handoff in section 2 describe the earlier state; they are retained as history, not instructions to repeat migration. The original integration worktree remains intact. No push was made and no Stage 2 or provider implementation was started.
+**Subsequent repository handoff, 22 October:** at the user's explicit request, the **Aura** working folder on **main**, already connected to the Aura_Neumotron remote, was consolidated with the integration changes for a reviewed local commit. Local consolidation is recorded in commit `1703713da12a1ea279f085e04c923b34465adc70`; section 2 identifies the current working repository. The original integration worktree remains intact. No push was made and no Stage 2 or provider implementation was started.
 
 **Goal:** Finish one dependable, auditable engineering-design workflow using a real NVIDIA Nemotron call through Nebius Token Factory, with truthful limitations and reproducible release evidence.
 
@@ -16,19 +16,19 @@
 
 **Tech stack:** Existing Python/FastAPI/Pydantic/SQLite, React/TypeScript/Three.js, tscircuit and optional CAD runtime. Prefer existing HTTP dependencies for Token Factory.
 
-**Spec and source of truth:** [Master plan](../superpowers/plans/2026-10-05-nebius-nvidia-hackathon-plan.md), [progress checklist](../superpowers/plans/2026-10-05-nebius-nvidia-progress.md), [Stage 1 contract and tasks](../superpowers/plans/2026-10-05-stage-1-honest-statuses.md), [original capability audit](../audits/2026-10-05/REPORT.md). This document consolidates the remaining work and the newly reported repository handoff; it does not replace historical evidence or mark unfinished tasks complete.
+**Source of truth:** This is the current implementation plan. Supporting records: [progress checklist](../superpowers/plans/2026-10-05-nebius-nvidia-progress.md), [Stage 1 contract and tasks](../superpowers/plans/2026-10-05-stage-1-honest-statuses.md), [original capability audit](../audits/2026-10-05/REPORT.md). This document consolidates the remaining work and the newly reported repository handoff; it does not replace historical evidence or mark unfinished tasks complete.
 
 ## 1. Current position
 
 | Area | Verified position | What it does not establish |
 |---|---|---|
 | Stage 0: audit | Report, reproduction artifacts and baseline preserved | Defects repaired |
-| Stage 1: honest statuses | Tasks 1.1–1.5 complete in integration | Physical validity, dependable synthesis or production readiness |
+| Stage 1: honest statuses | Tasks 1.1–1.5 consolidated on local main | Physical validity, dependable synthesis or production readiness |
 | Stage 2: correctness | Tasks 2.1–2.6 not started | Safe electrical compatibility or exact candidate/commit equivalence |
 | Stage 3: Nemotron | 3.1 blocked at last preflight; 3.2–3.4 not started | Authenticated Token Factory access or measured planning quality |
-| Environment setup | Nebius key/base URL/model fields added in integration; active provider preserved | A Nebius adapter, a valid key or a successful inference |
+| Environment setup | Nebius key/base URL/model fields prepared in this checkout; active provider preserved | A Nebius adapter, a valid key or a successful inference |
 | Stages 4–6 | Scoped workflow, repair qualification and release work not started | A qualified end-to-end hackathon submission |
-| New GitHub repository | `Aura_Neumotron` currently exposes `main` at `f951a6a8f4aba9037866c11911c1bbfd4caa40fa` | The integration branch or its uncommitted work has been published |
+| Repository consolidation | Local main includes the Stage 1 work at `1703713`; no push was performed | Publication of this local commit on GitHub |
 
 ### Stage 1 achieved
 
@@ -51,40 +51,13 @@ All six archived objectives were reproduced in deterministic mode against a fres
 
 The Discard overlay failure remains. Its later Apply/stale assertions were not reached. The previously intermittent Node schematic timeout did not recur in the final Stage 1 gate; that is not a guarantee against future timeouts. Product tests and live inference were not rerun while writing this document.
 
-## 2. Repository and branch handoff
+## 2. Working repository
 
-### Why hackathon-integration is absent from the new repository
+Use **`C:/Games/Aura`**, branch **`main`**, with origin **`https://github.com/SoorajNairA/Aura_Neumotron.git`**. Aura_Neumotron is the GitHub repository name; the working folder remains Aura.
 
-Read-only Git checks on 22 October establish two distinct local Git common directories:
+Commit `1703713da12a1ea279f085e04c923b34465adc70` consolidates Stage 1 and the documentation on local main. The original integration workspace was preserved. No push was performed; remote publication is not established by the local commit. The earlier migration instructions are obsolete and have been removed. Do not repeat repository initialization or rename the working root.
 
-| Working location | Actual repository and remote | Current state |
-|---|---|---|
-| IDE source clone | Its own `.git`; `origin` → `SoorajNairA/Aura_Neumotron.git` | `main`, `f951a6a`, clean |
-| Existing integration worktree | Original Aura repository's `.git`; `origin` → `SoorajNairA/Aura.git` | `hackathon-integration`, `eb5a756`, dirty Stage 1 work |
-
-The clone's worktree listing also names the integration path, but that listing is not proof of ownership: `git rev-parse --path-format=absolute --git-common-dir` from the actual integration directory resolves to the original repository. A copied/stale worktree registration does not transfer the worktree to another repository.
-
-`git ls-remote --heads` on the new GitHub URL returns only `refs/heads/main`. Its local matching committed tree lacks the new assessment module, assessment tests and October Stage 1 plan/progress documents. The old integration work remains present locally; committing the separate source clone did not commit those files.
-
-### Safe handoff, after separate authorization
-
-1. Work from the actual integration worktree, not the clean source clone.
-2. Review tracked **and untracked** intended Stage 1 changes, environment example and documentation. Exclude `.env`, databases, private evidence, builds and credentials. Keep unrelated changes separate.
-3. Run the relevant gates and review the complete diff, then create an explicit reviewed commit containing the intended integration work. Pushing before this step publishes only the existing commit, not the dirty files.
-4. Add a separately named remote for the new repository, preserving the original `origin` and `team` remotes.
-5. Publish only `hackathon-integration` to the new repository, without force. This does not merge it into `main` or change the GitHub default branch.
-6. Confirm the remote branch SHA and inspect the new GitHub branch for the assessment module, tests, plans and matching build instructions.
-
-Commands below are a future handoff, **not commands executed by this documentation task**. Run from integration after the reviewed commit and explicit authorization to publish:
-
-```powershell
-rtk git remote -v
-rtk git remote add neumotron https://github.com/SoorajNairA/Aura_Neumotron.git
-rtk git push -u neumotron hackathon-integration
-rtk git ls-remote --heads neumotron hackathon-integration
-```
-
-If `neumotron` already exists, inspect its URL instead of adding or replacing it blindly. A rejected push requires inspecting remote history, not force-pushing. Promotion to the new repository's `main` remains an explicit human-reviewed action. Do not solve this by deleting worktrees, resetting changes, copying `.git` directories or initializing Git inside the existing worktree.
+Inspect the current Git log/status before each separately authorized task. Publication and submission remain separate owner actions.
 
 ## 3. Global constraints and review focus
 
@@ -107,12 +80,12 @@ The engineering sequence remains **2 → 3 → 4 → 5 → 6**, with Stage 1 pro
 
 Immediate sequence:
 
-- [ ] Resolve the repository handoff explicitly so the completed integration work is not mistaken for the new repository's current main.
+- [x] Consolidate the integration work on local main in Aura. Remote publication remains pending; no push was performed.
 - [ ] Implement **2.1 only** as the next product task: family/quantity collisions and explicit unsupported mechanisms.
 - [ ] Separately rerun **3.1** after credentials are supplied privately; no adapter implementation is needed for the preflight.
 - [ ] Complete and review each subsequent correctness task before starting live-provider qualification.
 
-No date-based promise replaces an acceptance gate. The older master plan's intermediate October dates are historical checkpoints, not completed work or a current delivery estimate.
+No date-based promise replaces an acceptance gate. Use the verified task gates below rather than elapsed calendar dates to judge completion.
 
 ## 5. Stage 2: deterministic correctness
 
@@ -248,7 +221,7 @@ Stage 1 already distinguishes cached deterministic origin. Extend that existing 
 
 ### 3.4 — Measure scoped planning quality
 
-- [ ] Use at least three withheld in-scope requests, three runs each, plus underspecified and outside-scope cases as defined in the master plan.
+- [ ] Use at least three withheld in-scope requests, three runs each, plus one underspecified request and two outside-scope mechanism requests. Do not add exceptions for the six archived prompts.
 - [ ] Evaluate original obligations, values/units, topology, provenance and output coherence independently of planner-generated requirements.
 - [ ] Record completion rate, latency distribution, retries, usage/cost when available and visible defects.
 - [ ] Keep bad/unknown results rejected, partial or clarification-required; do not make the evaluator more permissive to improve model scores.
@@ -303,7 +276,16 @@ The [official FAQ](https://nebiusglobalaihackathon.devpost.com/details/faqs) con
 
 These are **future execution commands**, not a claim that tests ran during documentation. Use an existing suitable interpreter/dependencies; do not install merely to make this document green.
 
-From the actual integration checkout, PowerShell:
+Gate names retained by the Stage 1 contract and audit guide:
+
+- **V1:** backend pytest, including task-specific red/green cases and the full suite.
+- **V2:** frontend unit tests; inspect executed counts because exit zero with no tests is insufficient.
+- **V3:** TypeScript check and frontend build.
+- **V4:** browser tests against the real isolated test API; mocked tests alone do not prove integration.
+- **G1:** GitNexus upstream impact before edits; inspect callers and unresolved risk.
+- **G2:** complete GitNexus change analysis and diff/status review before an authorized commit.
+
+From the Aura checkout, PowerShell:
 
 ```powershell
 $auraRepo = (Get-Location).Path
@@ -316,7 +298,7 @@ $env:PYTHONPATH = Join-Path $auraRepo 'src'
 $env:PYTHONPYCACHEPREFIX = Join-Path $auraOut 'pycache'
 ```
 
-Set `AURA_PYTHON_EXE` privately to an existing interpreter if integration has no virtual environment. Confirm the source checkout before interpreting results.
+Set `AURA_PYTHON_EXE` privately to an existing interpreter if the checkout has no virtual environment. Confirm the source checkout before interpreting results.
 
 ```powershell
 # First run each task's specific newly failing cases, then its relevant regressions.
@@ -330,7 +312,7 @@ $env:AURA_FRONTEND_OUT_DIR = Join-Path $auraOut 'frontend'
 rtk proxy npm run build
 ```
 
-For real API browser tests use installed Edge, preview 4183, isolated test API 4184 and explicit integration PYTHONPATH. Preview the external build in a separate terminal so the existing Playwright configuration reuses it:
+For real API browser tests use installed Edge, preview 4183, isolated test API 4184 and this checkout's explicit PYTHONPATH. Preview the external build in a separate terminal so the existing Playwright configuration reuses it:
 
 ```powershell
 rtk proxy node node_modules/vite/bin/vite.js preview --outDir "$auraOut/frontend" --host 127.0.0.1 --port 4183
@@ -343,6 +325,15 @@ rtk proxy node node_modules/@playwright/test/cli.js test round2-lifecycle.spec.t
 Use a fresh database/artifact root for the archived-objective audit; start the real test API with those isolated settings before Playwright reuses it. Confirm that the API's underlying database is fresh, not merely that the request UUID changed. Do not use `AURA_E2E_MOCK_ONLY=1` as evidence for real API integration. Avoid `npm run test:browser` for isolated evidence because it rebuilds default output.
 
 For every task retain: original failure, source revision and dirty status, command/environment, exit, executed counts/skips, original objective/obligations, candidate/committed revision and signatures, numerical values/units and evidence provenance, provider/model/reuse, screenshots and remaining defects. Live quality probes need separate opt-in/budget authorization. Zero tests, skipped live tests and shape-only assertions are not successful capability evidence.
+
+Use the compatible already-installed GitNexus runner for G1/G2 (from the repository root):
+
+```powershell
+rtk proxy gitnexus impact "symbolName" --direction upstream --repo .
+rtk proxy gitnexus detect-changes --scope all --repo .
+rtk proxy git diff --check
+rtk proxy git status --porcelain=v1 --untracked-files=all
+```
 
 Before an authorized commit run full applicable gates, `git diff --check`, inspect tracked/untracked contents, and obtain complete GitNexus change analysis with the repository/worktree explicitly bound. The earlier MCP/index version mismatch is documented; use the compatible installed runner, not an unrelated clone's index. UNKNOWN or capped static analysis must be supplemented by source/test evidence.
 
