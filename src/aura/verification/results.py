@@ -66,6 +66,18 @@ class VerificationFinding:
 
 
 @dataclass(frozen=True)
+class CheckCoverage:
+    """Execution/applicability facts for a named scope, independent of findings."""
+
+    scope: str
+    applicability_known: bool = False
+    executed_check_ids: tuple[str, ...] = ()
+    applicable_check_ids: tuple[str, ...] = ()
+    not_applicable_check_ids: tuple[str, ...] = ()
+    not_evaluated_check_ids: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class VerificationResult:
     decision: VerificationDecision
     state: VerificationState
@@ -74,6 +86,7 @@ class VerificationResult:
     findings: tuple[VerificationFinding, ...] = ()
     confidence_ingredients: dict[str, int] = field(default_factory=dict)
     verification_delta: dict[str, Any] | None = None
+    execution_coverage: CheckCoverage | None = None
 
     @property
     def accepted(self) -> bool:

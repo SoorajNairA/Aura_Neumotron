@@ -1,0 +1,310 @@
+{
+  "metrics": {
+    "activeProjectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "renders": 5,
+    "triangles": 21797,
+    "objects": 8,
+    "recursiveObjects": 122,
+    "meshes": 107,
+    "visibleMeshes": 107,
+    "geometries": 108,
+    "materials": 108,
+    "rendererGeometries": 108,
+    "rendererTextures": 1,
+    "bounds": {
+      "min": [
+        -90,
+        -68.28000007629396,
+        -47.61096889503981
+      ],
+      "max": [
+        90,
+        68.28000007629396,
+        49.477928161621094
+      ]
+    },
+    "finiteBounds": true,
+    "canvas": {
+      "width": 1048,
+      "height": 874
+    },
+    "contextLost": false
+  },
+  "statusText": "AURA\nENGINEERING WORKSPACE\nPROJECT\nTabletop Parallel-jaw Robotic Gripper With 60 Mm\n▾\nREV 01\nREADY WITH LIMITATIONS\nASSEMBLY\nSCHEMATIC\nSPLIT\nWORK\nVERIFICATION\nPASS · 0 FAILED\nWORK\n0 ACTIVE · 0 PAUSED\n● LIVE\n•••\n‹\nSYSTEMS\n8 COMPONENTS\nCOMPLETE SYSTEM\nSHOW ALL\n− ACTUATOR\nISOLATE\nSmall DC motor\nCONCEPTUAL\nSmall DC motor\nCONCEPTUAL\n− ELECTRONICS\nISOLATE\nArduino Nano\nCONCEPTUAL\nGeneric motor driver\nCONCEPTUAL\n− MECHANICAL\nISOLATE\nDrive wheel\nCONCEPTUAL\nDrive wheel\nCONCEPTUAL\n− POWER\nISOLATE\nLow-voltage power source\nCONCEPTUAL\n− STRUCTURE\nISOLATE\nStructural chassis\nCONCEPTUAL\nFIT\nEXPLODE\nSOLID\nSHOW ALL\n›\nPROJECT\nREV 01\nTabletop Parallel-jaw Robotic Gripper With 60 Mm\nREADY WITH LIMITATIONS\nBUILD PIPELINE\nPLANNING\nCOMPLETE\nENGINEERING GRAPH\n8 COMPONENTS\nVERIFICATION\nPASS\nPHYSICAL ASSEMBLY\n8 PARTS / 4 MATES\nSCHEMATIC\n198 RECORDS\nLIMITATIONS\nObjective is within bounded small low-voltage mechatronics.\nWORK\n0\nCOMPLETED\n0\nIN PROGRESS\n0\nPAUSED\nOPEN WORK\nWHAT-IF ANALYSIS\nSelect a component to explore an engineering change.\nSelect a component in Assembly or Schematic, then choose WHAT IF?\nRevision 1\nAURA\nProject ready with 8 components across 5 subsystems: 1 source-verified checks, 7 estimates, and 0 failed checks.\nAURA >\nPREVIEW",
+  "errors": [
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)"
+  ],
+  "network": [
+    {
+      "url": "http://127.0.0.1:8877/assets/representation/fonts/Roboto.ttf",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:8877/assets/representation/fonts/Papyrus.ttf",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:8877/assets/representation/fonts/Consolas.ttf",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-chassis-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-controller-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-drive-wheel-1-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-drive-wheel-2-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-motor-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-motor-2-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-motor-driver-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-power-3d/status",
+      "status": 409
+    }
+  ],
+  "assembleRestore": {
+    "activeProjectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "renders": 7,
+    "triangles": 21797,
+    "objects": 8,
+    "recursiveObjects": 122,
+    "meshes": 107,
+    "visibleMeshes": 107,
+    "geometries": 108,
+    "materials": 108,
+    "rendererGeometries": 108,
+    "rendererTextures": 1,
+    "bounds": {
+      "min": [
+        -90,
+        -68.28000007629396,
+        -47.61096889503981
+      ],
+      "max": [
+        90,
+        68.28000007629396,
+        49.477928161621094
+      ]
+    },
+    "finiteBounds": true,
+    "canvas": {
+      "width": 1048,
+      "height": 874
+    },
+    "contextLost": false
+  },
+  "schematicSymbols": 5,
+  "schematicSelection": "component-controller",
+  "partSelection": "component-motor",
+  "projectAfter": {
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "objective": "Build a tabletop parallel-jaw robotic gripper with a 60 mm opening, two symmetric sliding jaws on linear guides, a servo-driven rack and pinion, an Arduino Nano, and a 5 V supply.",
+    "capability": {
+      "status": "SUPPORTED",
+      "reasons": [
+        "Objective is within bounded small low-voltage mechatronics."
+      ]
+    },
+    "planningMode": "deterministic_test",
+    "fallbackReason": null,
+    "revision": 1,
+    "status": "ready_with_limitations",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00",
+    "updatedAt": "2026-10-05T17:21:28.649868+00:00",
+    "generationMessage": null,
+    "userIssues": [],
+    "representations": [
+      {
+        "representationId": "repr-chassis-3d",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "semanticIds": [
+          "component-chassis"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-ffdd9aaf686b424cb5cf4a7cc2fd9091",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-c1d543e85fd8a4d838ca",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-controller-3d",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "semanticIds": [
+          "component-controller"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-c954c19a97ae42e18f59e0c912cb9ddf",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-e15f369e6ee4d2dfae07",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-drive-wheel-1-3d",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "semanticIds": [
+          "component-drive-wheel-1"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-202d9ce340164590ac14c7a9b6401a85",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-853a875cf68b4bd68815",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-drive-wheel-2-3d",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "semanticIds": [
+          "component-drive-wheel-2"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-8bc9feb3159f4d19b178c8d18bb0e0a5",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-a8645a1322dcd5c232c9",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-motor-3d",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "semanticIds": [
+          "component-motor"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-ad794e055eeb4dcca7858710d61b72e1",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-453d0f458fcbcaf4cfbc",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-motor-2-3d",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "semanticIds": [
+          "component-motor-2"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-3bef7bfb89b645e79423c3360d470a76",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-5c3101a6f1e6247aebcd",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-motor-driver-3d",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "semanticIds": [
+          "component-motor-driver"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-902661f3f3614b64af1d5ac5c8e8b797",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-fb385435945dc31d2c7a",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-power-3d",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "semanticIds": [
+          "component-power"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-80daa4b6855f42619e6d234521fa4a90",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-042d2ac057d8284d5e36",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-system-schematic",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "semanticIds": [
+          "component-controller",
+          "component-motor",
+          "component-motor-2",
+          "component-motor-driver",
+          "component-power"
+        ],
+        "type": "circuit_schematic",
+        "status": "ready",
+        "generator": "tscircuit",
+        "generatorVersion": "0.0.1609",
+        "artifactId": "artifact-87d40a2d6faf4f0087247e1d768068fd",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-93b5cd26ec4e676f0810",
+        "generation": 1
+      }
+    ]
+  }
+}

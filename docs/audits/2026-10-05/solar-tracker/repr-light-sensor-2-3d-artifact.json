@@ -1,0 +1,1 @@
+{"kind":"mechanical_3d","semanticIds":["component-light-sensor-2"],"units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"geometry":{"operation":"box","width":32.0,"depth":14.0,"height":7.0},"semanticCoverage":{"componentId":"component-light-sensor-2","family":"light_sensor","proxy":true,"renderStrategy":"family_proxy","representationClass":"exact"}}

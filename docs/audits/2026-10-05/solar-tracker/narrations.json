@@ -1,0 +1,381 @@
+[
+  {
+    "narrationId": "narration-f30384533e3496e84b7b",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 1,
+    "kind": "project_progress",
+    "text": "Planning the committed project structure.",
+    "semanticIds": [],
+    "verificationFindingIds": [],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:18.857229+00:00"
+  },
+  {
+    "narrationId": "narration-3625ce4d708993c78466",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 71,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source, Arduino Nano remains an estimate: Voltage compatibility for Low-voltage power source to Arduino Nano is not proven by available properties.",
+    "semanticIds": [
+      "component-power",
+      "component-controller"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-d65e2d70d5"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-ff55773ffd943bd2c1b1",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 72,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source, LDR Direction Sensor 1 remains an estimate: Voltage compatibility for Low-voltage power source to LDR Direction Sensor 1 is not proven by available properties.",
+    "semanticIds": [
+      "component-power",
+      "component-light-sensor"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-d33bc08fa1"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-b803432b66097e2ad3d1",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 73,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source, LDR Direction Sensor 2 remains an estimate: Voltage compatibility for Low-voltage power source to LDR Direction Sensor 2 is not proven by available properties.",
+    "semanticIds": [
+      "component-power",
+      "component-light-sensor-2"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-14f084b0b1"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-98ae5a1a59bba3164e9b",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 74,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source, LDR Direction Sensor 3 remains an estimate: Voltage compatibility for Low-voltage power source to LDR Direction Sensor 3 is not proven by available properties.",
+    "semanticIds": [
+      "component-power",
+      "component-light-sensor-3"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-225db8275e"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-a616efa5b173780a5621",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 75,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source, LDR Direction Sensor 4 remains an estimate: Voltage compatibility for Low-voltage power source to LDR Direction Sensor 4 is not proven by available properties.",
+    "semanticIds": [
+      "component-power",
+      "component-light-sensor-4"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-f8c1e448c0"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-334cf9f0b1de829b6f89",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 76,
+    "kind": "warning",
+    "text": "Verification for SG90 Servo remains an estimate: Actuator capability for SG90 Servo is not proven because required or available torque is unknown.",
+    "semanticIds": [
+      "component-servo-1"
+    ],
+    "verificationFindingIds": [
+      "verification-mech-actuator-capability-not-proven-8806e13cde"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-c4294604f5fa28c18a9b",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 77,
+    "kind": "warning",
+    "text": "Verification for SG90 Servo remains an estimate: Actuator capability for SG90 Servo is not proven because required or available torque is unknown.",
+    "semanticIds": [
+      "component-servo-2"
+    ],
+    "verificationFindingIds": [
+      "verification-mech-actuator-capability-not-proven-d99ec2a13e"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-1d9dbbcf9ccd5b7b82ae",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 78,
+    "kind": "warning",
+    "text": "Verification for Solar energy collection, Solar panel remains conceptual: Solar energy collection is implemented by Solar panel as a conceptual role.",
+    "semanticIds": [
+      "requirement-energy-collection",
+      "component-panel"
+    ],
+    "verificationFindingIds": [
+      "verification-req-110-97d22b8da7"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-7d9650054c6b010a194e",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 79,
+    "kind": "warning",
+    "text": "Verification for Moving surface or platform, Solar panel, Driven link, Driven link remains conceptual: Moving surface or platform is implemented by Solar panel, Driven link, Driven link as a conceptual role.",
+    "semanticIds": [
+      "requirement-moving-surface",
+      "component-panel",
+      "component-mechanism-1",
+      "component-mechanism-2"
+    ],
+    "verificationFindingIds": [
+      "verification-req-110-d6da1c7d10"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-ba5e0cb45892346cfd25",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 80,
+    "kind": "warning",
+    "text": "Verification for Arduino Nano remains an estimate: Arduino Nano V3 uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-controller"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-31e1d752fb"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-c4d81a0ed856afe55b76",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 81,
+    "kind": "warning",
+    "text": "Verification for LDR Direction Sensor 1 remains an estimate: CdS module uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-light-sensor"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-98788a4bf4"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-079631e687f09c60b7c6",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 82,
+    "kind": "warning",
+    "text": "Verification for LDR Direction Sensor 2 remains an estimate: CdS module uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-light-sensor-2"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-e3cba3fc7e"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-1fe6651bed8dcad0e7a4",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 83,
+    "kind": "warning",
+    "text": "Verification for LDR Direction Sensor 3 remains an estimate: CdS module uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-light-sensor-3"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-23776e30df"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-e84543a7ef8adb48f8d7",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 84,
+    "kind": "warning",
+    "text": "Verification for LDR Direction Sensor 4 remains an estimate: CdS module uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-light-sensor-4"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-5fbe49cb5f"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-e7580f7bc37769c2e9d2",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 85,
+    "kind": "warning",
+    "text": "Verification for SG90 Servo remains an estimate: SG90 class uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-servo-1"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-485833e63a"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-03233abe87c04af6cf88",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 86,
+    "kind": "warning",
+    "text": "Verification for SG90 Servo remains an estimate: SG90 class uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-servo-2"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-01e7f822f4"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-b0d5bfe551f249243919",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 87,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source remains an estimate: Low-voltage power source is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-power"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-47e92dba19"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-3e19b530ade93cb219e2",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 0,
+    "eventId": 88,
+    "kind": "verification_explanation",
+    "text": "Independent evidence and a deterministic rule agree: Supply voltage is compatible with load.",
+    "semanticIds": [
+      "component-power",
+      "component-servo-1"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-load-voltage-compatible-72b38df994"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-0b278bd5e8be2126e267",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 0,
+    "eventId": 88,
+    "kind": "verification_explanation",
+    "text": "Manufacturer documentation supports this result: Authoritative properties available from IEC family 10 kohm resistor.",
+    "semanticIds": [
+      "component-resistor-3"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-3a4bff0438"
+    ],
+    "evidenceIds": [
+      "evidence-st-protection"
+    ],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:18.856230+00:00"
+  },
+  {
+    "narrationId": "narration-5bc2212278ffb7687e3a",
+    "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+    "revision": 1,
+    "eventId": 131,
+    "kind": "completion",
+    "text": "Project ready with 16 components across 6 subsystems: 4 source-verified checks, 15 estimates, and 0 failed checks.",
+    "semanticIds": [
+      "project-1a7c0c14f66751e28e9ec8f6ca04043a"
+    ],
+    "verificationFindingIds": [],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:20.653398+00:00"
+  }
+]

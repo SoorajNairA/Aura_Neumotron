@@ -26,6 +26,8 @@ venv/
 
 logs/
 *.log
+# Keep the sanitized, linked audit transcripts as reproduction evidence.
+!docs/audits/2026-10-05/*.log
 *.jsonl
 memory/
 /workspace/

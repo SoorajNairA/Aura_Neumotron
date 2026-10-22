@@ -1,0 +1,74 @@
+[
+  {
+    "slug": "solar-tracker",
+    "parts": 16,
+    "netCount": 8,
+    "wireCount": 34,
+    "symbols": 12,
+    "restoreBounds": true,
+    "mechanicalProxyCount": 16,
+    "status409Count": 16,
+    "units": "mm",
+    "diagnostics": null
+  },
+  {
+    "slug": "dc-fan",
+    "parts": 6,
+    "netCount": 4,
+    "wireCount": 12,
+    "symbols": 5,
+    "restoreBounds": true,
+    "mechanicalProxyCount": 6,
+    "status409Count": 6,
+    "units": "mm",
+    "diagnostics": null
+  },
+  {
+    "slug": "four-wheel-rover",
+    "parts": 13,
+    "netCount": 5,
+    "wireCount": 19,
+    "symbols": 8,
+    "restoreBounds": true,
+    "mechanicalProxyCount": 13,
+    "status409Count": 13,
+    "units": "mm",
+    "diagnostics": null
+  },
+  {
+    "slug": "soil-pump",
+    "parts": 9,
+    "netCount": 5,
+    "wireCount": 15,
+    "symbols": 6,
+    "restoreBounds": true,
+    "mechanicalProxyCount": 9,
+    "status409Count": 9,
+    "units": "mm",
+    "diagnostics": null
+  },
+  {
+    "slug": "unfamiliar-lead-screw",
+    "parts": 5,
+    "netCount": 3,
+    "wireCount": 7,
+    "symbols": 3,
+    "restoreBounds": true,
+    "mechanicalProxyCount": 5,
+    "status409Count": 5,
+    "units": "mm",
+    "diagnostics": null
+  },
+  {
+    "slug": "unfamiliar-gripper",
+    "parts": 8,
+    "netCount": 4,
+    "wireCount": 12,
+    "symbols": 5,
+    "restoreBounds": true,
+    "mechanicalProxyCount": 8,
+    "status409Count": 8,
+    "units": "mm",
+    "diagnostics": null
+  }
+]

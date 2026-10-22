@@ -1,0 +1,336 @@
+[
+  {
+    "narrationId": "narration-1eb1fa1e5e99be7cf152",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 1,
+    "kind": "project_progress",
+    "text": "Planning the committed project structure.",
+    "semanticIds": [],
+    "verificationFindingIds": [],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-c9d88e7c98a972668349",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 55,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source, ESP32 DevKit remains an estimate: Voltage compatibility for Low-voltage power source to ESP32 DevKit is not proven by available properties.",
+    "semanticIds": [
+      "component-power",
+      "component-controller"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-b4f9bff2ef"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.365004+00:00"
+  },
+  {
+    "narrationId": "narration-d2ae2727becd9946c80b",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 56,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source, Conceptual wireless control module remains an estimate: Voltage compatibility for Low-voltage power source to Conceptual wireless control module is not proven by available properties.",
+    "semanticIds": [
+      "component-power",
+      "component-wireless-control"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-df4ebd1f1f"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.365004+00:00"
+  },
+  {
+    "narrationId": "narration-93d17176de62667195cc",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 57,
+    "kind": "warning",
+    "text": "Verification for Small DC motor remains an estimate: Actuator capability for Small DC motor is not proven because required or available torque is unknown.",
+    "semanticIds": [
+      "component-motor"
+    ],
+    "verificationFindingIds": [
+      "verification-mech-actuator-capability-not-proven-7ef9b236c5"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.365004+00:00"
+  },
+  {
+    "narrationId": "narration-25296625a4d448f8a600",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 58,
+    "kind": "warning",
+    "text": "Verification for Small DC motor remains an estimate: Actuator capability for Small DC motor is not proven because required or available torque is unknown.",
+    "semanticIds": [
+      "component-motor-2"
+    ],
+    "verificationFindingIds": [
+      "verification-mech-actuator-capability-not-proven-8f1e1e5aa2"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-7a5f8df55bcad0920068",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 59,
+    "kind": "warning",
+    "text": "Verification for Small DC motor remains an estimate: Actuator capability for Small DC motor is not proven because required or available torque is unknown.",
+    "semanticIds": [
+      "component-motor-3"
+    ],
+    "verificationFindingIds": [
+      "verification-mech-actuator-capability-not-proven-5585713569"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-9ad1d3fa826f50da0ff5",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 60,
+    "kind": "warning",
+    "text": "Verification for Small DC motor remains an estimate: Actuator capability for Small DC motor is not proven because required or available torque is unknown.",
+    "semanticIds": [
+      "component-motor-4"
+    ],
+    "verificationFindingIds": [
+      "verification-mech-actuator-capability-not-proven-cd6f60c0a0"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-c1f64d5dfb87cfc498d0",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 61,
+    "kind": "warning",
+    "text": "Verification for Driven moving component, Drive wheel, Drive wheel, Drive wheel, Drive wheel remains conceptual: Driven moving component is implemented by Drive wheel, Drive wheel, Drive wheel, Drive wheel as a conceptual role.",
+    "semanticIds": [
+      "requirement-drive-output",
+      "component-drive-wheel-1",
+      "component-drive-wheel-2",
+      "component-drive-wheel-3",
+      "component-drive-wheel-4"
+    ],
+    "verificationFindingIds": [
+      "verification-req-110-06fcfe3f76"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-29f615f598286b830112",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 62,
+    "kind": "warning",
+    "text": "Verification for 4 independently represented drive wheel instances, Drive wheel, Drive wheel, Drive wheel, Drive wheel remains conceptual: 4 independently represented drive wheel instances is implemented by Drive wheel, Drive wheel, Drive wheel, Drive wheel as a conceptual role.",
+    "semanticIds": [
+      "requirement-drive-wheel-count",
+      "component-drive-wheel-1",
+      "component-drive-wheel-2",
+      "component-drive-wheel-3",
+      "component-drive-wheel-4"
+    ],
+    "verificationFindingIds": [
+      "verification-req-110-8312ac1e20"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-bd5f203547f3cbc3d58b",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 63,
+    "kind": "warning",
+    "text": "Verification for Remote control input, Conceptual wireless control module remains conceptual: Remote control input is implemented by Conceptual wireless control module as a conceptual role.",
+    "semanticIds": [
+      "requirement-remote-control-input",
+      "component-wireless-control"
+    ],
+    "verificationFindingIds": [
+      "verification-req-110-affb944dea"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-63562072755dbc74857a",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 64,
+    "kind": "warning",
+    "text": "Verification for Stationary support, Structural chassis remains conceptual: Stationary support is implemented by Structural chassis as a conceptual role.",
+    "semanticIds": [
+      "requirement-support",
+      "component-chassis"
+    ],
+    "verificationFindingIds": [
+      "verification-req-110-4a1fb13bfb"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-c4102f0317830d94ba87",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 65,
+    "kind": "warning",
+    "text": "Verification for Small DC motor remains an estimate: Small DC motor is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-motor"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-39e56b6dc7"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-55be35f6ae82862f7005",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 66,
+    "kind": "warning",
+    "text": "Verification for Small DC motor remains an estimate: Small DC motor is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-motor-2"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-b27008e2c5"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-531034f768a01ae4d236",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 67,
+    "kind": "warning",
+    "text": "Verification for Small DC motor remains an estimate: Small DC motor is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-motor-3"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-9789404cd0"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-58281500551d8a6f7e23",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 68,
+    "kind": "warning",
+    "text": "Verification for Small DC motor remains an estimate: Small DC motor is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-motor-4"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-58b2b70e6d"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-6ec79e76fec877b45e43",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 69,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source remains an estimate: Low-voltage power source is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-power"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-47e92dba19"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-bb8e230500d3285e7b30",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 0,
+    "eventId": 70,
+    "kind": "verification_explanation",
+    "text": "Independent evidence and a deterministic rule agree: Supply voltage is compatible with load.",
+    "semanticIds": [
+      "component-power",
+      "component-motor-2"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-load-voltage-compatible-0ca9a489cb"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-d5e1c35fdf95ff82ee6d",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 0,
+    "eventId": 70,
+    "kind": "verification_explanation",
+    "text": "Manufacturer documentation supports this result: Authoritative properties available from Espressif ESP32-DevKitC.",
+    "semanticIds": [
+      "component-controller"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-464e3feb44"
+    ],
+    "evidenceIds": [
+      "evidence-espressif-esp32"
+    ],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:22.366005+00:00"
+  },
+  {
+    "narrationId": "narration-a95f4258bef90847d985",
+    "projectId": "project-12253b3425675b0e8f965befadde43c9",
+    "revision": 1,
+    "eventId": 108,
+    "kind": "completion",
+    "text": "Project ready with 13 components across 5 subsystems: 2 source-verified checks, 11 estimates, and 0 failed checks.",
+    "semanticIds": [
+      "project-12253b3425675b0e8f965befadde43c9"
+    ],
+    "verificationFindingIds": [],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:23.922796+00:00"
+  }
+]

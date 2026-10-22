@@ -1,0 +1,5241 @@
+{
+  "unsupported-software": {
+    "http": 422,
+    "body": {
+      "detail": {
+        "status": "UNSUPPORTED",
+        "reasons": [
+          "Current capability excludes software applications."
+        ],
+        "supportedAlternative": "A small low-voltage conceptual mechatronic analogue may be created instead."
+      }
+    }
+  },
+  "unclear-objective": {
+    "http": 422,
+    "body": {
+      "detail": {
+        "status": "NEEDS_CLARIFICATION",
+        "reasons": [
+          "The objective does not identify a supported low-voltage mechatronic function."
+        ],
+        "questions": [
+          "What should the device sense, move, or control using low-voltage components?"
+        ]
+      }
+    }
+  },
+  "unknown-actuator": {
+    "http": 201,
+    "body": {
+      "projectId": "project-d22f5b8a50955852b97ca15dafab97a1",
+      "objective": "Build a low-voltage quantum flux actuator with an Arduino Nano and a 5 V supply.",
+      "capability": {
+        "status": "SUPPORTED",
+        "reasons": [
+          "Objective is within bounded small low-voltage mechatronics."
+        ]
+      },
+      "planningMode": "deterministic_test",
+      "fallbackReason": null,
+      "revision": 1,
+      "status": "ready_with_limitations",
+      "createdAt": "2026-10-05T17:26:41.050441+00:00",
+      "updatedAt": "2026-10-05T17:26:41.050441+00:00",
+      "generationMessage": null,
+      "userIssues": [],
+      "representations": [
+        {
+          "representationId": "repr-controller-3d",
+          "projectId": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-ce11da064b5b4cc89142bcfc1af485f9",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-983a770dfb45bcb75a92",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-power-3d",
+          "projectId": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "revision": 1,
+          "semanticIds": [
+            "component-power"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-3b4a8aa8e35f41499fa8c5bfac0a1fd5",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-2a9f86b85e1f905527f8",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-support-3d",
+          "projectId": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "revision": 1,
+          "semanticIds": [
+            "component-support"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-2b758506269c4c13a93d46d8b8ee756a",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-30fc003d2cdf27ac8a04",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-system-schematic",
+          "projectId": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller",
+            "component-power"
+          ],
+          "type": "circuit_schematic",
+          "status": "ready",
+          "generator": "tscircuit",
+          "generatorVersion": "0.0.1609",
+          "artifactId": "artifact-5b4c8f72720e42b2a4a968bde3722d5a",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-28ff2b812d3cc198ad23",
+          "generation": 1
+        }
+      ]
+    }
+  },
+  "unknown-actuator-graph": {
+    "http": 200,
+    "body": {
+      "schema_version": "1.0",
+      "project_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+      "entities": [
+        {
+          "id": "assumption-1",
+          "kind": "assumption",
+          "name": "Use 5 V isolated low-voltage power",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {},
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "assumption-2",
+          "kind": "assumption",
+          "name": "Exact mechanical fit remains conceptual",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {},
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "component-controller",
+          "kind": "component",
+          "name": "Arduino Nano",
+          "parent_id": "subsystem-electronics",
+          "metadata": {
+            "role": "microcontroller_board",
+            "family": "microcontroller_board",
+            "parameters": {
+              "logic_voltage_v": 5.0,
+              "gpio_max_current_ma": 20,
+              "functional_roles": [
+                "controller"
+              ],
+              "resolution_quality": "EXACT",
+              "visual_template": "arduino_nano",
+              "component_definition_id": "arduino-nano-v3",
+              "component_definition_version": "catalogue-v1",
+              "requested_identity": "Arduino Nano",
+              "planner_intent": "ESP32 DevKit"
+            },
+            "interfaces": [
+              "power",
+              "ground",
+              "signal-1",
+              "signal-2",
+              "signal-3",
+              "signal-4",
+              "signal-5",
+              "signal-6",
+              "signal-7",
+              "signal-8",
+              "body-mount"
+            ],
+            "dimensions": {
+              "width": {
+                "value": 45,
+                "unit": "mm"
+              },
+              "length": {
+                "value": 18,
+                "unit": "mm"
+              },
+              "height": {
+                "value": 8,
+                "unit": "mm"
+              }
+            },
+            "representation_status": "placeholder",
+            "assumption_refs": [
+              "assumption-controller"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "estimated",
+          "representation_refs": []
+        },
+        {
+          "id": "component-power",
+          "kind": "component",
+          "name": "Low-voltage power source",
+          "parent_id": "subsystem-power",
+          "metadata": {
+            "role": "low_voltage_power_source",
+            "family": "low_voltage_power_source",
+            "parameters": {
+              "voltage_v": 5.0,
+              "available_current_a": 3.0,
+              "mains_exposed": false,
+              "functional_roles": [
+                "power"
+              ],
+              "resolution_quality": "COMPATIBLE_GENERIC",
+              "planner_intent": "Low-voltage power source"
+            },
+            "interfaces": [
+              "power",
+              "ground",
+              "body-mount"
+            ],
+            "dimensions": {
+              "width": {
+                "value": 48,
+                "unit": "mm"
+              },
+              "length": {
+                "value": 30,
+                "unit": "mm"
+              },
+              "height": {
+                "value": 18,
+                "unit": "mm"
+              }
+            },
+            "representation_status": "placeholder",
+            "assumption_refs": [
+              "assumption-power"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "estimated",
+          "representation_refs": []
+        },
+        {
+          "id": "component-support",
+          "kind": "component",
+          "name": "Structural base",
+          "parent_id": "subsystem-structure",
+          "metadata": {
+            "role": "base",
+            "family": "base",
+            "parameters": {
+              "functional_roles": [
+                "support"
+              ],
+              "resolution_quality": "CONCEPTUAL",
+              "planner_intent": "Structural base"
+            },
+            "interfaces": [
+              "mount-face",
+              "mount-face-1",
+              "mount-face-2",
+              "mount-face-3",
+              "mount-face-4",
+              "drive-mount-1",
+              "drive-mount-2",
+              "drive-mount-3",
+              "drive-mount-4"
+            ],
+            "dimensions": {
+              "width": {
+                "value": 150,
+                "unit": "mm"
+              },
+              "length": {
+                "value": 100,
+                "unit": "mm"
+              },
+              "height": {
+                "value": 12,
+                "unit": "mm"
+              }
+            },
+            "representation_status": "placeholder",
+            "assumption_refs": [
+              "assumption-support"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "connection-power-controller-ground",
+          "kind": "connection",
+          "name": "Ground connection.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "source_id": "component-power",
+            "target_id": "component-controller",
+            "source_interface": "ground",
+            "target_interface": "ground",
+            "connection_type": "ground"
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "connection-power-controller-power",
+          "kind": "connection",
+          "name": "Power connection.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "source_id": "component-power",
+            "target_id": "component-controller",
+            "source_interface": "power",
+            "target_interface": "power",
+            "connection_type": "power"
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "connection-support-controller-mechanical",
+          "kind": "connection",
+          "name": "Mechanical connection.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "source_id": "component-support",
+            "target_id": "component-controller",
+            "source_interface": "mount-face",
+            "target_interface": "body-mount",
+            "connection_type": "mechanical"
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "connection-support-power-mechanical",
+          "kind": "connection",
+          "name": "Mechanical connection.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "source_id": "component-support",
+            "target_id": "component-power",
+            "source_interface": "mount-face-1",
+            "target_interface": "body-mount",
+            "connection_type": "mechanical"
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "evidence-curated-component-assumptions",
+          "kind": "evidence",
+          "name": "AURA bounded component-family assumptions",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "kind": "engineering_assumption",
+            "title": "AURA bounded component-family assumptions",
+            "source": "aura://curated-assumptions/v1",
+            "publisher": "AURA",
+            "properties": [
+              "supply_voltage",
+              "current",
+              "dimensions"
+            ],
+            "evidenceId": "evidence-curated-component-assumptions",
+            "retrievedAt": "2026-10-05T17:19:30.980798+00:00",
+            "contentHash": "c746ac6b9559a80346112cbc6c0b0ff0984da9e523a4f9b114492a4fcc71fd2a",
+            "appliesTo": [
+              "component-controller"
+            ],
+            "sourceVersion": "v1"
+          },
+          "source_refs": [],
+          "verification_status": "source_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "net-ground-8748edf4e179",
+          "kind": "connection",
+          "name": "NET_GROUND_8748EDF4E179",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "semantic_type": "electrical_net",
+            "role": "ground",
+            "terminals": [
+              {
+                "componentId": "component-controller",
+                "interfaceId": "ground"
+              },
+              {
+                "componentId": "component-power",
+                "interfaceId": "ground"
+              }
+            ],
+            "displayStyle": {
+              "color": "#718096"
+            },
+            "connectionIds": [
+              "connection-power-controller-ground-edge"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "net-power-0b8b19ac836a",
+          "kind": "connection",
+          "name": "NET_POWER_0B8B19AC836A",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "semantic_type": "electrical_net",
+            "role": "power",
+            "terminals": [
+              {
+                "componentId": "component-controller",
+                "interfaceId": "power"
+              },
+              {
+                "componentId": "component-power",
+                "interfaceId": "power"
+              }
+            ],
+            "displayStyle": {
+              "color": "#ef6f61"
+            },
+            "connectionIds": [
+              "connection-power-controller-power-edge"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "kind": "project",
+          "name": "Low-voltage Quantum Flux Actuator With Arduino Nano",
+          "parent_id": null,
+          "metadata": {
+            "objective": "Build a low-voltage quantum flux actuator with an Arduino Nano and a 5 V supply.",
+            "capability_status": "SUPPORTED",
+            "plannerIntentTrace": [],
+            "semanticRequirements": [
+              {
+                "key": "controller",
+                "label": "Control logic",
+                "roles": [
+                  "controller"
+                ],
+                "axes": 0,
+                "quantity": 1,
+                "critical": true
+              },
+              {
+                "key": "power",
+                "label": "Low-voltage power",
+                "roles": [
+                  "power"
+                ],
+                "axes": 0,
+                "quantity": 1,
+                "critical": true
+              }
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "requirement-controller",
+          "kind": "requirement",
+          "name": "Control logic",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "semantic_requirement": "controller",
+            "required_roles": [
+              "controller"
+            ],
+            "required_axes": 0,
+            "required_quantity": 1,
+            "critical": true
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "requirement-declared-1",
+          "kind": "requirement",
+          "name": "Use isolated low-voltage DC power",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "declared_requirement": true
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "requirement-declared-2",
+          "kind": "requirement",
+          "name": "Provide the requested sensing or actuation behavior",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "declared_requirement": true
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "requirement-power",
+          "kind": "requirement",
+          "name": "Low-voltage power",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "semantic_requirement": "power",
+            "required_roles": [
+              "power"
+            ],
+            "required_axes": 0,
+            "required_quantity": 1,
+            "critical": true
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "subsystem-electronics",
+          "kind": "subsystem",
+          "name": "Electronics",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "role": "electronics"
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "subsystem-power",
+          "kind": "subsystem",
+          "name": "Power",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "role": "power"
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "subsystem-structure",
+          "kind": "subsystem",
+          "name": "Structure",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "role": "structure"
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "verification-catalogue-properties-31e1d752fb",
+          "kind": "verification_result",
+          "name": "Arduino Nano V3 uses a bounded curated engineering assumption.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "findingId": "verification-catalogue-properties-31e1d752fb",
+            "semanticId": "component-controller",
+            "code": "catalogue-properties",
+            "check": "catalogue-properties",
+            "status": "estimated",
+            "severity": "WARN",
+            "legacySeverity": "warning",
+            "category": "general",
+            "blocking": false,
+            "summary": "Arduino Nano V3 uses a bounded curated engineering assumption.",
+            "expected": null,
+            "actual": null,
+            "evidenceIds": [
+              "evidence-curated-component-assumptions"
+            ],
+            "verifiedAt": "2026-10-05T17:26:41.048387+00:00",
+            "sourceVersions": {
+              "evidence-curated-component-assumptions": "curated-record-v1"
+            },
+            "dependencyIds": [
+              "component-controller"
+            ],
+            "revision": 1,
+            "machineResult": {},
+            "requirementIds": [],
+            "netIds": [],
+            "interfaceIds": [],
+            "requiredCapability": null,
+            "repairHint": null,
+            "semanticIds": [
+              "component-controller"
+            ],
+            "entity_ids": [
+              "component-controller"
+            ]
+          },
+          "source_refs": [
+            "evidence-curated-component-assumptions"
+          ],
+          "verification_status": "estimated",
+          "representation_refs": []
+        },
+        {
+          "id": "verification-elec-voltage-not-proven-d65e2d70d5",
+          "kind": "verification_result",
+          "name": "Voltage compatibility for Low-voltage power source to Arduino Nano is not proven by available properties.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "findingId": "verification-elec-voltage-not-proven-d65e2d70d5",
+            "semanticId": "component-power",
+            "code": "ELEC_VOLTAGE_NOT_PROVEN",
+            "check": "ELEC_VOLTAGE_NOT_PROVEN",
+            "status": "estimated",
+            "severity": "WARN",
+            "legacySeverity": "warning",
+            "category": "electrical",
+            "blocking": false,
+            "summary": "Voltage compatibility for Low-voltage power source to Arduino Nano is not proven by available properties.",
+            "expected": {
+              "knownSourceAndInputVoltage": true
+            },
+            "actual": {
+              "sourceVoltageV": 5.0,
+              "targetVoltageV": null,
+              "targetRangeV": null
+            },
+            "evidenceIds": [],
+            "verifiedAt": "2026-10-05T17:26:41.049383+00:00",
+            "sourceVersions": {},
+            "dependencyIds": [
+              "component-power",
+              "component-controller"
+            ],
+            "revision": 1,
+            "machineResult": {},
+            "requirementIds": [],
+            "netIds": [],
+            "interfaceIds": [],
+            "requiredCapability": null,
+            "repairHint": "Resolve voltage ratings from evidence before claiming compatibility.",
+            "semanticIds": [
+              "component-power",
+              "component-controller"
+            ],
+            "entity_ids": [
+              "component-power",
+              "component-controller"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "estimated",
+          "representation_refs": []
+        },
+        {
+          "id": "verification-generic-component-47e92dba19",
+          "kind": "verification_result",
+          "name": "Low-voltage power source is generic; exact operating values remain estimated.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "findingId": "verification-generic-component-47e92dba19",
+            "semanticId": "component-power",
+            "code": "generic-component",
+            "check": "generic-component",
+            "status": "estimated",
+            "severity": "WARN",
+            "legacySeverity": "warning",
+            "category": "general",
+            "blocking": false,
+            "summary": "Low-voltage power source is generic; exact operating values remain estimated.",
+            "expected": null,
+            "actual": null,
+            "evidenceIds": [],
+            "verifiedAt": "2026-10-05T17:26:41.046222+00:00",
+            "sourceVersions": {},
+            "dependencyIds": [
+              "component-power"
+            ],
+            "revision": 1,
+            "machineResult": {},
+            "requirementIds": [],
+            "netIds": [],
+            "interfaceIds": [],
+            "requiredCapability": null,
+            "repairHint": null,
+            "semanticIds": [
+              "component-power"
+            ],
+            "entity_ids": [
+              "component-power"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "estimated",
+          "representation_refs": []
+        },
+        {
+          "id": "verification-geometry-parameters-01c1d1b152",
+          "kind": "verification_result",
+          "name": "Structural base dimensions are finite, positive, and unit-compatible.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "findingId": "verification-geometry-parameters-01c1d1b152",
+            "semanticId": "component-support",
+            "code": "geometry-parameters",
+            "check": "geometry-parameters",
+            "status": "tool_verified",
+            "severity": "INFO",
+            "legacySeverity": "info",
+            "category": "general",
+            "blocking": false,
+            "summary": "Structural base dimensions are finite, positive, and unit-compatible.",
+            "expected": null,
+            "actual": null,
+            "evidenceIds": [],
+            "verifiedAt": "2026-10-05T17:26:41.048387+00:00",
+            "sourceVersions": {},
+            "dependencyIds": [
+              "component-support"
+            ],
+            "revision": 1,
+            "machineResult": {
+              "finitePositive": true,
+              "scope": "parameter_geometry_not_manufacturing"
+            },
+            "requirementIds": [],
+            "netIds": [],
+            "interfaceIds": [],
+            "requiredCapability": null,
+            "repairHint": null,
+            "semanticIds": [
+              "component-support"
+            ],
+            "entity_ids": [
+              "component-support"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "verification-geometry-parameters-238a3e47d2",
+          "kind": "verification_result",
+          "name": "Low-voltage power source dimensions are finite, positive, and unit-compatible.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "findingId": "verification-geometry-parameters-238a3e47d2",
+            "semanticId": "component-power",
+            "code": "geometry-parameters",
+            "check": "geometry-parameters",
+            "status": "tool_verified",
+            "severity": "INFO",
+            "legacySeverity": "info",
+            "category": "general",
+            "blocking": false,
+            "summary": "Low-voltage power source dimensions are finite, positive, and unit-compatible.",
+            "expected": null,
+            "actual": null,
+            "evidenceIds": [],
+            "verifiedAt": "2026-10-05T17:26:41.048387+00:00",
+            "sourceVersions": {},
+            "dependencyIds": [
+              "component-power"
+            ],
+            "revision": 1,
+            "machineResult": {
+              "finitePositive": true,
+              "scope": "parameter_geometry_not_manufacturing"
+            },
+            "requirementIds": [],
+            "netIds": [],
+            "interfaceIds": [],
+            "requiredCapability": null,
+            "repairHint": null,
+            "semanticIds": [
+              "component-power"
+            ],
+            "entity_ids": [
+              "component-power"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "verification-geometry-parameters-e5636e3eeb",
+          "kind": "verification_result",
+          "name": "Arduino Nano dimensions are finite, positive, and unit-compatible.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "findingId": "verification-geometry-parameters-e5636e3eeb",
+            "semanticId": "component-controller",
+            "code": "geometry-parameters",
+            "check": "geometry-parameters",
+            "status": "tool_verified",
+            "severity": "INFO",
+            "legacySeverity": "info",
+            "category": "general",
+            "blocking": false,
+            "summary": "Arduino Nano dimensions are finite, positive, and unit-compatible.",
+            "expected": null,
+            "actual": null,
+            "evidenceIds": [],
+            "verifiedAt": "2026-10-05T17:26:41.047383+00:00",
+            "sourceVersions": {},
+            "dependencyIds": [
+              "component-controller"
+            ],
+            "revision": 1,
+            "machineResult": {
+              "finitePositive": true,
+              "scope": "parameter_geometry_not_manufacturing"
+            },
+            "requirementIds": [],
+            "netIds": [],
+            "interfaceIds": [],
+            "requiredCapability": null,
+            "repairHint": null,
+            "semanticIds": [
+              "component-controller"
+            ],
+            "entity_ids": [
+              "component-controller"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "verification-representation-provenance-3cfd360ee0",
+          "kind": "verification_result",
+          "name": "Low-voltage power source representation is a conceptual proxy; geometry checks are not manufacturing verification.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "findingId": "verification-representation-provenance-3cfd360ee0",
+            "semanticId": "component-power",
+            "code": "representation-provenance",
+            "check": "representation-provenance",
+            "status": "conceptual",
+            "severity": "INFO",
+            "legacySeverity": "info",
+            "category": "general",
+            "blocking": false,
+            "summary": "Low-voltage power source representation is a conceptual proxy; geometry checks are not manufacturing verification.",
+            "expected": null,
+            "actual": null,
+            "evidenceIds": [],
+            "verifiedAt": "2026-10-05T17:26:41.048387+00:00",
+            "sourceVersions": {},
+            "dependencyIds": [
+              "component-power"
+            ],
+            "revision": 1,
+            "machineResult": {
+              "manufacturingVerified": false
+            },
+            "requirementIds": [],
+            "netIds": [],
+            "interfaceIds": [],
+            "requiredCapability": null,
+            "repairHint": null,
+            "semanticIds": [
+              "component-power"
+            ],
+            "entity_ids": [
+              "component-power"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "verification-representation-provenance-91829ce553",
+          "kind": "verification_result",
+          "name": "Structural base representation is a conceptual proxy; geometry checks are not manufacturing verification.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "findingId": "verification-representation-provenance-91829ce553",
+            "semanticId": "component-support",
+            "code": "representation-provenance",
+            "check": "representation-provenance",
+            "status": "conceptual",
+            "severity": "INFO",
+            "legacySeverity": "info",
+            "category": "general",
+            "blocking": false,
+            "summary": "Structural base representation is a conceptual proxy; geometry checks are not manufacturing verification.",
+            "expected": null,
+            "actual": null,
+            "evidenceIds": [],
+            "verifiedAt": "2026-10-05T17:26:41.048387+00:00",
+            "sourceVersions": {},
+            "dependencyIds": [
+              "component-support"
+            ],
+            "revision": 1,
+            "machineResult": {
+              "manufacturingVerified": false
+            },
+            "requirementIds": [],
+            "netIds": [],
+            "interfaceIds": [],
+            "requiredCapability": null,
+            "repairHint": null,
+            "semanticIds": [
+              "component-support"
+            ],
+            "entity_ids": [
+              "component-support"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "verification-representation-provenance-c039d7e2f3",
+          "kind": "verification_result",
+          "name": "Arduino Nano representation is a conceptual proxy; geometry checks are not manufacturing verification.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "findingId": "verification-representation-provenance-c039d7e2f3",
+            "semanticId": "component-controller",
+            "code": "representation-provenance",
+            "check": "representation-provenance",
+            "status": "conceptual",
+            "severity": "INFO",
+            "legacySeverity": "info",
+            "category": "general",
+            "blocking": false,
+            "summary": "Arduino Nano representation is a conceptual proxy; geometry checks are not manufacturing verification.",
+            "expected": null,
+            "actual": null,
+            "evidenceIds": [],
+            "verifiedAt": "2026-10-05T17:26:41.047383+00:00",
+            "sourceVersions": {},
+            "dependencyIds": [
+              "component-controller"
+            ],
+            "revision": 1,
+            "machineResult": {
+              "manufacturingVerified": false
+            },
+            "requirementIds": [],
+            "netIds": [],
+            "interfaceIds": [],
+            "requiredCapability": null,
+            "repairHint": null,
+            "semanticIds": [
+              "component-controller"
+            ],
+            "entity_ids": [
+              "component-controller"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "verification-req-110-50332c10b1",
+          "kind": "verification_result",
+          "name": "Low-voltage power is implemented by Low-voltage power source.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "findingId": "verification-req-110-50332c10b1",
+            "semanticId": "requirement-power",
+            "code": "REQ_110",
+            "check": "REQ_110",
+            "status": "tool_verified",
+            "severity": "INFO",
+            "legacySeverity": "info",
+            "category": "general",
+            "blocking": false,
+            "summary": "Low-voltage power is implemented by Low-voltage power source.",
+            "expected": {
+              "roles": [
+                "power"
+              ],
+              "quantity": 1
+            },
+            "actual": {
+              "componentIds": [
+                "component-power"
+              ],
+              "quantity": 1,
+              "resolutionQualities": [
+                "COMPATIBLE_GENERIC"
+              ]
+            },
+            "evidenceIds": [],
+            "verifiedAt": "2026-10-05T17:26:41.046222+00:00",
+            "sourceVersions": {},
+            "dependencyIds": [
+              "requirement-power",
+              "component-power"
+            ],
+            "revision": 1,
+            "machineResult": {},
+            "requirementIds": [],
+            "netIds": [],
+            "interfaceIds": [],
+            "requiredCapability": null,
+            "repairHint": null,
+            "semanticIds": [
+              "requirement-power",
+              "component-power"
+            ],
+            "entity_ids": [
+              "requirement-power",
+              "component-power"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        },
+        {
+          "id": "verification-req-110-d6b3c44fca",
+          "kind": "verification_result",
+          "name": "Control logic is implemented by Arduino Nano.",
+          "parent_id": "project-d22f5b8a50955852b97ca15dafab97a1",
+          "metadata": {
+            "findingId": "verification-req-110-d6b3c44fca",
+            "semanticId": "requirement-controller",
+            "code": "REQ_110",
+            "check": "REQ_110",
+            "status": "tool_verified",
+            "severity": "INFO",
+            "legacySeverity": "info",
+            "category": "general",
+            "blocking": false,
+            "summary": "Control logic is implemented by Arduino Nano.",
+            "expected": {
+              "roles": [
+                "controller"
+              ],
+              "quantity": 1
+            },
+            "actual": {
+              "componentIds": [
+                "component-controller"
+              ],
+              "quantity": 1,
+              "resolutionQualities": [
+                "EXACT"
+              ]
+            },
+            "evidenceIds": [],
+            "verifiedAt": "2026-10-05T17:26:41.046222+00:00",
+            "sourceVersions": {},
+            "dependencyIds": [
+              "requirement-controller",
+              "component-controller"
+            ],
+            "revision": 1,
+            "machineResult": {},
+            "requirementIds": [],
+            "netIds": [],
+            "interfaceIds": [],
+            "requiredCapability": null,
+            "repairHint": null,
+            "semanticIds": [
+              "requirement-controller",
+              "component-controller"
+            ],
+            "entity_ids": [
+              "requirement-controller",
+              "component-controller"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "tool_verified",
+          "representation_refs": []
+        }
+      ],
+      "relationships": [
+        {
+          "id": "connection-power-controller-ground-edge",
+          "source_id": "component-power",
+          "target_id": "component-controller",
+          "type": "ground",
+          "metadata": {
+            "connection_id": "connection-power-controller-ground"
+          }
+        },
+        {
+          "id": "connection-power-controller-power-edge",
+          "source_id": "component-power",
+          "target_id": "component-controller",
+          "type": "power",
+          "metadata": {
+            "connection_id": "connection-power-controller-power"
+          }
+        },
+        {
+          "id": "connection-support-controller-mechanical-edge",
+          "source_id": "component-support",
+          "target_id": "component-controller",
+          "type": "mechanical",
+          "metadata": {
+            "connection_id": "connection-support-controller-mechanical"
+          }
+        },
+        {
+          "id": "connection-support-power-mechanical-edge",
+          "source_id": "component-support",
+          "target_id": "component-power",
+          "type": "mechanical",
+          "metadata": {
+            "connection_id": "connection-support-power-mechanical"
+          }
+        }
+      ],
+      "revisions": [
+        {
+          "id": "revision-47704dbb226c4c198ae6441edebb912a",
+          "parent_id": null,
+          "patch_id": "initial-patch-2d893514b75f5d63bfb02a4151b3ac49",
+          "summary": "Create Low-voltage Quantum Flux Actuator With Arduino Nano",
+          "created_at": "2026-10-05T17:26:41.050441+00:00"
+        }
+      ]
+    }
+  },
+  "solar-tracker-project": {
+    "http": 200,
+    "body": {
+      "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+      "objective": "Build a tabletop two-axis solar tracker that automatically points a small solar panel toward the brightest light source using an Arduino Nano.",
+      "capability": {
+        "status": "SUPPORTED",
+        "reasons": [
+          "Objective is within bounded small low-voltage mechatronics."
+        ]
+      },
+      "planningMode": "deterministic_test",
+      "fallbackReason": null,
+      "revision": 1,
+      "status": "ready_with_limitations",
+      "createdAt": "2026-10-05T17:21:18.856230+00:00",
+      "updatedAt": "2026-10-05T17:21:20.646996+00:00",
+      "generationMessage": null,
+      "userIssues": [],
+      "representations": [
+        {
+          "representationId": "repr-controller-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-c692c94d3ed54adf877708df1bd63f0e",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-09001857b6565231d802",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-light-sensor-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-light-sensor"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-f1b644309e094a42aa1b18318ac6a165",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-c275bb2dccbaa76670fb",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-light-sensor-2-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-light-sensor-2"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-6613c6c99ea242ffa2337663ca55ed66",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-9538bd51823fb9abde08",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-light-sensor-3-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-light-sensor-3"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-d19bff1858a1454da590e68958f5d4c3",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-da42938f4ca1e22fb1db",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-light-sensor-4-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-light-sensor-4"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-1a6504f78e9149bc96e68bd9c2c3f755",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-fbb83f23ec830f907006",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-mechanism-1-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-mechanism-1"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-31ca3d65c74549daad868480df2ad2b2",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-8961b9ca17d5e7f63054",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-mechanism-2-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-mechanism-2"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-b165e686576d41f091bc8293ea79109f",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-7f9f6f1d9d74ddb7d50b",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-panel-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-panel"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-d9c1668e7f8e4cb8b5b2aa6dd9a0a903",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-d20c7912433567d71acf",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-power-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-power"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-98e3fd006bf24071b34ffdf0a75bf56c",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-9e4682f8d50583a7ae44",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-resistor-1-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-resistor-1"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-d2e7474cb9b04863abfcecafa0712b99",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-aff7ea74a502029cc42a",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-resistor-2-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-resistor-2"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-8347f4ff6c494e019037f11c0092224f",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-cf8a3b03eda50e22d73a",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-resistor-3-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-resistor-3"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-281199218da04cc793fdf9bba4c9baa6",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-5c72d42eb8ac6510b11f",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-resistor-4-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-resistor-4"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-10bb108e03aa466784dc264436e0896c",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-445b67ca25a4b20b7489",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-servo-1-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-servo-1"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-59ae1a6e0cc440949edd67b5c72e8a97",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-83a5e13c26729ec4d23b",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-servo-2-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-servo-2"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-75a76a6bc1a74942bf8944d1fc9c025d",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-eba50629bd327c42a4c1",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-support-3d",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-support"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-cb49e674aa9341ac90d4995c86c271fd",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-10d88d025ee92ca15159",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-system-schematic",
+          "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller",
+            "component-light-sensor",
+            "component-light-sensor-2",
+            "component-light-sensor-3",
+            "component-light-sensor-4",
+            "component-power",
+            "component-resistor-1",
+            "component-resistor-2",
+            "component-resistor-3",
+            "component-resistor-4",
+            "component-servo-1",
+            "component-servo-2"
+          ],
+          "type": "circuit_schematic",
+          "status": "ready",
+          "generator": "tscircuit",
+          "generatorVersion": "0.0.1609",
+          "artifactId": "artifact-cd4a216190b348ea8ae8473903d60b2d",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-0c9f69598ed1cebd87fd",
+          "generation": 1
+        }
+      ]
+    }
+  },
+  "solar-tracker-narrations": {
+    "http": 200,
+    "body": [
+      {
+        "narrationId": "narration-f30384533e3496e84b7b",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 1,
+        "kind": "project_progress",
+        "text": "Planning the committed project structure.",
+        "semanticIds": [],
+        "verificationFindingIds": [],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:18.857229+00:00"
+      },
+      {
+        "narrationId": "narration-3625ce4d708993c78466",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 71,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source, Arduino Nano remains an estimate: Voltage compatibility for Low-voltage power source to Arduino Nano is not proven by available properties.",
+        "semanticIds": [
+          "component-power",
+          "component-controller"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-d65e2d70d5"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-ff55773ffd943bd2c1b1",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 72,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source, LDR Direction Sensor 1 remains an estimate: Voltage compatibility for Low-voltage power source to LDR Direction Sensor 1 is not proven by available properties.",
+        "semanticIds": [
+          "component-power",
+          "component-light-sensor"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-d33bc08fa1"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-b803432b66097e2ad3d1",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 73,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source, LDR Direction Sensor 2 remains an estimate: Voltage compatibility for Low-voltage power source to LDR Direction Sensor 2 is not proven by available properties.",
+        "semanticIds": [
+          "component-power",
+          "component-light-sensor-2"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-14f084b0b1"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-98ae5a1a59bba3164e9b",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 74,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source, LDR Direction Sensor 3 remains an estimate: Voltage compatibility for Low-voltage power source to LDR Direction Sensor 3 is not proven by available properties.",
+        "semanticIds": [
+          "component-power",
+          "component-light-sensor-3"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-225db8275e"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-a616efa5b173780a5621",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 75,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source, LDR Direction Sensor 4 remains an estimate: Voltage compatibility for Low-voltage power source to LDR Direction Sensor 4 is not proven by available properties.",
+        "semanticIds": [
+          "component-power",
+          "component-light-sensor-4"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-f8c1e448c0"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-334cf9f0b1de829b6f89",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 76,
+        "kind": "warning",
+        "text": "Verification for SG90 Servo remains an estimate: Actuator capability for SG90 Servo is not proven because required or available torque is unknown.",
+        "semanticIds": [
+          "component-servo-1"
+        ],
+        "verificationFindingIds": [
+          "verification-mech-actuator-capability-not-proven-8806e13cde"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-c4294604f5fa28c18a9b",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 77,
+        "kind": "warning",
+        "text": "Verification for SG90 Servo remains an estimate: Actuator capability for SG90 Servo is not proven because required or available torque is unknown.",
+        "semanticIds": [
+          "component-servo-2"
+        ],
+        "verificationFindingIds": [
+          "verification-mech-actuator-capability-not-proven-d99ec2a13e"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-1d9dbbcf9ccd5b7b82ae",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 78,
+        "kind": "warning",
+        "text": "Verification for Solar energy collection, Solar panel remains conceptual: Solar energy collection is implemented by Solar panel as a conceptual role.",
+        "semanticIds": [
+          "requirement-energy-collection",
+          "component-panel"
+        ],
+        "verificationFindingIds": [
+          "verification-req-110-97d22b8da7"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-7d9650054c6b010a194e",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 79,
+        "kind": "warning",
+        "text": "Verification for Moving surface or platform, Solar panel, Driven link, Driven link remains conceptual: Moving surface or platform is implemented by Solar panel, Driven link, Driven link as a conceptual role.",
+        "semanticIds": [
+          "requirement-moving-surface",
+          "component-panel",
+          "component-mechanism-1",
+          "component-mechanism-2"
+        ],
+        "verificationFindingIds": [
+          "verification-req-110-d6da1c7d10"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-ba5e0cb45892346cfd25",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 80,
+        "kind": "warning",
+        "text": "Verification for Arduino Nano remains an estimate: Arduino Nano V3 uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-controller"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-31e1d752fb"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-c4d81a0ed856afe55b76",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 81,
+        "kind": "warning",
+        "text": "Verification for LDR Direction Sensor 1 remains an estimate: CdS module uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-light-sensor"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-98788a4bf4"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-079631e687f09c60b7c6",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 82,
+        "kind": "warning",
+        "text": "Verification for LDR Direction Sensor 2 remains an estimate: CdS module uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-light-sensor-2"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-e3cba3fc7e"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-1fe6651bed8dcad0e7a4",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 83,
+        "kind": "warning",
+        "text": "Verification for LDR Direction Sensor 3 remains an estimate: CdS module uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-light-sensor-3"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-23776e30df"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-e84543a7ef8adb48f8d7",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 84,
+        "kind": "warning",
+        "text": "Verification for LDR Direction Sensor 4 remains an estimate: CdS module uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-light-sensor-4"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-5fbe49cb5f"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-e7580f7bc37769c2e9d2",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 85,
+        "kind": "warning",
+        "text": "Verification for SG90 Servo remains an estimate: SG90 class uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-servo-1"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-485833e63a"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-03233abe87c04af6cf88",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 86,
+        "kind": "warning",
+        "text": "Verification for SG90 Servo remains an estimate: SG90 class uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-servo-2"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-01e7f822f4"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-b0d5bfe551f249243919",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 87,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source remains an estimate: Low-voltage power source is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-power"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-47e92dba19"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-3e19b530ade93cb219e2",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 0,
+        "eventId": 88,
+        "kind": "verification_explanation",
+        "text": "Independent evidence and a deterministic rule agree: Supply voltage is compatible with load.",
+        "semanticIds": [
+          "component-power",
+          "component-servo-1"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-load-voltage-compatible-72b38df994"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-0b278bd5e8be2126e267",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 0,
+        "eventId": 88,
+        "kind": "verification_explanation",
+        "text": "Manufacturer documentation supports this result: Authoritative properties available from IEC family 10 kohm resistor.",
+        "semanticIds": [
+          "component-resistor-3"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-3a4bff0438"
+        ],
+        "evidenceIds": [
+          "evidence-st-protection"
+        ],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:18.856230+00:00"
+      },
+      {
+        "narrationId": "narration-5bc2212278ffb7687e3a",
+        "projectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "revision": 1,
+        "eventId": 131,
+        "kind": "completion",
+        "text": "Project ready with 16 components across 6 subsystems: 4 source-verified checks, 15 estimates, and 0 failed checks.",
+        "semanticIds": [
+          "project-1a7c0c14f66751e28e9ec8f6ca04043a"
+        ],
+        "verificationFindingIds": [],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:20.653398+00:00"
+      }
+    ]
+  },
+  "dc-fan-project": {
+    "http": 200,
+    "body": {
+      "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+      "objective": "Build an Arduino Nano controlled tabletop DC fan with adjustable speed.",
+      "capability": {
+        "status": "SUPPORTED",
+        "reasons": [
+          "Objective is within bounded small low-voltage mechatronics."
+        ]
+      },
+      "planningMode": "deterministic_test",
+      "fallbackReason": null,
+      "revision": 1,
+      "status": "ready_with_limitations",
+      "createdAt": "2026-10-05T17:21:20.818512+00:00",
+      "updatedAt": "2026-10-05T17:21:22.178286+00:00",
+      "generationMessage": null,
+      "userIssues": [],
+      "representations": [
+        {
+          "representationId": "repr-controller-3d",
+          "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-6d8e3321ad6c448fa5308e25f2a62016",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-6c403b8683348ff4d8f9",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-driver-3d",
+          "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+          "revision": 1,
+          "semanticIds": [
+            "component-driver"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-6b26f4d76edc4edb84c18ff9561cf476",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-44507f785d767553a1d8",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-fan-3d",
+          "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+          "revision": 1,
+          "semanticIds": [
+            "component-fan"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-04ba5dda8c6f4b13964ac40c1374b14f",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-f5ae67ef44a8a5c731af",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-flyback-diode-3d",
+          "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+          "revision": 1,
+          "semanticIds": [
+            "component-flyback-diode"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-3be2a416adab4a458ccb8e2ef8bc8cd9",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-8ae7f07ebaf76030259c",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-power-3d",
+          "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+          "revision": 1,
+          "semanticIds": [
+            "component-power"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-2313da035b1245e9a70825a6cfd43fa5",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-0262af79db1959d0eb24",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-support-3d",
+          "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+          "revision": 1,
+          "semanticIds": [
+            "component-support"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-f23bafa2372f4cb499875d2c9e8a0518",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-9b149520149db95a2cef",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-system-schematic",
+          "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller",
+            "component-driver",
+            "component-fan",
+            "component-flyback-diode",
+            "component-power"
+          ],
+          "type": "circuit_schematic",
+          "status": "ready",
+          "generator": "tscircuit",
+          "generatorVersion": "0.0.1609",
+          "artifactId": "artifact-69670c43638b491982ad1e4f7dff5108",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-eefeed15cf501e674c2a",
+          "generation": 1
+        }
+      ]
+    }
+  },
+  "dc-fan-narrations": {
+    "http": 200,
+    "body": [
+      {
+        "narrationId": "narration-1397f9380dfe05af2107",
+        "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+        "revision": 1,
+        "eventId": 1,
+        "kind": "project_progress",
+        "text": "Planning the committed project structure.",
+        "semanticIds": [],
+        "verificationFindingIds": [],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:20.818512+00:00"
+      },
+      {
+        "narrationId": "narration-522ac5445949ec2f6f16",
+        "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+        "revision": 1,
+        "eventId": 30,
+        "kind": "warning",
+        "text": "Verification for Logic-level N-channel MOSFET switch, D1 Flyback Diode remains an estimate: Voltage compatibility for Logic-level N-channel MOSFET switch to D1 Flyback Diode is not proven by available properties.",
+        "semanticIds": [
+          "component-driver",
+          "component-flyback-diode"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-a392fe4f76"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:20.818512+00:00"
+      },
+      {
+        "narrationId": "narration-f1ec57ebbfc0abd20c8f",
+        "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+        "revision": 1,
+        "eventId": 31,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source, Arduino Nano remains an estimate: Voltage compatibility for Low-voltage power source to Arduino Nano is not proven by available properties.",
+        "semanticIds": [
+          "component-power",
+          "component-controller"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-d65e2d70d5"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:20.818512+00:00"
+      },
+      {
+        "narrationId": "narration-e97ded84f6a8af3f8f1e",
+        "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+        "revision": 1,
+        "eventId": 32,
+        "kind": "warning",
+        "text": "Verification for Arduino Nano remains an estimate: Arduino Nano V3 uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-controller"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-31e1d752fb"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:20.818512+00:00"
+      },
+      {
+        "narrationId": "narration-ac927248cd34c7f5b955",
+        "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+        "revision": 1,
+        "eventId": 33,
+        "kind": "warning",
+        "text": "Verification for Logic-level N-channel MOSFET switch remains an estimate: Logic MOSFET module uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-driver"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-2e2344b09a"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:20.818512+00:00"
+      },
+      {
+        "narrationId": "narration-eb391657c5ac58e06847",
+        "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+        "revision": 1,
+        "eventId": 34,
+        "kind": "warning",
+        "text": "Verification for Desk fan remains an estimate: 5 V brushless fan uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-fan"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-a7e6aac6f0"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:20.818512+00:00"
+      },
+      {
+        "narrationId": "narration-52b58777606d3c9cf8e3",
+        "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+        "revision": 1,
+        "eventId": 35,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source remains an estimate: Low-voltage power source is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-power"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-47e92dba19"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:20.818512+00:00"
+      },
+      {
+        "narrationId": "narration-9a318e01a850a036eb9a",
+        "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+        "revision": 0,
+        "eventId": 36,
+        "kind": "verification_explanation",
+        "text": "Independent evidence and a deterministic rule agree: Supply voltage is compatible with load.",
+        "semanticIds": [
+          "component-power",
+          "component-fan"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-load-voltage-compatible-82ea46b763"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:20.818512+00:00"
+      },
+      {
+        "narrationId": "narration-f529c728d8b090f945e7",
+        "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+        "revision": 0,
+        "eventId": 36,
+        "kind": "verification_explanation",
+        "text": "Manufacturer documentation supports this result: Authoritative properties available from STMicroelectronics 1N4007.",
+        "semanticIds": [
+          "component-flyback-diode"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-423fc6cb24"
+        ],
+        "evidenceIds": [
+          "evidence-st-protection"
+        ],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:20.818512+00:00"
+      },
+      {
+        "narrationId": "narration-08db4d97e222cf7df365",
+        "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+        "revision": 1,
+        "eventId": 58,
+        "kind": "completion",
+        "text": "Project ready with 6 components across 4 subsystems: 1 source-verified checks, 6 estimates, and 0 failed checks.",
+        "semanticIds": [
+          "project-dabff80587375aa7998c6a46e9707d4d"
+        ],
+        "verificationFindingIds": [],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:22.183600+00:00"
+      }
+    ]
+  },
+  "four-wheel-rover-project": {
+    "http": 200,
+    "body": {
+      "projectId": "project-12253b3425675b0e8f965befadde43c9",
+      "objective": "Build a remote-controlled four-wheel rover with a microcontroller, motor driver, battery, and DC gear motors.",
+      "capability": {
+        "status": "SUPPORTED",
+        "reasons": [
+          "Objective is within bounded small low-voltage mechatronics."
+        ]
+      },
+      "planningMode": "deterministic_test",
+      "fallbackReason": null,
+      "revision": 1,
+      "status": "ready_with_limitations",
+      "createdAt": "2026-10-05T17:21:22.366005+00:00",
+      "updatedAt": "2026-10-05T17:21:23.917368+00:00",
+      "generationMessage": null,
+      "userIssues": [],
+      "representations": [
+        {
+          "representationId": "repr-chassis-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-chassis"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-65a7f683892d4f60aff5c8c79543a5e8",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-8dad546e0aa7902fd6f4",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-controller-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-de93b2ee19f6410d9c0ad47956e7d1c7",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-1cf08266195ea03c81c2",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-drive-wheel-1-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-drive-wheel-1"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-0c3dff97d95c4fb7ad16cb4d26cbcd37",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-c923dee21e2fff481370",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-drive-wheel-2-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-drive-wheel-2"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-ba2d47d39bab4a5980cc2bab522ba2ca",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-63867c2431a75b69cc83",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-drive-wheel-3-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-drive-wheel-3"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-530a4c55ddc54fb680c8e64484e6f8a8",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-0273218f48c08957f9cc",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-drive-wheel-4-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-drive-wheel-4"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-6218699c08d84546a3f625217dc56180",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-481b04f56757e9270e06",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-motor-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-motor"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-199d9f8aece44cada96d44c2198f6871",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-5db71be04ffdd00a97e6",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-motor-2-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-motor-2"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-5eaaef95bb994685a55c9e45ab57f1e6",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-49b220c392000e87d474",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-motor-3-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-motor-3"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-eb9ad33113934bf39d62d6d93658473f",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-46906930296903d5730a",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-motor-4-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-motor-4"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-1f71515213254cebaf9b06048b34cad8",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-36c0d3840bd3d95db3f3",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-motor-driver-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-motor-driver"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-4586859f1d754b3e8324c53baf0572cd",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-279c2bd600f1ef77702b",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-power-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-power"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-cc4592052a90472a91fb8eb85559c063",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-af1ff70271a868fdb05f",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-wireless-control-3d",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-wireless-control"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-2f85c39753aa4364ad1afa63e31a0527",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-461e6395d1718f50c3f9",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-system-schematic",
+          "projectId": "project-12253b3425675b0e8f965befadde43c9",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller",
+            "component-motor",
+            "component-motor-2",
+            "component-motor-3",
+            "component-motor-4",
+            "component-motor-driver",
+            "component-power",
+            "component-wireless-control"
+          ],
+          "type": "circuit_schematic",
+          "status": "ready",
+          "generator": "tscircuit",
+          "generatorVersion": "0.0.1609",
+          "artifactId": "artifact-5066b48cb1b745d1b4ff5530f4dc5715",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-33acaa379d091bd35b0e",
+          "generation": 1
+        }
+      ]
+    }
+  },
+  "four-wheel-rover-narrations": {
+    "http": 200,
+    "body": [
+      {
+        "narrationId": "narration-1eb1fa1e5e99be7cf152",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 1,
+        "kind": "project_progress",
+        "text": "Planning the committed project structure.",
+        "semanticIds": [],
+        "verificationFindingIds": [],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-c9d88e7c98a972668349",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 55,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source, ESP32 DevKit remains an estimate: Voltage compatibility for Low-voltage power source to ESP32 DevKit is not proven by available properties.",
+        "semanticIds": [
+          "component-power",
+          "component-controller"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-b4f9bff2ef"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.365004+00:00"
+      },
+      {
+        "narrationId": "narration-d2ae2727becd9946c80b",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 56,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source, Conceptual wireless control module remains an estimate: Voltage compatibility for Low-voltage power source to Conceptual wireless control module is not proven by available properties.",
+        "semanticIds": [
+          "component-power",
+          "component-wireless-control"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-df4ebd1f1f"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.365004+00:00"
+      },
+      {
+        "narrationId": "narration-93d17176de62667195cc",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 57,
+        "kind": "warning",
+        "text": "Verification for Small DC motor remains an estimate: Actuator capability for Small DC motor is not proven because required or available torque is unknown.",
+        "semanticIds": [
+          "component-motor"
+        ],
+        "verificationFindingIds": [
+          "verification-mech-actuator-capability-not-proven-7ef9b236c5"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.365004+00:00"
+      },
+      {
+        "narrationId": "narration-25296625a4d448f8a600",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 58,
+        "kind": "warning",
+        "text": "Verification for Small DC motor remains an estimate: Actuator capability for Small DC motor is not proven because required or available torque is unknown.",
+        "semanticIds": [
+          "component-motor-2"
+        ],
+        "verificationFindingIds": [
+          "verification-mech-actuator-capability-not-proven-8f1e1e5aa2"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-7a5f8df55bcad0920068",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 59,
+        "kind": "warning",
+        "text": "Verification for Small DC motor remains an estimate: Actuator capability for Small DC motor is not proven because required or available torque is unknown.",
+        "semanticIds": [
+          "component-motor-3"
+        ],
+        "verificationFindingIds": [
+          "verification-mech-actuator-capability-not-proven-5585713569"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-9ad1d3fa826f50da0ff5",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 60,
+        "kind": "warning",
+        "text": "Verification for Small DC motor remains an estimate: Actuator capability for Small DC motor is not proven because required or available torque is unknown.",
+        "semanticIds": [
+          "component-motor-4"
+        ],
+        "verificationFindingIds": [
+          "verification-mech-actuator-capability-not-proven-cd6f60c0a0"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-c1f64d5dfb87cfc498d0",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 61,
+        "kind": "warning",
+        "text": "Verification for Driven moving component, Drive wheel, Drive wheel, Drive wheel, Drive wheel remains conceptual: Driven moving component is implemented by Drive wheel, Drive wheel, Drive wheel, Drive wheel as a conceptual role.",
+        "semanticIds": [
+          "requirement-drive-output",
+          "component-drive-wheel-1",
+          "component-drive-wheel-2",
+          "component-drive-wheel-3",
+          "component-drive-wheel-4"
+        ],
+        "verificationFindingIds": [
+          "verification-req-110-06fcfe3f76"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-29f615f598286b830112",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 62,
+        "kind": "warning",
+        "text": "Verification for 4 independently represented drive wheel instances, Drive wheel, Drive wheel, Drive wheel, Drive wheel remains conceptual: 4 independently represented drive wheel instances is implemented by Drive wheel, Drive wheel, Drive wheel, Drive wheel as a conceptual role.",
+        "semanticIds": [
+          "requirement-drive-wheel-count",
+          "component-drive-wheel-1",
+          "component-drive-wheel-2",
+          "component-drive-wheel-3",
+          "component-drive-wheel-4"
+        ],
+        "verificationFindingIds": [
+          "verification-req-110-8312ac1e20"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-bd5f203547f3cbc3d58b",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 63,
+        "kind": "warning",
+        "text": "Verification for Remote control input, Conceptual wireless control module remains conceptual: Remote control input is implemented by Conceptual wireless control module as a conceptual role.",
+        "semanticIds": [
+          "requirement-remote-control-input",
+          "component-wireless-control"
+        ],
+        "verificationFindingIds": [
+          "verification-req-110-affb944dea"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-63562072755dbc74857a",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 64,
+        "kind": "warning",
+        "text": "Verification for Stationary support, Structural chassis remains conceptual: Stationary support is implemented by Structural chassis as a conceptual role.",
+        "semanticIds": [
+          "requirement-support",
+          "component-chassis"
+        ],
+        "verificationFindingIds": [
+          "verification-req-110-4a1fb13bfb"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-c4102f0317830d94ba87",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 65,
+        "kind": "warning",
+        "text": "Verification for Small DC motor remains an estimate: Small DC motor is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-motor"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-39e56b6dc7"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-55be35f6ae82862f7005",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 66,
+        "kind": "warning",
+        "text": "Verification for Small DC motor remains an estimate: Small DC motor is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-motor-2"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-b27008e2c5"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-531034f768a01ae4d236",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 67,
+        "kind": "warning",
+        "text": "Verification for Small DC motor remains an estimate: Small DC motor is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-motor-3"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-9789404cd0"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-58281500551d8a6f7e23",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 68,
+        "kind": "warning",
+        "text": "Verification for Small DC motor remains an estimate: Small DC motor is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-motor-4"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-58b2b70e6d"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-6ec79e76fec877b45e43",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 69,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source remains an estimate: Low-voltage power source is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-power"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-47e92dba19"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-bb8e230500d3285e7b30",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 0,
+        "eventId": 70,
+        "kind": "verification_explanation",
+        "text": "Independent evidence and a deterministic rule agree: Supply voltage is compatible with load.",
+        "semanticIds": [
+          "component-power",
+          "component-motor-2"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-load-voltage-compatible-0ca9a489cb"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-d5e1c35fdf95ff82ee6d",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 0,
+        "eventId": 70,
+        "kind": "verification_explanation",
+        "text": "Manufacturer documentation supports this result: Authoritative properties available from Espressif ESP32-DevKitC.",
+        "semanticIds": [
+          "component-controller"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-464e3feb44"
+        ],
+        "evidenceIds": [
+          "evidence-espressif-esp32"
+        ],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:22.366005+00:00"
+      },
+      {
+        "narrationId": "narration-a95f4258bef90847d985",
+        "projectId": "project-12253b3425675b0e8f965befadde43c9",
+        "revision": 1,
+        "eventId": 108,
+        "kind": "completion",
+        "text": "Project ready with 13 components across 5 subsystems: 2 source-verified checks, 11 estimates, and 0 failed checks.",
+        "semanticIds": [
+          "project-12253b3425675b0e8f965befadde43c9"
+        ],
+        "verificationFindingIds": [],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:23.922796+00:00"
+      }
+    ]
+  },
+  "soil-pump-project": {
+    "http": 200,
+    "body": {
+      "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+      "objective": "Build an Arduino Nano system that turns on a small DC water pump when soil moisture becomes low.",
+      "capability": {
+        "status": "SUPPORTED",
+        "reasons": [
+          "Objective is within bounded small low-voltage mechatronics."
+        ]
+      },
+      "planningMode": "deterministic_test",
+      "fallbackReason": null,
+      "revision": 1,
+      "status": "ready_with_limitations",
+      "createdAt": "2026-10-05T17:21:24.073546+00:00",
+      "updatedAt": "2026-10-05T17:21:25.505795+00:00",
+      "generationMessage": null,
+      "userIssues": [],
+      "representations": [
+        {
+          "representationId": "repr-container-3d",
+          "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+          "revision": 1,
+          "semanticIds": [
+            "component-container"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-80dee5de95824857bc1e1a5ac7ceb86e",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-4588aa8a89124cbf0bb7",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-controller-3d",
+          "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-5c96fce8ca884a84874148c10769b4b8",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-eadf73841c960ee6d9d0",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-driver-3d",
+          "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+          "revision": 1,
+          "semanticIds": [
+            "component-driver"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-16ca7e7174014b0ab0979ae4b7586a93",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-6b39c0e4aec1ad3a3507",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-enclosure-3d",
+          "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+          "revision": 1,
+          "semanticIds": [
+            "component-enclosure"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-33a9d440f0ba437ab69f7e9875a8ef66",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-dd9fbe1f9245fb828838",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-flyback-diode-3d",
+          "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+          "revision": 1,
+          "semanticIds": [
+            "component-flyback-diode"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-a4f293a39e3a45b68f19154f20e6a066",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-2df129d298e284251739",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-power-3d",
+          "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+          "revision": 1,
+          "semanticIds": [
+            "component-power"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-f6222df6888441d993b87cb0f4404cde",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-9b4f9c1a8458901bbe3d",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-pump-3d",
+          "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+          "revision": 1,
+          "semanticIds": [
+            "component-pump"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-85e5b8bd714142c196b8853d335cfb42",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-1899a6fc898370322f16",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-soil-sensor-3d",
+          "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+          "revision": 1,
+          "semanticIds": [
+            "component-soil-sensor"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-b570c474fcdb44d6908c681bc0d98ea5",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-de67e0c3bb0b9b6b0822",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-tube-3d",
+          "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+          "revision": 1,
+          "semanticIds": [
+            "component-tube"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-07241a261d9c4ddf86d3f67533a34889",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-98c567e5db2b0215d5d0",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-system-schematic",
+          "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller",
+            "component-driver",
+            "component-flyback-diode",
+            "component-power",
+            "component-pump",
+            "component-soil-sensor"
+          ],
+          "type": "circuit_schematic",
+          "status": "ready",
+          "generator": "tscircuit",
+          "generatorVersion": "0.0.1609",
+          "artifactId": "artifact-f520f628d25d44e28e0855b400274c66",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-dd37fb3733debf8cf91c",
+          "generation": 1
+        }
+      ]
+    }
+  },
+  "soil-pump-narrations": {
+    "http": 200,
+    "body": [
+      {
+        "narrationId": "narration-ff9e89b3e99e4125af4b",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "eventId": 1,
+        "kind": "project_progress",
+        "text": "Planning the committed project structure.",
+        "semanticIds": [],
+        "verificationFindingIds": [],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:24.074579+00:00"
+      },
+      {
+        "narrationId": "narration-31f3f19be36c928b40f9",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "eventId": 37,
+        "kind": "warning",
+        "text": "Verification for Logic-level N-channel MOSFET switch, D1 Flyback Diode remains an estimate: Voltage compatibility for Logic-level N-channel MOSFET switch to D1 Flyback Diode is not proven by available properties.",
+        "semanticIds": [
+          "component-driver",
+          "component-flyback-diode"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-a392fe4f76"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:24.073546+00:00"
+      },
+      {
+        "narrationId": "narration-72f1ee0e675e0acd8b67",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "eventId": 38,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source, Arduino Nano remains an estimate: Voltage compatibility for Low-voltage power source to Arduino Nano is not proven by available properties.",
+        "semanticIds": [
+          "component-power",
+          "component-controller"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-d65e2d70d5"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:24.073546+00:00"
+      },
+      {
+        "narrationId": "narration-501437ef2457f684dc8c",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "eventId": 39,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source, Capacitive soil moisture sensor remains an estimate: Voltage compatibility for Low-voltage power source to Capacitive soil moisture sensor is not proven by available properties.",
+        "semanticIds": [
+          "component-power",
+          "component-soil-sensor"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-0deaf990d1"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:24.073546+00:00"
+      },
+      {
+        "narrationId": "narration-dafdaa8941894ef65dd9",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "eventId": 40,
+        "kind": "warning",
+        "text": "Verification for Arduino Nano remains an estimate: Arduino Nano V3 uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-controller"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-31e1d752fb"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:24.073546+00:00"
+      },
+      {
+        "narrationId": "narration-1e25b9f1b083de9bc4ac",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "eventId": 41,
+        "kind": "warning",
+        "text": "Verification for Logic-level N-channel MOSFET switch remains an estimate: Logic MOSFET module uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-driver"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-2e2344b09a"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:24.073546+00:00"
+      },
+      {
+        "narrationId": "narration-cfc5c9b56ef665a9ba11",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "eventId": 42,
+        "kind": "warning",
+        "text": "Verification for Protective enclosure remains an estimate: Protective enclosure is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-enclosure"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-24e42d69c8"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:24.073546+00:00"
+      },
+      {
+        "narrationId": "narration-5efcdc5b774bf389910d",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "eventId": 43,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source remains an estimate: Low-voltage power source is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-power"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-47e92dba19"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:24.073546+00:00"
+      },
+      {
+        "narrationId": "narration-20fb26b5ec2d4e53e033",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 0,
+        "eventId": 44,
+        "kind": "verification_explanation",
+        "text": "Independent evidence and a deterministic rule agree: Driver logic is compatible with controller logic.",
+        "semanticIds": [
+          "component-controller",
+          "component-driver"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-logic-voltage-compatible-260ce8c0f6"
+        ],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:24.073546+00:00"
+      },
+      {
+        "narrationId": "narration-967453741f8550092227",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 0,
+        "eventId": 44,
+        "kind": "verification_explanation",
+        "text": "Manufacturer documentation supports this result: Authoritative properties available from STMicroelectronics 1N4007.",
+        "semanticIds": [
+          "component-flyback-diode"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-423fc6cb24"
+        ],
+        "evidenceIds": [
+          "evidence-st-protection"
+        ],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:24.073546+00:00"
+      },
+      {
+        "narrationId": "narration-25581758824aac70c1d7",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "eventId": 70,
+        "kind": "completion",
+        "text": "Project ready with 9 components across 6 subsystems: 2 source-verified checks, 8 estimates, and 0 failed checks.",
+        "semanticIds": [
+          "project-3407f9d16a4d575e9bb47e152f465b3d"
+        ],
+        "verificationFindingIds": [],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:25.512211+00:00"
+      }
+    ]
+  },
+  "unfamiliar-lead-screw-project": {
+    "http": 200,
+    "body": {
+      "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+      "objective": "Build a low-voltage motorized camera slider with 400 mm travel, an 8 mm lead screw, a NEMA 17 stepper motor, two linear guide rails, end limit switches, an Arduino Nano, and a 12 V supply.",
+      "capability": {
+        "status": "SUPPORTED",
+        "reasons": [
+          "Objective is within bounded small low-voltage mechatronics."
+        ]
+      },
+      "planningMode": "deterministic_test",
+      "fallbackReason": null,
+      "revision": 1,
+      "status": "ready_with_limitations",
+      "createdAt": "2026-10-05T17:21:25.698676+00:00",
+      "updatedAt": "2026-10-05T17:21:26.931730+00:00",
+      "generationMessage": null,
+      "userIssues": [],
+      "representations": [
+        {
+          "representationId": "repr-camera-platform-3d",
+          "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+          "revision": 1,
+          "semanticIds": [
+            "component-camera-platform"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-04be13cbdad04b728702cc140c5cdc62",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-394c3bae26fb0f692f71",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-controller-3d",
+          "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-e6999e803336423790f0b29c9dc74918",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-25fc2c75b7bdd187ea3c",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-power-3d",
+          "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+          "revision": 1,
+          "semanticIds": [
+            "component-power"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-5d17a0e645344923a3e390e84f373d63",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-2f557b697d251b01a8a3",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-servo-3d",
+          "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+          "revision": 1,
+          "semanticIds": [
+            "component-servo"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-9576a39136034d3fb367c653ba924655",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-8a019d677e94498fd4fb",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-support-3d",
+          "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+          "revision": 1,
+          "semanticIds": [
+            "component-support"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-0ba9f9a21aed43c883295d8306a2b6be",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-68fe906316a0e257d9b4",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-system-schematic",
+          "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller",
+            "component-power",
+            "component-servo"
+          ],
+          "type": "circuit_schematic",
+          "status": "ready",
+          "generator": "tscircuit",
+          "generatorVersion": "0.0.1609",
+          "artifactId": "artifact-4f55ce31828941078ce2cdd8609691c7",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-a02896bbca3cfacc6014",
+          "generation": 1
+        }
+      ]
+    }
+  },
+  "unfamiliar-lead-screw-narrations": {
+    "http": 200,
+    "body": [
+      {
+        "narrationId": "narration-30035bfa07601c43ff7c",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "eventId": 1,
+        "kind": "project_progress",
+        "text": "Planning the committed project structure.",
+        "semanticIds": [],
+        "verificationFindingIds": [],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:25.698676+00:00"
+      },
+      {
+        "narrationId": "narration-23e70bf17da9322108b1",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "eventId": 31,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source, Arduino Nano remains an estimate: Voltage compatibility for Low-voltage power source to Arduino Nano is not proven by available properties.",
+        "semanticIds": [
+          "component-power",
+          "component-controller"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-d65e2d70d5"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:25.698676+00:00"
+      },
+      {
+        "narrationId": "narration-caa66a1528a2a6b402a2",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "eventId": 32,
+        "kind": "warning",
+        "text": "Verification for SG90 Servo remains an estimate: Actuator capability for SG90 Servo is not proven because required or available torque is unknown.",
+        "semanticIds": [
+          "component-servo"
+        ],
+        "verificationFindingIds": [
+          "verification-mech-actuator-capability-not-proven-7786b81355"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:25.698676+00:00"
+      },
+      {
+        "narrationId": "narration-99f0f2fc4c4082ef249f",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "eventId": 33,
+        "kind": "warning",
+        "text": "Verification for Required moving body, Camera platform remains conceptual: Required moving body is implemented by Camera platform as a conceptual role.",
+        "semanticIds": [
+          "requirement-moving-body",
+          "component-camera-platform"
+        ],
+        "verificationFindingIds": [
+          "verification-req-110-ef267110f4"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:25.698676+00:00"
+      },
+      {
+        "narrationId": "narration-3e4f912764669c143fdc",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "eventId": 34,
+        "kind": "warning",
+        "text": "Verification for Stationary support, Structural base remains conceptual: Stationary support is implemented by Structural base as a conceptual role.",
+        "semanticIds": [
+          "requirement-support",
+          "component-support"
+        ],
+        "verificationFindingIds": [
+          "verification-req-110-29d5418d70"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:25.698676+00:00"
+      },
+      {
+        "narrationId": "narration-05b66828d364acd76a3e",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "eventId": 35,
+        "kind": "warning",
+        "text": "Verification for Arduino Nano remains an estimate: Arduino Nano V3 uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-controller"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-31e1d752fb"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:25.698676+00:00"
+      },
+      {
+        "narrationId": "narration-06ab99cf491debac7c52",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "eventId": 36,
+        "kind": "warning",
+        "text": "Verification for SG90 Servo remains an estimate: SG90 class uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-servo"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-0c5f7b37db"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:25.698676+00:00"
+      },
+      {
+        "narrationId": "narration-821cbdde44a2ff504cec",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "eventId": 37,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source remains an estimate: Low-voltage power source is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-power"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-47e92dba19"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:25.698676+00:00"
+      },
+      {
+        "narrationId": "narration-ca1573d7750ecda6d56a",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 0,
+        "eventId": 38,
+        "kind": "verification_explanation",
+        "text": "Independent evidence and a deterministic rule agree: Supply voltage is compatible with load.",
+        "semanticIds": [
+          "component-power",
+          "component-servo"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-load-voltage-compatible-7c19d2507b"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:25.698676+00:00"
+      },
+      {
+        "narrationId": "narration-7118c6dc00201fd3157e",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "eventId": 59,
+        "kind": "completion",
+        "text": "Project ready with 5 components across 5 subsystems: 0 source-verified checks, 5 estimates, and 0 failed checks.",
+        "semanticIds": [
+          "project-c84039a7ffdb514ca3614ab9d48ade15"
+        ],
+        "verificationFindingIds": [],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:26.939640+00:00"
+      }
+    ]
+  },
+  "unfamiliar-gripper-project": {
+    "http": 200,
+    "body": {
+      "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+      "objective": "Build a tabletop parallel-jaw robotic gripper with a 60 mm opening, two symmetric sliding jaws on linear guides, a servo-driven rack and pinion, an Arduino Nano, and a 5 V supply.",
+      "capability": {
+        "status": "SUPPORTED",
+        "reasons": [
+          "Objective is within bounded small low-voltage mechatronics."
+        ]
+      },
+      "planningMode": "deterministic_test",
+      "fallbackReason": null,
+      "revision": 1,
+      "status": "ready_with_limitations",
+      "createdAt": "2026-10-05T17:21:27.194811+00:00",
+      "updatedAt": "2026-10-05T17:21:28.649868+00:00",
+      "generationMessage": null,
+      "userIssues": [],
+      "representations": [
+        {
+          "representationId": "repr-chassis-3d",
+          "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+          "revision": 1,
+          "semanticIds": [
+            "component-chassis"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-ffdd9aaf686b424cb5cf4a7cc2fd9091",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-c1d543e85fd8a4d838ca",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-controller-3d",
+          "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-c954c19a97ae42e18f59e0c912cb9ddf",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-e15f369e6ee4d2dfae07",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-drive-wheel-1-3d",
+          "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+          "revision": 1,
+          "semanticIds": [
+            "component-drive-wheel-1"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-202d9ce340164590ac14c7a9b6401a85",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-853a875cf68b4bd68815",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-drive-wheel-2-3d",
+          "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+          "revision": 1,
+          "semanticIds": [
+            "component-drive-wheel-2"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-8bc9feb3159f4d19b178c8d18bb0e0a5",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-a8645a1322dcd5c232c9",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-motor-3d",
+          "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+          "revision": 1,
+          "semanticIds": [
+            "component-motor"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-ad794e055eeb4dcca7858710d61b72e1",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-453d0f458fcbcaf4cfbc",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-motor-2-3d",
+          "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+          "revision": 1,
+          "semanticIds": [
+            "component-motor-2"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-3bef7bfb89b645e79423c3360d470a76",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-5c3101a6f1e6247aebcd",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-motor-driver-3d",
+          "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+          "revision": 1,
+          "semanticIds": [
+            "component-motor-driver"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-902661f3f3614b64af1d5ac5c8e8b797",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-fb385435945dc31d2c7a",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-power-3d",
+          "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+          "revision": 1,
+          "semanticIds": [
+            "component-power"
+          ],
+          "type": "mechanical_3d",
+          "status": "ready",
+          "generator": "cascade-core",
+          "generatorVersion": "2.0.6",
+          "artifactId": "artifact-80daa4b6855f42619e6d234521fa4a90",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-042d2ac057d8284d5e36",
+          "generation": 1
+        },
+        {
+          "representationId": "repr-system-schematic",
+          "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+          "revision": 1,
+          "semanticIds": [
+            "component-controller",
+            "component-motor",
+            "component-motor-2",
+            "component-motor-driver",
+            "component-power"
+          ],
+          "type": "circuit_schematic",
+          "status": "ready",
+          "generator": "tscircuit",
+          "generatorVersion": "0.0.1609",
+          "artifactId": "artifact-87d40a2d6faf4f0087247e1d768068fd",
+          "fallbackType": "placeholder",
+          "verificationStatus": "accepted",
+          "error": null,
+          "operationId": "representation-93b5cd26ec4e676f0810",
+          "generation": 1
+        }
+      ]
+    }
+  },
+  "unfamiliar-gripper-narrations": {
+    "http": 200,
+    "body": [
+      {
+        "narrationId": "narration-d4586aaddb114b2d4859",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 1,
+        "kind": "project_progress",
+        "text": "Planning the committed project structure.",
+        "semanticIds": [],
+        "verificationFindingIds": [],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-9d0c8a2c1f5848446fb8",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 40,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source, Arduino Nano remains an estimate: Voltage compatibility for Low-voltage power source to Arduino Nano is not proven by available properties.",
+        "semanticIds": [
+          "component-power",
+          "component-controller"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-voltage-not-proven-d65e2d70d5"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-ba1516bb214bca41b9d1",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 41,
+        "kind": "warning",
+        "text": "Verification for Small DC motor remains an estimate: Actuator capability for Small DC motor is not proven because required or available torque is unknown.",
+        "semanticIds": [
+          "component-motor"
+        ],
+        "verificationFindingIds": [
+          "verification-mech-actuator-capability-not-proven-7ef9b236c5"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-fa31b0329379a290c758",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 42,
+        "kind": "warning",
+        "text": "Verification for Small DC motor remains an estimate: Actuator capability for Small DC motor is not proven because required or available torque is unknown.",
+        "semanticIds": [
+          "component-motor-2"
+        ],
+        "verificationFindingIds": [
+          "verification-mech-actuator-capability-not-proven-8f1e1e5aa2"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-92f4af3a8b5e79400deb",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 43,
+        "kind": "warning",
+        "text": "Verification for Driven moving component, Drive wheel, Drive wheel remains conceptual: Driven moving component is implemented by Drive wheel, Drive wheel as a conceptual role.",
+        "semanticIds": [
+          "requirement-drive-output",
+          "component-drive-wheel-1",
+          "component-drive-wheel-2"
+        ],
+        "verificationFindingIds": [
+          "verification-req-110-fd9be58f0d"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-157169b7530400649b77",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 44,
+        "kind": "warning",
+        "text": "Verification for 2 independently represented drive wheel instances, Drive wheel, Drive wheel remains conceptual: 2 independently represented drive wheel instances is implemented by Drive wheel, Drive wheel as a conceptual role.",
+        "semanticIds": [
+          "requirement-drive-wheel-count",
+          "component-drive-wheel-1",
+          "component-drive-wheel-2"
+        ],
+        "verificationFindingIds": [
+          "verification-req-110-fd5c0875e1"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-08ac9761b0f55479e9a1",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 45,
+        "kind": "warning",
+        "text": "Verification for Required moving body, Drive wheel, Drive wheel remains conceptual: Required moving body is implemented by Drive wheel, Drive wheel as a conceptual role.",
+        "semanticIds": [
+          "requirement-moving-body",
+          "component-drive-wheel-1",
+          "component-drive-wheel-2"
+        ],
+        "verificationFindingIds": [
+          "verification-req-110-c96fc762b5"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-b0c653f75b6b8f7353ec",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 46,
+        "kind": "warning",
+        "text": "Verification for Stationary support, Structural chassis remains conceptual: Stationary support is implemented by Structural chassis as a conceptual role.",
+        "semanticIds": [
+          "requirement-support",
+          "component-chassis"
+        ],
+        "verificationFindingIds": [
+          "verification-req-110-4a1fb13bfb"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-9e587ab922eebc25b944",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 47,
+        "kind": "warning",
+        "text": "Verification for Arduino Nano remains an estimate: Arduino Nano V3 uses a bounded curated engineering assumption.",
+        "semanticIds": [
+          "component-controller"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-31e1d752fb"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-cd4d6d7f4b4ef80e4e1f",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 48,
+        "kind": "warning",
+        "text": "Verification for Small DC motor remains an estimate: Small DC motor is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-motor"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-39e56b6dc7"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-22b16b3564352c7eaa65",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 49,
+        "kind": "warning",
+        "text": "Verification for Small DC motor remains an estimate: Small DC motor is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-motor-2"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-b27008e2c5"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-76bf3cfe67fd3bfd02bc",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 50,
+        "kind": "warning",
+        "text": "Verification for Low-voltage power source remains an estimate: Low-voltage power source is generic; exact operating values remain estimated.",
+        "semanticIds": [
+          "component-power"
+        ],
+        "verificationFindingIds": [
+          "verification-generic-component-47e92dba19"
+        ],
+        "evidenceIds": [],
+        "priority": "high",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-f48368574f41506001df",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 0,
+        "eventId": 51,
+        "kind": "verification_explanation",
+        "text": "Independent evidence and a deterministic rule agree: Supply voltage is compatible with load.",
+        "semanticIds": [
+          "component-power",
+          "component-motor-2"
+        ],
+        "verificationFindingIds": [
+          "verification-elec-load-voltage-compatible-0ca9a489cb"
+        ],
+        "evidenceIds": [
+          "evidence-curated-component-assumptions"
+        ],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-bda59b3503cea2a735bd",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 0,
+        "eventId": 51,
+        "kind": "verification_explanation",
+        "text": "Manufacturer documentation supports this result: Authoritative properties available from Texas Instruments DRV8833 module.",
+        "semanticIds": [
+          "component-motor-driver"
+        ],
+        "verificationFindingIds": [
+          "verification-catalogue-properties-d2f606126e"
+        ],
+        "evidenceIds": [
+          "evidence-ti-drivers"
+        ],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:27.194811+00:00"
+      },
+      {
+        "narrationId": "narration-993941b7995e4bfb7f29",
+        "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "revision": 1,
+        "eventId": 80,
+        "kind": "completion",
+        "text": "Project ready with 8 components across 5 subsystems: 1 source-verified checks, 7 estimates, and 0 failed checks.",
+        "semanticIds": [
+          "project-3d03839aa54158c2a0054c4ba36aa90e"
+        ],
+        "verificationFindingIds": [],
+        "evidenceIds": [],
+        "priority": "normal",
+        "createdAt": "2026-10-05T17:21:28.656140+00:00"
+      }
+    ]
+  },
+  "missing-dimensions": {
+    "graphValidation": "accepted",
+    "part": {
+      "semanticId": "component-pump",
+      "label": "Low-voltage pump",
+      "subsystem": "actuator",
+      "parentAssembly": "subsystem-actuator",
+      "representationSource": "family-aware procedural representation",
+      "dimensions": [
+        45.0,
+        30.0,
+        18.0
+      ],
+      "assembledTransform": {
+        "position": [
+          338.5,
+          135.0,
+          64.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "explodedTransform": {
+        "position": [
+          383.5,
+          135.0,
+          119.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "verificationState": "conceptual",
+      "family": "small_dc_pump",
+      "functionalRoles": [
+        "fluid_drive"
+      ],
+      "transformSource": "SEMANTIC_SUPPORT",
+      "generatorFamily": "small_dc_pump-proxy",
+      "representationClass": "generic",
+      "representationFeatures": [
+        "family_aware_body"
+      ],
+      "representationParameters": {},
+      "outputAxis": null,
+      "visualKind": "small_dc_pump",
+      "mechanicalParents": [],
+      "mechanicalChildren": [],
+      "mateInterfaces": [],
+      "placementClass": "MOUNTED_INDEPENDENTLY",
+      "representationBounds": {
+        "min": [
+          316.0,
+          120.0,
+          55.0
+        ],
+        "max": [
+          361.0,
+          150.0,
+          73.0
+        ]
+      },
+      "independentMountAnchor": "component-enclosure",
+      "mountSource": "semantic_support:component-enclosure"
+    },
+    "specs": [
+      {
+        "kind": "mechanical_3d",
+        "semanticIds": [
+          "component-pump"
+        ],
+        "units": "mm",
+        "coordinateSystem": {
+          "forward": "+X",
+          "left": "+Y",
+          "up": "+Z"
+        },
+        "geometry": {
+          "operation": "box",
+          "width": 45.0,
+          "depth": 30.0,
+          "height": 18.0
+        },
+        "semanticCoverage": {
+          "componentId": "component-pump",
+          "family": "small_dc_pump",
+          "proxy": true,
+          "renderStrategy": "family_proxy",
+          "representationClass": "generic"
+        }
+      },
+      {
+        "kind": "circuit_schematic",
+        "semanticIds": [
+          "component-controller",
+          "component-driver",
+          "component-flyback-diode",
+          "component-power",
+          "component-pump",
+          "component-soil-sensor"
+        ],
+        "components": [
+          {
+            "reference": "U1",
+            "semanticId": "component-controller",
+            "kind": "controller",
+            "pins": [
+              "VCC",
+              "GND",
+              "IO1",
+              "IO2",
+              "IO3",
+              "IO4",
+              "IO5",
+              "IO6",
+              "IO7",
+              "IO8"
+            ],
+            "displayName": "Arduino Nano",
+            "componentDefinitionId": "arduino-nano-v3"
+          },
+          {
+            "reference": "Q1",
+            "semanticId": "component-driver",
+            "kind": "mosfet",
+            "pins": [
+              "VCC",
+              "GND",
+              "SIGNAL",
+              "OUT"
+            ],
+            "displayName": "Logic-level N-channel MOSFET switch",
+            "componentDefinitionId": "logic-mosfet-module"
+          },
+          {
+            "reference": "D1",
+            "semanticId": "component-flyback-diode",
+            "kind": "diode",
+            "pins": [
+              "ANODE",
+              "CATHODE"
+            ],
+            "displayName": "D1 Flyback Diode",
+            "componentDefinitionId": "1n4007-diode"
+          },
+          {
+            "reference": "BT1",
+            "semanticId": "component-power",
+            "kind": "power_source",
+            "pins": [
+              "V+",
+              "GND"
+            ],
+            "displayName": "Low-voltage power source",
+            "componentDefinitionId": null
+          },
+          {
+            "reference": "M1",
+            "semanticId": "component-pump",
+            "kind": "motor",
+            "pins": [
+              "V+",
+              "GND",
+              "CONTROL"
+            ],
+            "displayName": "Low-voltage pump",
+            "componentDefinitionId": null
+          },
+          {
+            "reference": "S1",
+            "semanticId": "component-soil-sensor",
+            "kind": "generic_sensor",
+            "pins": [
+              "VCC",
+              "GND",
+              "SIGNAL"
+            ],
+            "displayName": "Capacitive soil moisture sensor",
+            "componentDefinitionId": "capacitive-soil-v1"
+          }
+        ],
+        "connections": [
+          {
+            "from": "U1.IO2",
+            "to": "Q1.SIGNAL",
+            "netId": "net-control-49f1079ef100",
+            "graphConnectionId": "connection-controller-driver-control-edge",
+            "role": "control",
+            "displayStyle": {
+              "color": "#4fd1c5"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "Q1.GND",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "D1.ANODE",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "BT1.GND",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "M1.GND",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "S1.GND",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.VCC",
+            "to": "Q1.VCC",
+            "netId": "net-power-228d5f6724a6",
+            "graphConnectionId": "connection-power-controller-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "U1.VCC",
+            "to": "BT1.V+",
+            "netId": "net-power-228d5f6724a6",
+            "graphConnectionId": "connection-power-controller-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "U1.VCC",
+            "to": "S1.VCC",
+            "netId": "net-power-228d5f6724a6",
+            "graphConnectionId": "connection-power-controller-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "Q1.OUT",
+            "to": "D1.CATHODE",
+            "netId": "net-power-ada52ae4f9ad",
+            "graphConnectionId": "connection-driver-flyback-diode-switched-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "Q1.OUT",
+            "to": "M1.V+",
+            "netId": "net-power-ada52ae4f9ad",
+            "graphConnectionId": "connection-driver-flyback-diode-switched-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "U1.IO1",
+            "to": "S1.SIGNAL",
+            "netId": "net-signal-0ec37c3b0bc3",
+            "graphConnectionId": "connection-soil-sensor-controller-signal-edge",
+            "role": "signal",
+            "displayStyle": {
+              "color": "#63b3ed"
+            }
+          }
+        ],
+        "unconnected": [],
+        "netTopology": [
+          {
+            "netId": "net-control-49f1079ef100",
+            "expectedTerminals": [
+              "component-controller:signal-2",
+              "component-driver:signal"
+            ],
+            "representedTerminals": [
+              "component-controller:signal-2",
+              "component-driver:signal"
+            ],
+            "missingTerminals": []
+          },
+          {
+            "netId": "net-ground-c7e3629a0869",
+            "expectedTerminals": [
+              "component-controller:ground",
+              "component-driver:ground",
+              "component-flyback-diode:anode",
+              "component-power:ground",
+              "component-pump:ground",
+              "component-soil-sensor:ground"
+            ],
+            "representedTerminals": [
+              "component-controller:ground",
+              "component-driver:ground",
+              "component-flyback-diode:anode",
+              "component-power:ground",
+              "component-pump:ground",
+              "component-soil-sensor:ground"
+            ],
+            "missingTerminals": []
+          },
+          {
+            "netId": "net-power-228d5f6724a6",
+            "expectedTerminals": [
+              "component-controller:power",
+              "component-driver:power",
+              "component-power:power",
+              "component-soil-sensor:power"
+            ],
+            "representedTerminals": [
+              "component-controller:power",
+              "component-driver:power",
+              "component-power:power",
+              "component-soil-sensor:power"
+            ],
+            "missingTerminals": []
+          },
+          {
+            "netId": "net-power-ada52ae4f9ad",
+            "expectedTerminals": [
+              "component-driver:load-output",
+              "component-flyback-diode:cathode",
+              "component-pump:power"
+            ],
+            "representedTerminals": [
+              "component-driver:load-output",
+              "component-flyback-diode:cathode",
+              "component-pump:power"
+            ],
+            "missingTerminals": []
+          },
+          {
+            "netId": "net-signal-0ec37c3b0bc3",
+            "expectedTerminals": [
+              "component-controller:signal-1",
+              "component-soil-sensor:signal"
+            ],
+            "representedTerminals": [
+              "component-controller:signal-1",
+              "component-soil-sensor:signal"
+            ],
+            "missingTerminals": []
+          }
+        ],
+        "fidelity": {
+          "portsComplete": true,
+          "netsComplete": true
+        }
+      }
+    ]
+  },
+  "unknown-family": {
+    "graphValidation": "accepted",
+    "part": {
+      "semanticId": "component-pump",
+      "label": "Low-voltage pump",
+      "subsystem": "actuator",
+      "parentAssembly": "subsystem-actuator",
+      "representationSource": "family-aware procedural representation",
+      "dimensions": [
+        40.0,
+        60.0,
+        40.0
+      ],
+      "assembledTransform": {
+        "position": [
+          336.0,
+          135.0,
+          75.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "explodedTransform": {
+        "position": [
+          381.0,
+          135.0,
+          130.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "verificationState": "conceptual",
+      "family": "quantum_flux_actuator",
+      "functionalRoles": [
+        "fluid_drive"
+      ],
+      "transformSource": "SEMANTIC_SUPPORT",
+      "generatorFamily": "quantum_flux_actuator-proxy",
+      "representationClass": "generic",
+      "representationFeatures": [
+        "family_aware_body"
+      ],
+      "representationParameters": {},
+      "outputAxis": null,
+      "visualKind": "quantum_flux_actuator",
+      "mechanicalParents": [],
+      "mechanicalChildren": [],
+      "mateInterfaces": [],
+      "placementClass": "MOUNTED_INDEPENDENTLY",
+      "representationBounds": {
+        "min": [
+          316.0,
+          105.0,
+          55.0
+        ],
+        "max": [
+          356.0,
+          165.0,
+          95.0
+        ]
+      },
+      "independentMountAnchor": "component-enclosure",
+      "mountSource": "semantic_support:component-enclosure"
+    },
+    "specs": [
+      {
+        "kind": "mechanical_3d",
+        "semanticIds": [
+          "component-pump"
+        ],
+        "units": "mm",
+        "coordinateSystem": {
+          "forward": "+X",
+          "left": "+Y",
+          "up": "+Z"
+        },
+        "geometry": {
+          "operation": "box",
+          "width": 40.0,
+          "depth": 60.0,
+          "height": 40.0
+        },
+        "semanticCoverage": {
+          "componentId": "component-pump",
+          "family": "quantum_flux_actuator",
+          "proxy": true,
+          "renderStrategy": "family_proxy",
+          "representationClass": "generic"
+        }
+      },
+      {
+        "kind": "circuit_schematic",
+        "semanticIds": [
+          "component-controller",
+          "component-driver",
+          "component-flyback-diode",
+          "component-power",
+          "component-pump",
+          "component-soil-sensor"
+        ],
+        "components": [
+          {
+            "reference": "U1",
+            "semanticId": "component-controller",
+            "kind": "controller",
+            "pins": [
+              "VCC",
+              "GND",
+              "IO1",
+              "IO2",
+              "IO3",
+              "IO4",
+              "IO5",
+              "IO6",
+              "IO7",
+              "IO8"
+            ],
+            "displayName": "Arduino Nano",
+            "componentDefinitionId": "arduino-nano-v3"
+          },
+          {
+            "reference": "Q1",
+            "semanticId": "component-driver",
+            "kind": "mosfet",
+            "pins": [
+              "VCC",
+              "GND",
+              "SIGNAL",
+              "OUT"
+            ],
+            "displayName": "Logic-level N-channel MOSFET switch",
+            "componentDefinitionId": "logic-mosfet-module"
+          },
+          {
+            "reference": "D1",
+            "semanticId": "component-flyback-diode",
+            "kind": "diode",
+            "pins": [
+              "ANODE",
+              "CATHODE"
+            ],
+            "displayName": "D1 Flyback Diode",
+            "componentDefinitionId": "1n4007-diode"
+          },
+          {
+            "reference": "BT1",
+            "semanticId": "component-power",
+            "kind": "power_source",
+            "pins": [
+              "V+",
+              "GND"
+            ],
+            "displayName": "Low-voltage power source",
+            "componentDefinitionId": null
+          },
+          {
+            "reference": "X1",
+            "semanticId": "component-pump",
+            "kind": "generic_module",
+            "pins": [
+              "VCC",
+              "GND",
+              "CONTROL",
+              "OUT",
+              "SIGNAL"
+            ],
+            "displayName": "Low-voltage pump",
+            "componentDefinitionId": null
+          },
+          {
+            "reference": "S1",
+            "semanticId": "component-soil-sensor",
+            "kind": "generic_sensor",
+            "pins": [
+              "VCC",
+              "GND",
+              "SIGNAL"
+            ],
+            "displayName": "Capacitive soil moisture sensor",
+            "componentDefinitionId": "capacitive-soil-v1"
+          }
+        ],
+        "connections": [
+          {
+            "from": "U1.IO2",
+            "to": "Q1.SIGNAL",
+            "netId": "net-control-49f1079ef100",
+            "graphConnectionId": "connection-controller-driver-control-edge",
+            "role": "control",
+            "displayStyle": {
+              "color": "#4fd1c5"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "Q1.GND",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "D1.ANODE",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "BT1.GND",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "X1.GND",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "S1.GND",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.VCC",
+            "to": "Q1.VCC",
+            "netId": "net-power-228d5f6724a6",
+            "graphConnectionId": "connection-power-controller-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "U1.VCC",
+            "to": "BT1.V+",
+            "netId": "net-power-228d5f6724a6",
+            "graphConnectionId": "connection-power-controller-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "U1.VCC",
+            "to": "S1.VCC",
+            "netId": "net-power-228d5f6724a6",
+            "graphConnectionId": "connection-power-controller-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "Q1.OUT",
+            "to": "D1.CATHODE",
+            "netId": "net-power-ada52ae4f9ad",
+            "graphConnectionId": "connection-driver-flyback-diode-switched-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "Q1.OUT",
+            "to": "X1.VCC",
+            "netId": "net-power-ada52ae4f9ad",
+            "graphConnectionId": "connection-driver-flyback-diode-switched-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "U1.IO1",
+            "to": "S1.SIGNAL",
+            "netId": "net-signal-0ec37c3b0bc3",
+            "graphConnectionId": "connection-soil-sensor-controller-signal-edge",
+            "role": "signal",
+            "displayStyle": {
+              "color": "#63b3ed"
+            }
+          }
+        ],
+        "unconnected": [],
+        "netTopology": [
+          {
+            "netId": "net-control-49f1079ef100",
+            "expectedTerminals": [
+              "component-controller:signal-2",
+              "component-driver:signal"
+            ],
+            "representedTerminals": [
+              "component-controller:signal-2",
+              "component-driver:signal"
+            ],
+            "missingTerminals": []
+          },
+          {
+            "netId": "net-ground-c7e3629a0869",
+            "expectedTerminals": [
+              "component-controller:ground",
+              "component-driver:ground",
+              "component-flyback-diode:anode",
+              "component-power:ground",
+              "component-pump:ground",
+              "component-soil-sensor:ground"
+            ],
+            "representedTerminals": [
+              "component-controller:ground",
+              "component-driver:ground",
+              "component-flyback-diode:anode",
+              "component-power:ground",
+              "component-pump:ground",
+              "component-soil-sensor:ground"
+            ],
+            "missingTerminals": []
+          },
+          {
+            "netId": "net-power-228d5f6724a6",
+            "expectedTerminals": [
+              "component-controller:power",
+              "component-driver:power",
+              "component-power:power",
+              "component-soil-sensor:power"
+            ],
+            "representedTerminals": [
+              "component-controller:power",
+              "component-driver:power",
+              "component-power:power",
+              "component-soil-sensor:power"
+            ],
+            "missingTerminals": []
+          },
+          {
+            "netId": "net-power-ada52ae4f9ad",
+            "expectedTerminals": [
+              "component-driver:load-output",
+              "component-flyback-diode:cathode",
+              "component-pump:power"
+            ],
+            "representedTerminals": [
+              "component-driver:load-output",
+              "component-flyback-diode:cathode",
+              "component-pump:power"
+            ],
+            "missingTerminals": []
+          },
+          {
+            "netId": "net-signal-0ec37c3b0bc3",
+            "expectedTerminals": [
+              "component-controller:signal-1",
+              "component-soil-sensor:signal"
+            ],
+            "representedTerminals": [
+              "component-controller:signal-1",
+              "component-soil-sensor:signal"
+            ],
+            "missingTerminals": []
+          }
+        ],
+        "fidelity": {
+          "portsComplete": true,
+          "netsComplete": true
+        }
+      }
+    ]
+  },
+  "centimeter-dimensions": {
+    "graphValidation": "accepted",
+    "part": {
+      "semanticId": "component-pump",
+      "label": "Low-voltage pump",
+      "subsystem": "actuator",
+      "parentAssembly": "subsystem-actuator",
+      "representationSource": "family-aware procedural representation",
+      "dimensions": [
+        5.0,
+        60.0,
+        40.0
+      ],
+      "assembledTransform": {
+        "position": [
+          318.5,
+          135.0,
+          75.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "explodedTransform": {
+        "position": [
+          363.5,
+          135.0,
+          130.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "verificationState": "conceptual",
+      "family": "small_dc_pump",
+      "functionalRoles": [
+        "fluid_drive"
+      ],
+      "transformSource": "SEMANTIC_SUPPORT",
+      "generatorFamily": "small_dc_pump-proxy",
+      "representationClass": "generic",
+      "representationFeatures": [
+        "family_aware_body"
+      ],
+      "representationParameters": {},
+      "outputAxis": null,
+      "visualKind": "small_dc_pump",
+      "mechanicalParents": [],
+      "mechanicalChildren": [],
+      "mateInterfaces": [],
+      "placementClass": "MOUNTED_INDEPENDENTLY",
+      "representationBounds": {
+        "min": [
+          316.0,
+          105.0,
+          55.0
+        ],
+        "max": [
+          321.0,
+          165.0,
+          95.0
+        ]
+      },
+      "independentMountAnchor": "component-enclosure",
+      "mountSource": "semantic_support:component-enclosure"
+    },
+    "specs": [
+      {
+        "kind": "mechanical_3d",
+        "semanticIds": [
+          "component-pump"
+        ],
+        "units": "mm",
+        "coordinateSystem": {
+          "forward": "+X",
+          "left": "+Y",
+          "up": "+Z"
+        },
+        "geometry": {
+          "operation": "box",
+          "width": 5.0,
+          "depth": 60.0,
+          "height": 40.0
+        },
+        "semanticCoverage": {
+          "componentId": "component-pump",
+          "family": "small_dc_pump",
+          "proxy": true,
+          "renderStrategy": "family_proxy",
+          "representationClass": "generic"
+        }
+      },
+      {
+        "kind": "circuit_schematic",
+        "semanticIds": [
+          "component-controller",
+          "component-driver",
+          "component-flyback-diode",
+          "component-power",
+          "component-pump",
+          "component-soil-sensor"
+        ],
+        "components": [
+          {
+            "reference": "U1",
+            "semanticId": "component-controller",
+            "kind": "controller",
+            "pins": [
+              "VCC",
+              "GND",
+              "IO1",
+              "IO2",
+              "IO3",
+              "IO4",
+              "IO5",
+              "IO6",
+              "IO7",
+              "IO8"
+            ],
+            "displayName": "Arduino Nano",
+            "componentDefinitionId": "arduino-nano-v3"
+          },
+          {
+            "reference": "Q1",
+            "semanticId": "component-driver",
+            "kind": "mosfet",
+            "pins": [
+              "VCC",
+              "GND",
+              "SIGNAL",
+              "OUT"
+            ],
+            "displayName": "Logic-level N-channel MOSFET switch",
+            "componentDefinitionId": "logic-mosfet-module"
+          },
+          {
+            "reference": "D1",
+            "semanticId": "component-flyback-diode",
+            "kind": "diode",
+            "pins": [
+              "ANODE",
+              "CATHODE"
+            ],
+            "displayName": "D1 Flyback Diode",
+            "componentDefinitionId": "1n4007-diode"
+          },
+          {
+            "reference": "BT1",
+            "semanticId": "component-power",
+            "kind": "power_source",
+            "pins": [
+              "V+",
+              "GND"
+            ],
+            "displayName": "Low-voltage power source",
+            "componentDefinitionId": null
+          },
+          {
+            "reference": "M1",
+            "semanticId": "component-pump",
+            "kind": "motor",
+            "pins": [
+              "V+",
+              "GND",
+              "CONTROL"
+            ],
+            "displayName": "Low-voltage pump",
+            "componentDefinitionId": null
+          },
+          {
+            "reference": "S1",
+            "semanticId": "component-soil-sensor",
+            "kind": "generic_sensor",
+            "pins": [
+              "VCC",
+              "GND",
+              "SIGNAL"
+            ],
+            "displayName": "Capacitive soil moisture sensor",
+            "componentDefinitionId": "capacitive-soil-v1"
+          }
+        ],
+        "connections": [
+          {
+            "from": "U1.IO2",
+            "to": "Q1.SIGNAL",
+            "netId": "net-control-49f1079ef100",
+            "graphConnectionId": "connection-controller-driver-control-edge",
+            "role": "control",
+            "displayStyle": {
+              "color": "#4fd1c5"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "Q1.GND",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "D1.ANODE",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "BT1.GND",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "M1.GND",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.GND",
+            "to": "S1.GND",
+            "netId": "net-ground-c7e3629a0869",
+            "graphConnectionId": "connection-flyback-diode-power-ground-edge",
+            "role": "ground",
+            "displayStyle": {
+              "color": "#718096"
+            }
+          },
+          {
+            "from": "U1.VCC",
+            "to": "Q1.VCC",
+            "netId": "net-power-228d5f6724a6",
+            "graphConnectionId": "connection-power-controller-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "U1.VCC",
+            "to": "BT1.V+",
+            "netId": "net-power-228d5f6724a6",
+            "graphConnectionId": "connection-power-controller-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "U1.VCC",
+            "to": "S1.VCC",
+            "netId": "net-power-228d5f6724a6",
+            "graphConnectionId": "connection-power-controller-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "Q1.OUT",
+            "to": "D1.CATHODE",
+            "netId": "net-power-ada52ae4f9ad",
+            "graphConnectionId": "connection-driver-flyback-diode-switched-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "Q1.OUT",
+            "to": "M1.V+",
+            "netId": "net-power-ada52ae4f9ad",
+            "graphConnectionId": "connection-driver-flyback-diode-switched-power-edge",
+            "role": "power",
+            "displayStyle": {
+              "color": "#ef6f61"
+            }
+          },
+          {
+            "from": "U1.IO1",
+            "to": "S1.SIGNAL",
+            "netId": "net-signal-0ec37c3b0bc3",
+            "graphConnectionId": "connection-soil-sensor-controller-signal-edge",
+            "role": "signal",
+            "displayStyle": {
+              "color": "#63b3ed"
+            }
+          }
+        ],
+        "unconnected": [],
+        "netTopology": [
+          {
+            "netId": "net-control-49f1079ef100",
+            "expectedTerminals": [
+              "component-controller:signal-2",
+              "component-driver:signal"
+            ],
+            "representedTerminals": [
+              "component-controller:signal-2",
+              "component-driver:signal"
+            ],
+            "missingTerminals": []
+          },
+          {
+            "netId": "net-ground-c7e3629a0869",
+            "expectedTerminals": [
+              "component-controller:ground",
+              "component-driver:ground",
+              "component-flyback-diode:anode",
+              "component-power:ground",
+              "component-pump:ground",
+              "component-soil-sensor:ground"
+            ],
+            "representedTerminals": [
+              "component-controller:ground",
+              "component-driver:ground",
+              "component-flyback-diode:anode",
+              "component-power:ground",
+              "component-pump:ground",
+              "component-soil-sensor:ground"
+            ],
+            "missingTerminals": []
+          },
+          {
+            "netId": "net-power-228d5f6724a6",
+            "expectedTerminals": [
+              "component-controller:power",
+              "component-driver:power",
+              "component-power:power",
+              "component-soil-sensor:power"
+            ],
+            "representedTerminals": [
+              "component-controller:power",
+              "component-driver:power",
+              "component-power:power",
+              "component-soil-sensor:power"
+            ],
+            "missingTerminals": []
+          },
+          {
+            "netId": "net-power-ada52ae4f9ad",
+            "expectedTerminals": [
+              "component-driver:load-output",
+              "component-flyback-diode:cathode",
+              "component-pump:power"
+            ],
+            "representedTerminals": [
+              "component-driver:load-output",
+              "component-flyback-diode:cathode",
+              "component-pump:power"
+            ],
+            "missingTerminals": []
+          },
+          {
+            "netId": "net-signal-0ec37c3b0bc3",
+            "expectedTerminals": [
+              "component-controller:signal-1",
+              "component-soil-sensor:signal"
+            ],
+            "representedTerminals": [
+              "component-controller:signal-1",
+              "component-soil-sensor:signal"
+            ],
+            "missingTerminals": []
+          }
+        ],
+        "fidelity": {
+          "portsComplete": true,
+          "netsComplete": true
+        }
+      }
+    ]
+  },
+  "malformed-relation": {
+    "exception": "ValueError",
+    "message": "Relationship connection-controller-driver-control-edge has a missing endpoint"
+  },
+  "negative-geometry-spec": {
+    "accepted": true,
+    "payload": {
+      "units": "mm",
+      "coordinateSystem": {
+        "forward": "+X",
+        "left": "+Y",
+        "up": "+Z"
+      },
+      "geometry": {
+        "operation": "box",
+        "width": -10,
+        "depth": 20,
+        "height": 10
+      }
+    },
+    "scope": "direct spec validator; not demonstrated reachable through validated graph API"
+  },
+  "missing-artifact": {
+    "http": 404,
+    "body": {
+      "detail": {
+        "code": "artifact_content_not_found",
+        "artifactId": "not-a-real-artifact"
+      }
+    }
+  },
+  "unknown-project": {
+    "http": 404,
+    "body": {
+      "detail": "Project not found"
+    }
+  },
+  "replacement-model-error": {
+    "http": 503,
+    "body": {
+      "detail": {
+        "code": "SCENARIO_AI_UNAVAILABLE",
+        "message": "Vertex rejected ADC/IAM access (403). Required permission: aiplatform.endpoints.predict"
+      }
+    }
+  }
+}

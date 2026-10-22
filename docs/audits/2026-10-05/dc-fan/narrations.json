@@ -1,0 +1,179 @@
+[
+  {
+    "narrationId": "narration-1397f9380dfe05af2107",
+    "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+    "revision": 1,
+    "eventId": 1,
+    "kind": "project_progress",
+    "text": "Planning the committed project structure.",
+    "semanticIds": [],
+    "verificationFindingIds": [],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:20.818512+00:00"
+  },
+  {
+    "narrationId": "narration-522ac5445949ec2f6f16",
+    "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+    "revision": 1,
+    "eventId": 30,
+    "kind": "warning",
+    "text": "Verification for Logic-level N-channel MOSFET switch, D1 Flyback Diode remains an estimate: Voltage compatibility for Logic-level N-channel MOSFET switch to D1 Flyback Diode is not proven by available properties.",
+    "semanticIds": [
+      "component-driver",
+      "component-flyback-diode"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-a392fe4f76"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:20.818512+00:00"
+  },
+  {
+    "narrationId": "narration-f1ec57ebbfc0abd20c8f",
+    "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+    "revision": 1,
+    "eventId": 31,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source, Arduino Nano remains an estimate: Voltage compatibility for Low-voltage power source to Arduino Nano is not proven by available properties.",
+    "semanticIds": [
+      "component-power",
+      "component-controller"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-d65e2d70d5"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:20.818512+00:00"
+  },
+  {
+    "narrationId": "narration-e97ded84f6a8af3f8f1e",
+    "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+    "revision": 1,
+    "eventId": 32,
+    "kind": "warning",
+    "text": "Verification for Arduino Nano remains an estimate: Arduino Nano V3 uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-controller"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-31e1d752fb"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:20.818512+00:00"
+  },
+  {
+    "narrationId": "narration-ac927248cd34c7f5b955",
+    "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+    "revision": 1,
+    "eventId": 33,
+    "kind": "warning",
+    "text": "Verification for Logic-level N-channel MOSFET switch remains an estimate: Logic MOSFET module uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-driver"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-2e2344b09a"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:20.818512+00:00"
+  },
+  {
+    "narrationId": "narration-eb391657c5ac58e06847",
+    "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+    "revision": 1,
+    "eventId": 34,
+    "kind": "warning",
+    "text": "Verification for Desk fan remains an estimate: 5 V brushless fan uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-fan"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-a7e6aac6f0"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:20.818512+00:00"
+  },
+  {
+    "narrationId": "narration-52b58777606d3c9cf8e3",
+    "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+    "revision": 1,
+    "eventId": 35,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source remains an estimate: Low-voltage power source is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-power"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-47e92dba19"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:20.818512+00:00"
+  },
+  {
+    "narrationId": "narration-9a318e01a850a036eb9a",
+    "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+    "revision": 0,
+    "eventId": 36,
+    "kind": "verification_explanation",
+    "text": "Independent evidence and a deterministic rule agree: Supply voltage is compatible with load.",
+    "semanticIds": [
+      "component-power",
+      "component-fan"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-load-voltage-compatible-82ea46b763"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:20.818512+00:00"
+  },
+  {
+    "narrationId": "narration-f529c728d8b090f945e7",
+    "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+    "revision": 0,
+    "eventId": 36,
+    "kind": "verification_explanation",
+    "text": "Manufacturer documentation supports this result: Authoritative properties available from STMicroelectronics 1N4007.",
+    "semanticIds": [
+      "component-flyback-diode"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-423fc6cb24"
+    ],
+    "evidenceIds": [
+      "evidence-st-protection"
+    ],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:20.818512+00:00"
+  },
+  {
+    "narrationId": "narration-08db4d97e222cf7df365",
+    "projectId": "project-dabff80587375aa7998c6a46e9707d4d",
+    "revision": 1,
+    "eventId": 58,
+    "kind": "completion",
+    "text": "Project ready with 6 components across 4 subsystems: 1 source-verified checks, 6 estimates, and 0 failed checks.",
+    "semanticIds": [
+      "project-dabff80587375aa7998c6a46e9707d4d"
+    ],
+    "verificationFindingIds": [],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:22.183600+00:00"
+  }
+]

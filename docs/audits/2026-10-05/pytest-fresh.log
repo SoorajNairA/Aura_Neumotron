@@ -1,0 +1,10 @@
+........................................................................ [ 24%]
+.s...................................................................... [ 48%]
+........................................................................ [ 72%]
+........................................................s............... [ 96%]
+...........                                                              [100%]
+- generated xml file: audit-output\pytest-fresh-results.xml -
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_gcp_live.py:12: Set AURA_RUN_GCP_LIVE=1 to incur cloud usage
+SKIPPED [1] tests\test_vertex_live.py:12: Set AURA_RUN_VERTEX_LIVE=1 to incur Vertex requests
+297 passed, 2 skipped in 188.79s (0:03:08)

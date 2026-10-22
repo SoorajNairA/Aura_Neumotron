@@ -1,0 +1,1 @@
+{"kind":"mechanical_3d","semanticIds":["component-tube"],"units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"geometry":{"operation":"pipe","radius":5,"path":[[0,0,0],[30,0,15],[55,20,45],[85,25,80]]},"semanticCoverage":{"componentId":"component-tube","family":"tube","proxy":true,"renderStrategy":"family_proxy","representationClass":"conceptual"}}

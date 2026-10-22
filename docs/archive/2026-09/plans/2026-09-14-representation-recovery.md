@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12, representation service, project repository, pytest.
 
-**Spec:** `docs/superpowers/specs/2026-09-14-release-hardening-design.md`
+**Spec:** `docs/archive/2026-09/specs/2026-09-14-release-hardening-design.md`
 
 ## Global Constraints
 

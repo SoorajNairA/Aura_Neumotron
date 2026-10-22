@@ -1,0 +1,185 @@
+{
+  "scope": "Direct PlannerService and verify_graph API probes; no live provider or UI",
+  "probes": [
+    {
+      "objective": "Build a passenger aircraft",
+      "outcome": "exception",
+      "exceptionType": "ValueError",
+      "detail": "{'status': 'UNSUPPORTED', 'reasons': ['Current capability excludes aircraft engineering.'], 'supportedAlternative': 'A small low-voltage conceptual mechatronic analogue may be created instead.'}"
+    },
+    {
+      "objective": "Build a cryptocurrency dashboard",
+      "outcome": "exception",
+      "exceptionType": "ValueError",
+      "detail": "{'status': 'UNSUPPORTED', 'reasons': ['Current capability excludes financial systems.'], 'supportedAlternative': 'A small low-voltage conceptual mechatronic analogue may be created instead.'}"
+    },
+    {
+      "objective": "Build something cool",
+      "outcome": "exception",
+      "exceptionType": "ValueError",
+      "detail": "{'status': 'NEEDS_CLARIFICATION', 'reasons': ['The objective does not identify a device, function, or measurable behavior.'], 'questions': ['What should the device sense, move, or control?']}"
+    },
+    {
+      "objective": "Build a new unknown lead screw positioning stage",
+      "outcome": "exception",
+      "exceptionType": "ValueError",
+      "detail": "{'status': 'NEEDS_CLARIFICATION', 'reasons': ['The objective does not identify a supported low-voltage mechatronic function.'], 'questions': ['What should the device sense, move, or control using low-voltage components?']}"
+    },
+    {
+      "probe": "missing_dimensions",
+      "graph": {
+        "schema_version": "1.0",
+        "project_id": "p",
+        "entities": [
+          {
+            "id": "c",
+            "kind": "component",
+            "name": "Unspecified component",
+            "parent_id": "p",
+            "metadata": {},
+            "source_refs": [],
+            "verification_status": "conceptual",
+            "representation_refs": []
+          },
+          {
+            "id": "p",
+            "kind": "project",
+            "name": "Project",
+            "parent_id": null,
+            "metadata": {},
+            "source_refs": [],
+            "verification_status": "conceptual",
+            "representation_refs": []
+          }
+        ],
+        "relationships": [],
+        "revisions": []
+      },
+      "accepted": true,
+      "state": "cross_checked",
+      "reasons": [
+        "Complete Engineering Graph verification passed."
+      ],
+      "findings": []
+    },
+    {
+      "probe": "null_dimension_value",
+      "graph": {
+        "schema_version": "1.0",
+        "project_id": "p",
+        "entities": [
+          {
+            "id": "c",
+            "kind": "component",
+            "name": "Unspecified component",
+            "parent_id": "p",
+            "metadata": {
+              "dimensions": {
+                "width": {
+                  "value": null,
+                  "unit": "mm"
+                }
+              }
+            },
+            "source_refs": [],
+            "verification_status": "conceptual",
+            "representation_refs": []
+          },
+          {
+            "id": "p",
+            "kind": "project",
+            "name": "Project",
+            "parent_id": null,
+            "metadata": {},
+            "source_refs": [],
+            "verification_status": "conceptual",
+            "representation_refs": []
+          }
+        ],
+        "relationships": [],
+        "revisions": []
+      },
+      "outcome": "uncaught_exception",
+      "exceptionType": "TypeError",
+      "detail": "float() argument must be a string or a number, not 'NoneType'"
+    },
+    {
+      "probe": "wrong_dimension_unit",
+      "graph": {
+        "schema_version": "1.0",
+        "project_id": "p",
+        "entities": [
+          {
+            "id": "c",
+            "kind": "component",
+            "name": "Unspecified component",
+            "parent_id": "p",
+            "metadata": {
+              "dimensions": {
+                "width": {
+                  "value": 5,
+                  "unit": "V"
+                }
+              }
+            },
+            "source_refs": [],
+            "verification_status": "conceptual",
+            "representation_refs": []
+          },
+          {
+            "id": "p",
+            "kind": "project",
+            "name": "Project",
+            "parent_id": null,
+            "metadata": {},
+            "source_refs": [],
+            "verification_status": "conceptual",
+            "representation_refs": []
+          }
+        ],
+        "relationships": [],
+        "revisions": []
+      },
+      "accepted": false,
+      "state": "failed",
+      "reasons": [
+        "Entity c has unsupported dimension units"
+      ],
+      "findings": [
+        {
+          "findingId": "verification-graph-invalid-4e64358c86",
+          "semanticId": "p",
+          "code": "GRAPH_INVALID",
+          "check": "GRAPH_INVALID",
+          "status": "failed",
+          "severity": "FAIL",
+          "legacySeverity": "critical",
+          "category": "graph",
+          "blocking": true,
+          "summary": "Entity c has unsupported dimension units",
+          "expected": null,
+          "actual": null,
+          "evidenceIds": [],
+          "verifiedAt": "2026-10-05T17:27:10.601791+00:00",
+          "sourceVersions": {},
+          "dependencyIds": [
+            "p"
+          ],
+          "revision": 1,
+          "machineResult": {},
+          "requirementIds": [],
+          "netIds": [],
+          "interfaceIds": [],
+          "requiredCapability": null,
+          "repairHint": null,
+          "semanticIds": [
+            "p"
+          ],
+          "entity_ids": [
+            "p"
+          ]
+        }
+      ]
+    }
+  ]
+}

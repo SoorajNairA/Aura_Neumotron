@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 18, TypeScript, Vite, Vitest, Playwright, Three.js, Electron.
 
-**Spec:** `docs/superpowers/specs/2026-09-14-release-hardening-design.md`
+**Spec:** `docs/archive/2026-09/specs/2026-09-14-release-hardening-design.md`
 
 ## Global Constraints
 

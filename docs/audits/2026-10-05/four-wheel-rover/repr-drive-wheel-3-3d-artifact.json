@@ -1,0 +1,1 @@
+{"kind":"mechanical_3d","semanticIds":["component-drive-wheel-3"],"units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"geometry":{"operation":"box","width":52.0,"depth":52.0,"height":18.0},"semanticCoverage":{"componentId":"component-drive-wheel-3","family":"drive_wheel","proxy":true,"renderStrategy":"family_proxy","representationClass":"conceptual"}}

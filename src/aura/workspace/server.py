@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
 import time
@@ -38,6 +39,10 @@ from aura.verification.catalogue import CATALOGUE, search as search_catalogue
 from aura.verification.results import VerificationState
 from aura.verification.delta import verification_readiness
 from .bridge import WorkspaceBridge
+from .assessment import (
+    REQUEST_SCOPE, PlanningOrigin, RepresentationInput, RequestAssessment, RequestLedger, WorkspaceAssessment, assess_request,
+    assess_workspace, collect_request_obligations, refresh_assessment,
+)
 from .assembly import engineering_assembly
 from .events import WorkspaceEvent
 from .representation_service import RepresentationService, initial_records, representation_specs
@@ -275,9 +280,11 @@ class WorkspaceApplication:
                                 event_drafts: list[dict[str, Any]], repair_metadata: dict[str, Any]) -> StoredProject:
         """Persist only a safe diagnostic project, never the rejected graph."""
         project_id=plan.entities[0].id;now=datetime.now(timezone.utc).isoformat()
+        ledger = collect_request_obligations(body.objective)
         user_issues=list(dict.fromkeys(self._friendly_finding(finding) for finding in verification.findings if finding.severity=="critical" and finding.state is VerificationState.FAILED))
         user_message="AURA couldn't resolve this engineering architecture reliably."
-        project=EngineeringEntity(project_id,EntityKind.PROJECT,plan.request.project_name,metadata={"objective":body.objective,"generationStatus":"build_incomplete","userMessage":user_message,"userIssues":user_issues},verification_status=VerificationState.FAILED.value)
+        project=EngineeringEntity(project_id,EntityKind.PROJECT,plan.request.project_name,metadata={"objective":body.objective,"generationStatus":"build_incomplete","userMessage":user_message,"userIssues":user_issues,
+            "requestObligations":ledger.to_dict()["obligations"],"requestObjectiveDigest":ledger.objective_digest},verification_status=VerificationState.FAILED.value)
         findings=[EngineeringEntity(finding.id,EntityKind.VERIFICATION_RESULT,finding.message,project_id,
             finding.to_dict()|{"userMessage":self._friendly_finding(finding)},verification_status=finding.state.value) for finding in verification.findings]
         patch=GraphPatch(f"incomplete-{uuid4().hex}",tuple([GraphOperation(PatchOperation.ADD_ENTITY,entity=project),*[GraphOperation(PatchOperation.ADD_ENTITY,entity=finding) for finding in findings]]),"Record incomplete engineering build")
@@ -286,11 +293,102 @@ class WorkspaceApplication:
         event_drafts.append({"type":"project.build_incomplete","semantic_ids":[project_id],"payload":{"status":"build_incomplete","message":user_message,"issues":user_issues}})
         if body.operationId:event_drafts.append({"type":"project.operation_completed","semantic_ids":[project_id],"payload":{"operationId":body.operationId,"projectId":project_id,"revision":len(graph.revisions)}})
         verification_payload={"state":verification.state.value,"decision":verification.decision.value,"reasons":list(verification.reasons),"findings":[finding.__dict__|{"state":finding.state.value,"userMessage":self._friendly_finding(finding)} for finding in verification.findings],"repair":repair_metadata}
+        verification_payload["workspaceAssessment"] = self._creation_assessment(record, verification, planner_metadata).to_dict()
         committed=self.repository.save_commit(record,patch,verification_payload,event_drafts)
         self.broker.reset(project_id)
         return record
 
-    async def create(self, body: CreateProjectBody) -> StoredProject:
+    def _creation_assessment(self, record: StoredProject, verification, planner_metadata: dict[str, Any], specs=()) -> WorkspaceAssessment:
+        """Prepare revision metadata before the existing atomic project commit."""
+        ledger = collect_request_obligations(record.objective)
+        root = record.graph.get(record.project_id)
+        if root.metadata.get("requestObjectiveDigest") != ledger.objective_digest or (
+            root.metadata.get("requestObligations") != ledger.to_dict()["obligations"]
+        ):
+            raise ValueError("Creation assessment requires the original request ledger")
+        return self._revision_assessment(record, verification, specs=specs,
+            planning_origin=PlanningOrigin(provider=planner_metadata.get("provider"), model=planner_metadata.get("model"),
+                planning_mode=record.planning_mode, reused_project=False, fallback_reason=record.fallback_reason,
+                verification_status=verification.state.value))
+
+    def _revision_assessment(self, record: StoredProject, verification, *, specs=None,
+                             planning_origin: PlanningOrigin | None = None) -> WorkspaceAssessment:
+        """Assess the supplied graph, retaining original ledger and creation limits."""
+        previous = self.assessment(record) if planning_origin is None else None
+        digest = hashlib.sha256(record.objective.encode("utf-8")).hexdigest()
+        root = record.graph.entities.get(record.project_id)
+        limitations = previous.limitations if previous is not None else ()
+        try:
+            ledger = RequestLedger.from_dict({"originalObjective": record.objective, "objectiveDigest": root.metadata["requestObjectiveDigest"],
+                "obligations": root.metadata["requestObligations"], "evaluationScope": REQUEST_SCOPE})
+            request = assess_request(ledger, record.graph)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            request = RequestAssessment(original_objective_digest=digest,
+                reasons=("Original request ledger is absent or invalid; original requirements were not reassessed",))
+            limitations += request.reasons
+        if specs is None:
+            try: specs = representation_specs(record.graph)
+            except (ValueError, TypeError, KeyError, OverflowError):
+                specs = ()
+                limitations += ("Representation classification is unavailable for this graph",)
+        by_semantics = {(item.kind, item.semantic_ids): item for item in specs}
+        records = tuple(RepresentationRecord.from_dict(item) for item in record.representations)
+        result = assess_workspace(
+            operational_status=record.status, assessed_revision_id=record.graph.current_revision_id,
+            revision_number=len(record.graph.revisions), current_revision_id=record.graph.current_revision_id,
+            current_revision_number=len(record.graph.revisions), request=request,
+            verification=verification, check_coverage=verification.execution_coverage, original_objective_digest=digest,
+            representations=tuple(RepresentationInput(item, by_semantics.get((item.type, item.semantic_ids))) for item in records),
+            planning_origin=planning_origin if planning_origin is not None else previous.planning_origin,
+        )
+        limitations = (*limitations, *result.limitations, *verification.reasons, *(finding.message for finding in verification.findings
+            if finding.severity == "warning" or finding.state in {
+                VerificationState.CONCEPTUAL, VerificationState.ESTIMATED, VerificationState.UNSUPPORTED,
+                VerificationState.STALE, VerificationState.FAILED,
+            }))
+        return replace(result, limitations=tuple(dict.fromkeys(limitations)))
+
+    def assessment(self, record: StoredProject, *, reused_project: bool | None = None,
+                   revision_number: int | None = None) -> WorkspaceAssessment:
+        """One read-only assessment path for create, get, list and verification."""
+        digest = hashlib.sha256(record.objective.encode("utf-8")).hexdigest()
+        root = record.graph.entities.get(record.project_id)
+        has_ledger = root is not None and isinstance(root.metadata.get("requestObligations"), list) and (
+            root.metadata.get("requestObjectiveDigest") == digest
+        )
+        limitation = "No persisted revision assessment and original request ledger; request and check coverage are unknown"
+        for row in reversed(self.repository.list_revisions(record.project_id)):
+            if revision_number is not None and row["revision"] != revision_number:
+                continue
+            if has_ledger or row["verification"].get("workspaceAssessment") is not None:
+                value = row["verification"].get("workspaceAssessment")
+                if value is None:
+                    continue
+                try:
+                    snapshot = WorkspaceAssessment.from_dict(value)
+                    number = row["revision"]
+                    if not (snapshot.assessed_revision_id == row["revisionId"] == record.graph.revisions[number - 1].id
+                            and snapshot.revision_number == number and snapshot.original_objective_digest == digest
+                            and snapshot.request.original_objective_digest == digest):
+                        raise ValueError("Assessment does not match its committed revision or original objective")
+                    return refresh_assessment(snapshot, operational_status=record.status,
+                        current_revision_id=record.graph.current_revision_id, current_revision_number=len(record.graph.revisions),
+                        representations=tuple(RepresentationRecord.from_dict(item) for item in record.representations),
+                        reused_project=reused_project)
+                except (ValueError, TypeError, KeyError, IndexError, AttributeError):
+                    limitation = "Persisted assessment is invalid or has an inconsistent revision binding; no read repair was performed"
+                    break
+        result = assess_workspace(operational_status=record.status, assessed_revision_id=None, revision_number=0,
+            current_revision_id=record.graph.current_revision_id, current_revision_number=0,
+            planning_origin=PlanningOrigin(planning_mode=record.planning_mode, reused_project=reused_project,
+                fallback_reason=record.fallback_reason))
+        return replace(result, limitations=result.limitations + (limitation,))
+
+    def _operation_response(self, record: StoredProject, response: dict[str, Any]) -> dict[str, Any]:
+        """A replay retains its operation revision and marks older proof stale."""
+        return dict(response) | {"assessment": self.assessment(record, revision_number=response["revision"]).to_dict()}
+
+    async def create(self, body: CreateProjectBody, *, creation_info: dict[str, Any] | None = None) -> StoredProject:
         key=PlannerService._id(body.objective,"project")
         with self.creation_locks_guard:
             entry=self.creation_locks.setdefault(key,[threading.Lock(),0])
@@ -298,7 +396,9 @@ class WorkspaceApplication:
         lock=entry[0]
         await run_in_threadpool(lock.acquire)
         try:
-            return await self._create_serialized(body)
+            if creation_info is None:
+                return await self._create_serialized(body)
+            return await self._create_serialized(body, creation_info=creation_info)
         finally:
             lock.release()
             with self.creation_locks_guard:
@@ -336,15 +436,21 @@ class WorkspaceApplication:
             await self.publish_with_narration(committed,record.graph,record.representations)
         return record
 
-    async def _create_serialized(self, body: CreateProjectBody) -> StoredProject:
+    async def _create_serialized(self, body: CreateProjectBody, *, creation_info: dict[str, Any] | None = None) -> StoredProject:
+        if creation_info is not None:
+            creation_info["reusedProject"] = False
         if body.operationId:
             completed=self.find_operation("project.operation_completed",body.operationId)
             if completed:
                 existing=self.repository.get_project(completed.payload["projectId"])
-                if existing:return existing
+                if existing:
+                    if creation_info is not None: creation_info["reusedProject"] = True
+                    return existing
         existing=self.repository.get_project(PlannerService._id(body.objective,"project"))
         if existing is not None:
+            if creation_info is not None: creation_info["reusedProject"] = True
             return await self._resume_incomplete_representations(self.recover_interrupted(existing))
+        ledger = collect_request_obligations(body.objective)
         try:
             outcome = await run_in_threadpool(self.plan, body)
         except ValueError as exc:
@@ -363,6 +469,7 @@ class WorkspaceApplication:
         # Project IDs are objective-derived. Repeating the same create request is
         # idempotent in every planner mode, not only in deterministic tests.
         if existing is not None:
+            if creation_info is not None: creation_info["reusedProject"] = True
             return await self._resume_incomplete_representations(self.recover_interrupted(existing))
         planner_metadata = dict(outcome.provider_metadata or {})
         planner_metadata.update({"provider": "vertex" if outcome.mode == "live_model" else "deterministic", "fallbackUsed": outcome.mode != "live_model", "planId": plan.patch.id, "componentCount": len(plan.components), "relationshipCount": len(plan.relationships)})
@@ -390,6 +497,16 @@ class WorkspaceApplication:
                 incomplete=self._store_build_incomplete(body,outcome,plan,verified,planner_metadata,event_drafts,repair_metadata)
                 await self.publish_with_narration(self.repository.get_events_after(incomplete.project_id,0),incomplete.graph,incomplete.representations)
                 return incomplete
+        # Add original-request metadata to the accepted initial patch, before its
+        # first revision/transaction. Repair/provider text is never its authority.
+        verified = replace(verified, patch=replace(verified.patch, operations=tuple(
+            replace(operation, entity=replace(operation.entity, metadata=operation.entity.metadata | {
+                "requestObligations": ledger.to_dict()["obligations"],
+                "requestObjectiveDigest": ledger.objective_digest,
+            })) if operation.entity is not None and operation.entity.id == project_id
+                and operation.entity.kind is EntityKind.PROJECT else operation
+            for operation in verified.patch.operations
+        )))
         bridge = WorkspaceBridge()
         graph = bridge.commit(EngineeringGraph(project_id), verified)
         now = datetime.now(timezone.utc).isoformat()
@@ -404,6 +521,7 @@ class WorkspaceApplication:
         if body.operationId:event_drafts.append({"type":"project.operation_completed","semantic_ids":[project_id],"payload":{"operationId":body.operationId,"projectId":project_id,"revision":len(graph.revisions)}})
         verification = {"state": verified.state.value, "decision": verified.decision.value,
             "reasons": list(verified.reasons), "findings": [finding.__dict__ | {"state": finding.state.value} for finding in verified.findings]}
+        verification["workspaceAssessment"] = self._creation_assessment(record, verified, planner_metadata, specs).to_dict()
         try:
             committed = self.repository.save_commit(record, verified.patch, verification, event_drafts)  # type: ignore[arg-type]
         except PersistenceFailure as exc:
@@ -518,6 +636,9 @@ class WorkspaceApplication:
             "payload":{"representationId":circuit_after.representation_id,"artifactId":circuit_after.artifact_id,"error":circuit_after.error}})
         verification = {"state": result.state.value, "decision": result.decision.value,
             "reasons": list(result.reasons), "findings": [finding.__dict__ | {"state": finding.state.value} for finding in result.findings]}
+        exact = VerificationService().verify_graph(updated)
+        assessment = self._revision_assessment(updated_record, exact)
+        verification["workspaceAssessment"] = assessment.to_dict()
         try:
             committed = self.repository.save_commit(updated_record, result.patch, verification, event_drafts)  # type: ignore[arg-type]
         except PersistenceFailure as exc:
@@ -526,7 +647,8 @@ class WorkspaceApplication:
         after_entity = updated.get(selected.id)
         after = {"id": after_entity.id, "name": after_entity.name, "revision": len(updated.revisions)}
         return {"projectId": project_id, "before": before, "after": after,
-                "summary": patch.summary, "rerunChecks": [finding.check for finding in result.findings]}
+                "summary": patch.summary, "rerunChecks": [finding.check for finding in result.findings],
+                "assessment": assessment.to_dict()}
 
 
 def create_app(provider: Any | None = None, planner_timeout: float | None = None,
@@ -570,12 +692,14 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.post("/api/projects", status_code=201)
     async def create_project(body: CreateProjectBody) -> dict[str, Any]:
-        record = await application.create(body)
-        return _project_payload(record)
+        creation_info: dict[str, Any] = {}
+        record = await application.create(body, creation_info=creation_info)
+        return _project_payload(record, assessment=application.assessment(record, reused_project=creation_info.get("reusedProject")))
 
     @app.get("/api/projects")
     def list_projects() -> list[dict[str, Any]]:
-        return [_project_payload(record, concise=True) for record in application.repository.list_projects()]
+        return [_project_payload(record, concise=True, assessment=application.assessment(record))
+                for record in application.repository.list_projects()]
 
     @app.get("/api/capabilities")
     def get_capabilities()->dict[str,Any]: return CAPABILITY_MANIFEST
@@ -597,8 +721,15 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.get("/api/projects/{project_id}")
     def get_project(project_id: str) -> dict[str, Any]:
-        record = application.recover_interrupted(_record(application, project_id))
-        return _project_payload(record)
+        record = _record(application, project_id)
+        assessment = application.assessment(record)
+        # Legacy reads must not silently migrate data or recover artifacts by writing.
+        if assessment.assessed_revision_id is not None:
+            record = application.recover_interrupted(record)
+            assessment = refresh_assessment(assessment, operational_status=record.status,
+                current_revision_id=record.graph.current_revision_id, current_revision_number=len(record.graph.revisions),
+                representations=tuple(RepresentationRecord.from_dict(item) for item in record.representations))
+        return _project_payload(record, assessment=assessment)
 
     @app.get("/api/projects/{project_id}/graph")
     def get_graph(project_id: str) -> dict[str, Any]:
@@ -612,12 +743,14 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.get("/api/projects/{project_id}/verification")
     def get_verification(project_id: str) -> dict[str, Any]:
-        graph=_record(application,project_id).graph
+        record=_record(application,project_id)
+        graph=record.graph
         findings=graph.find(kind=EntityKind.VERIFICATION_RESULT); evidence=graph.find(kind=EntityKind.EVIDENCE)
         statuses=[x.value for x in VerificationState]
         return {"projectId":project_id,"revision":len(graph.revisions),
                 "summary":{status:sum(x.verification_status==status for x in findings) for status in statuses},
-                "findings":[x.metadata for x in findings],"evidence":[x.metadata for x in evidence]}
+                "findings":[x.metadata for x in findings],"evidence":[x.metadata for x in evidence],
+                "assessment":application.assessment(record).to_dict()}
 
     @app.get("/api/projects/{project_id}/evidence/{evidence_id}")
     def get_evidence(project_id: str,evidence_id: str) -> dict[str, Any]:
@@ -628,10 +761,12 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.get("/api/projects/{project_id}/revisions")
     def get_revisions(project_id: str) -> list[dict[str, Any]]:
-        _record(application, project_id)
+        record = _record(application, project_id)
         return [{"revision": item["revision"], "revisionId": item["revisionId"],
                  "patchId": item["patch"].id, "summary": item["patch"].summary,
-                 "verification": item["verification"], "createdAt": item["createdAt"]}
+                 "verification": item["verification"] | ({"workspaceAssessment": application.assessment(
+                     record, revision_number=item["revision"]).to_dict()} if "workspaceAssessment" in item["verification"] else {}),
+                 "createdAt": item["createdAt"]}
                 for item in application.repository.list_revisions(project_id)]
 
     @app.get("/api/projects/{project_id}/narrations")
@@ -700,14 +835,14 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         record=_record(application,project_id)
         if idempotency_key:
             prior=application.find_operation("representation.operation_completed",idempotency_key,project_id)
-            if prior:return prior.payload["result"]
+            if prior:return application._operation_response(record, prior.payload["result"])
         try: current=next(RepresentationRecord.from_dict(x) for x in record.representations if x["representationId"]==representation_id)
         except StopIteration as exc:raise HTTPException(404,"Representation not found") from exc
         if current.revision!=len(record.graph.revisions):raise HTTPException(409,detail={"code":"stale_representation_revision"})
         updated=await run_in_threadpool(application.representation_service.regenerate,record.graph,current)
         record.representations=[updated.to_dict() if x["representationId"]==representation_id else x for x in record.representations]
         application.repository.update_representations(project_id,record.representations)
-        result=updated.to_dict();drafts=[{"type":f"representation.{updated.status.value}","semantic_ids":list(updated.semantic_ids),"payload":{"representationId":representation_id,"operationId":updated.operation_id}}]
+        result=updated.to_dict() | {"assessment": application.assessment(record).to_dict()};drafts=[{"type":f"representation.{updated.status.value}","semantic_ids":list(updated.semantic_ids),"payload":{"representationId":representation_id,"operationId":updated.operation_id}}]
         if idempotency_key:drafts.append({"type":"representation.operation_completed","semantic_ids":list(updated.semantic_ids),"payload":{"operationId":idempotency_key,"result":result}})
         events=application.repository.append_events(project_id,len(record.graph.revisions),drafts);await application.publish_with_narration(events,record.graph,record.representations)
         return result
@@ -774,7 +909,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     async def commit_modification(project_id:str,proposal_id:str,idempotency_key:Optional[str]=Header(None,alias="Idempotency-Key"))->dict[str,Any]:
         operation_id=idempotency_key or proposal_id
         previous=application.find_operation("modification.operation_completed",operation_id,project_id)
-        if previous:return previous.payload["result"]
+        if previous:return application._operation_response(_record(application, project_id), previous.payload["result"])
         proposal=application.modification_proposals.get(proposal_id)
         if not proposal: raise HTTPException(404,"Proposal not found")
         lock=application.try_modification_lock(project_id)
@@ -801,10 +936,13 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
                 lifecycle.append({"type":f"representation.{regenerated.status.value}","semantic_ids":list(current.semantic_ids),"payload":{"representationId":current.representation_id,"artifactId":regenerated.artifact_id,"error":regenerated.error}})
             readiness_status={"BUILD_INCOMPLETE":"build_incomplete","SUPPORTED_WITH_LIMITATIONS":"ready_with_limitations","SUPPORTED":"ready"}[verification_readiness(result)]
             updated_record=StoredProject(record.project_id,record.objective,record.planning_mode,record.fallback_reason,readiness_status,updated,reps,record.created_at,datetime.now(timezone.utc).isoformat())
+            exact = VerificationService().verify_graph(updated)
+            assessment = application._revision_assessment(updated_record, exact)
             diff={"changed":list(proposal.operations),"regenerated":list(proposal.regenerate),"affected":list(proposal.affected_ids),"unchanged":list(proposal.unaffected)}
-            response={"projectId":project_id,"revision":len(updated.revisions),"summary":proposal.summary,"diff":diff,"representations":reps,"status":readiness_status,"verificationDelta":result.verification_delta}
+            response={"projectId":project_id,"revision":len(updated.revisions),"summary":proposal.summary,"diff":diff,"representations":reps,"status":readiness_status,"verificationDelta":result.verification_delta,"assessment":assessment.to_dict()}
             drafts=[{"type":"modification.committed","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal_id,"diff":diff}},{"type":"revision.committed","semantic_ids":list(proposal.affected_ids),"payload":{"diff":diff}},*lifecycle,{"type":"modification.operation_completed","semantic_ids":list(proposal.affected_ids),"payload":{"operationId":operation_id,"result":response}}]
             verification={"outcome":proposal.verification,"diff":diff,"verificationDelta":result.verification_delta,"kind":"undo" if proposal.mode=="undo" else "modification"}
+            verification["workspaceAssessment"] = assessment.to_dict()
             committed=application.repository.save_commit(updated_record,result.patch,verification,drafts)
             await application.publish_with_narration(committed,updated,reps)
             application.modification_proposals.pop(proposal_id,None)
@@ -816,7 +954,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     async def undo_revision(project_id:str,idempotency_key:Optional[str]=Header(None,alias="Idempotency-Key"))->dict[str,Any]:
         operation_id=idempotency_key or f"undo-{project_id}-{len(_record(application,project_id).graph.revisions)}"
         previous=application.find_operation("undo.operation_completed",operation_id,project_id)
-        if previous:return previous.payload["result"]
+        if previous:return application._operation_response(_record(application, project_id), previous.payload["result"])
         record=_record(application,project_id)
         revisions=application.repository.list_revisions(project_id)
         source=revisions[-1] if revisions and revisions[-1].get("verification",{}).get("kind")=="modification" else None
@@ -869,6 +1007,10 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
                 application.provider=provider
                 assessment,model_metadata=await run_in_threadpool(LiveScenarioAnalyzer(provider).assess_replacement,record.graph,body.targetSemanticId,body.value)
             scenario=analyze_scenario(record.graph,body.targetSemanticId,body.changeType,body.value,assessment,model_metadata)
+            candidate = replace(record, graph=scenario.candidate_graph)
+            exact = VerificationService().verify_graph(scenario.candidate_graph)
+            scenario.analysis["assessment"] = application._revision_assessment(candidate, exact).to_dict()
+            scenario.analysis["assessmentContext"] = "CANDIDATE_NOT_COMMITTED"
         except ScenarioError as exc:raise HTTPException(exc.status,detail={"code":exc.code,"message":exc.message}) from exc
         except Exception as exc:
             error_name=exc.__class__.__name__
@@ -913,8 +1055,12 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
                 ])
             readiness_status={"BUILD_INCOMPLETE":"build_incomplete","SUPPORTED_WITH_LIMITATIONS":"ready_with_limitations","SUPPORTED":"ready"}[verification_readiness(verified)]
             updated_record=StoredProject(record.project_id,record.objective,record.planning_mode,record.fallback_reason,readiness_status,updated,representations,record.created_at,now)
-            result={"projectId":project_id,"previousRevisionId":scenario.base_revision_id,"newRevisionId":updated.current_revision_id,"revision":len(updated.revisions),"targetSemanticId":scenario.target_id,"changedComponentIds":diff["changedComponents"],"affectedComponentIds":affected,"changedRelationshipIds":diff["changedRelationships"],"diff":diff,"representations":representations,"verificationDelta":verified.verification_delta}
-            events=application.repository.save_commit(updated_record,verified.patch,{"kind":"scenario","analysis":scenario.analysis,"verificationDelta":verified.verification_delta},[{"type":"scenario.applied","semantic_ids":affected,"payload":{"scenarioId":scenario.id,"result":result}},*lifecycle])
+            exact = VerificationService().verify_graph(updated)
+            assessment = application._revision_assessment(updated_record, exact)
+            result={"projectId":project_id,"previousRevisionId":scenario.base_revision_id,"newRevisionId":updated.current_revision_id,"revision":len(updated.revisions),"targetSemanticId":scenario.target_id,"changedComponentIds":diff["changedComponents"],"affectedComponentIds":affected,"changedRelationshipIds":diff["changedRelationships"],"diff":diff,"representations":representations,"verificationDelta":verified.verification_delta,"assessment":assessment.to_dict()}
+            # Preview proof belongs to its ephemeral candidate, not this revision.
+            analysis = {key: value for key, value in scenario.analysis.items() if key not in {"assessment", "assessmentContext"}}
+            events=application.repository.save_commit(updated_record,verified.patch,{"kind":"scenario","analysis":analysis,"verificationDelta":verified.verification_delta,"workspaceAssessment":assessment.to_dict()},[{"type":"scenario.applied","semantic_ids":affected,"payload":{"scenarioId":scenario.id,"result":result}},*lifecycle])
             await application.publish_with_narration(events,updated,representations);application.scenarios.pop(scenario_id,None)
             return result
         finally:
@@ -958,16 +1104,21 @@ def _record(application: WorkspaceApplication, project_id: str) -> StoredProject
     return record
 
 
-def _project_payload(record: StoredProject, concise: bool = False) -> dict[str, Any]:
+def _project_payload(record: StoredProject, concise: bool = False, *, assessment: WorkspaceAssessment | None = None) -> dict[str, Any]:
     graph = record.graph
     project=graph.entities.get(graph.project_id)
     generation=project.metadata if project else {}
+    if assessment is None:
+        assessment = assess_workspace(operational_status=record.status, assessed_revision_id=None, revision_number=0,
+            current_revision_id=graph.current_revision_id, current_revision_number=0,
+            planning_origin=PlanningOrigin(planning_mode=record.planning_mode, fallback_reason=record.fallback_reason))
     return {"projectId": graph.project_id, "objective": record.objective,
             "capability": classify_objective(record.objective),
             "planningMode": record.planning_mode, "fallbackReason": record.fallback_reason,
             "revision": len(graph.revisions), "status": record.status,
             "createdAt": record.created_at, "updatedAt": record.updated_at,
             "generationMessage":generation.get("userMessage"),"userIssues":generation.get("userIssues",[]),
+            "assessment":assessment.to_dict(),
             **({} if concise else {"representations": record.representations})}
 
 

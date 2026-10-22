@@ -1,0 +1,193 @@
+[
+  {
+    "narrationId": "narration-ff9e89b3e99e4125af4b",
+    "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "revision": 1,
+    "eventId": 1,
+    "kind": "project_progress",
+    "text": "Planning the committed project structure.",
+    "semanticIds": [],
+    "verificationFindingIds": [],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:24.074579+00:00"
+  },
+  {
+    "narrationId": "narration-31f3f19be36c928b40f9",
+    "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "revision": 1,
+    "eventId": 37,
+    "kind": "warning",
+    "text": "Verification for Logic-level N-channel MOSFET switch, D1 Flyback Diode remains an estimate: Voltage compatibility for Logic-level N-channel MOSFET switch to D1 Flyback Diode is not proven by available properties.",
+    "semanticIds": [
+      "component-driver",
+      "component-flyback-diode"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-a392fe4f76"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:24.073546+00:00"
+  },
+  {
+    "narrationId": "narration-72f1ee0e675e0acd8b67",
+    "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "revision": 1,
+    "eventId": 38,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source, Arduino Nano remains an estimate: Voltage compatibility for Low-voltage power source to Arduino Nano is not proven by available properties.",
+    "semanticIds": [
+      "component-power",
+      "component-controller"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-d65e2d70d5"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:24.073546+00:00"
+  },
+  {
+    "narrationId": "narration-501437ef2457f684dc8c",
+    "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "revision": 1,
+    "eventId": 39,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source, Capacitive soil moisture sensor remains an estimate: Voltage compatibility for Low-voltage power source to Capacitive soil moisture sensor is not proven by available properties.",
+    "semanticIds": [
+      "component-power",
+      "component-soil-sensor"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-0deaf990d1"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:24.073546+00:00"
+  },
+  {
+    "narrationId": "narration-dafdaa8941894ef65dd9",
+    "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "revision": 1,
+    "eventId": 40,
+    "kind": "warning",
+    "text": "Verification for Arduino Nano remains an estimate: Arduino Nano V3 uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-controller"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-31e1d752fb"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:24.073546+00:00"
+  },
+  {
+    "narrationId": "narration-1e25b9f1b083de9bc4ac",
+    "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "revision": 1,
+    "eventId": 41,
+    "kind": "warning",
+    "text": "Verification for Logic-level N-channel MOSFET switch remains an estimate: Logic MOSFET module uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-driver"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-2e2344b09a"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:24.073546+00:00"
+  },
+  {
+    "narrationId": "narration-cfc5c9b56ef665a9ba11",
+    "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "revision": 1,
+    "eventId": 42,
+    "kind": "warning",
+    "text": "Verification for Protective enclosure remains an estimate: Protective enclosure is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-enclosure"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-24e42d69c8"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:24.073546+00:00"
+  },
+  {
+    "narrationId": "narration-5efcdc5b774bf389910d",
+    "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "revision": 1,
+    "eventId": 43,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source remains an estimate: Low-voltage power source is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-power"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-47e92dba19"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:24.073546+00:00"
+  },
+  {
+    "narrationId": "narration-20fb26b5ec2d4e53e033",
+    "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "revision": 0,
+    "eventId": 44,
+    "kind": "verification_explanation",
+    "text": "Independent evidence and a deterministic rule agree: Driver logic is compatible with controller logic.",
+    "semanticIds": [
+      "component-controller",
+      "component-driver"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-logic-voltage-compatible-260ce8c0f6"
+    ],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:24.073546+00:00"
+  },
+  {
+    "narrationId": "narration-967453741f8550092227",
+    "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "revision": 0,
+    "eventId": 44,
+    "kind": "verification_explanation",
+    "text": "Manufacturer documentation supports this result: Authoritative properties available from STMicroelectronics 1N4007.",
+    "semanticIds": [
+      "component-flyback-diode"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-423fc6cb24"
+    ],
+    "evidenceIds": [
+      "evidence-st-protection"
+    ],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:24.073546+00:00"
+  },
+  {
+    "narrationId": "narration-25581758824aac70c1d7",
+    "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "revision": 1,
+    "eventId": 70,
+    "kind": "completion",
+    "text": "Project ready with 9 components across 6 subsystems: 2 source-verified checks, 8 estimates, and 0 failed checks.",
+    "semanticIds": [
+      "project-3407f9d16a4d575e9bb47e152f465b3d"
+    ],
+    "verificationFindingIds": [],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:25.512211+00:00"
+  }
+]

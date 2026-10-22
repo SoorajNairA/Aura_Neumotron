@@ -1,0 +1,505 @@
+{
+  "sourceGraph": "audit-output\\four-wheel-rover\\graph.json",
+  "components": [
+    {
+      "id": "component-motor",
+      "kind": "component",
+      "name": "Small DC motor",
+      "parent_id": "subsystem-actuator",
+      "metadata": {
+        "role": "small_dc_motor",
+        "family": "small_dc_motor",
+        "parameters": {
+          "voltage_v": 5.0,
+          "current_a": 0.6,
+          "inductive_load": true,
+          "functional_roles": [
+            "controlled_motion",
+            "conveyor_drive"
+          ],
+          "controlled_dof": 1,
+          "resolution_quality": "COMPATIBLE_GENERIC",
+          "planner_intent": "Small DC motor"
+        },
+        "interfaces": [
+          "power",
+          "ground",
+          "shaft",
+          "body-mount"
+        ],
+        "dimensions": {
+          "width": {
+            "value": 30,
+            "unit": "mm"
+          },
+          "length": {
+            "value": 45,
+            "unit": "mm"
+          },
+          "height": {
+            "value": 30,
+            "unit": "mm"
+          }
+        },
+        "representation_status": "placeholder",
+        "assumption_refs": [
+          "assumption-motor"
+        ]
+      },
+      "source_refs": [],
+      "verification_status": "estimated",
+      "representation_refs": []
+    },
+    {
+      "id": "component-motor-2",
+      "kind": "component",
+      "name": "Small DC motor",
+      "parent_id": "subsystem-actuator",
+      "metadata": {
+        "role": "small_dc_motor",
+        "family": "small_dc_motor",
+        "parameters": {
+          "voltage_v": 5.0,
+          "current_a": 0.6,
+          "inductive_load": true,
+          "functional_roles": [
+            "controlled_motion",
+            "conveyor_drive"
+          ],
+          "controlled_dof": 1,
+          "resolution_quality": "COMPATIBLE_GENERIC",
+          "planner_intent": "Small DC motor"
+        },
+        "interfaces": [
+          "power",
+          "ground",
+          "shaft",
+          "body-mount"
+        ],
+        "dimensions": {
+          "width": {
+            "value": 30,
+            "unit": "mm"
+          },
+          "length": {
+            "value": 45,
+            "unit": "mm"
+          },
+          "height": {
+            "value": 30,
+            "unit": "mm"
+          }
+        },
+        "representation_status": "placeholder",
+        "assumption_refs": [
+          "assumption-motor"
+        ]
+      },
+      "source_refs": [],
+      "verification_status": "estimated",
+      "representation_refs": []
+    },
+    {
+      "id": "component-motor-3",
+      "kind": "component",
+      "name": "Small DC motor",
+      "parent_id": "subsystem-actuator",
+      "metadata": {
+        "role": "small_dc_motor",
+        "family": "small_dc_motor",
+        "parameters": {
+          "voltage_v": 5.0,
+          "current_a": 0.6,
+          "inductive_load": true,
+          "functional_roles": [
+            "controlled_motion",
+            "conveyor_drive"
+          ],
+          "controlled_dof": 1,
+          "resolution_quality": "COMPATIBLE_GENERIC",
+          "planner_intent": "Small DC motor"
+        },
+        "interfaces": [
+          "power",
+          "ground",
+          "shaft",
+          "body-mount"
+        ],
+        "dimensions": {
+          "width": {
+            "value": 30,
+            "unit": "mm"
+          },
+          "length": {
+            "value": 45,
+            "unit": "mm"
+          },
+          "height": {
+            "value": 30,
+            "unit": "mm"
+          }
+        },
+        "representation_status": "placeholder",
+        "assumption_refs": [
+          "assumption-motor"
+        ]
+      },
+      "source_refs": [],
+      "verification_status": "estimated",
+      "representation_refs": []
+    },
+    {
+      "id": "component-motor-4",
+      "kind": "component",
+      "name": "Small DC motor",
+      "parent_id": "subsystem-actuator",
+      "metadata": {
+        "role": "small_dc_motor",
+        "family": "small_dc_motor",
+        "parameters": {
+          "voltage_v": 5.0,
+          "current_a": 0.6,
+          "inductive_load": true,
+          "functional_roles": [
+            "controlled_motion",
+            "conveyor_drive"
+          ],
+          "controlled_dof": 1,
+          "resolution_quality": "COMPATIBLE_GENERIC",
+          "planner_intent": "Small DC motor"
+        },
+        "interfaces": [
+          "power",
+          "ground",
+          "shaft",
+          "body-mount"
+        ],
+        "dimensions": {
+          "width": {
+            "value": 30,
+            "unit": "mm"
+          },
+          "length": {
+            "value": 45,
+            "unit": "mm"
+          },
+          "height": {
+            "value": 30,
+            "unit": "mm"
+          }
+        },
+        "representation_status": "placeholder",
+        "assumption_refs": [
+          "assumption-motor"
+        ]
+      },
+      "source_refs": [],
+      "verification_status": "estimated",
+      "representation_refs": []
+    },
+    {
+      "id": "component-motor-driver",
+      "kind": "component",
+      "name": "Generic motor driver",
+      "parent_id": "subsystem-electronics",
+      "metadata": {
+        "role": "motor_driver",
+        "family": "motor_driver",
+        "parameters": {
+          "logic_voltage_v": 3.3,
+          "logic_voltage_min_v": 2.7,
+          "logic_voltage_max_v": 5.5,
+          "load_voltage_v": 5.0,
+          "max_current_a": 1.2,
+          "flyback_protection": true,
+          "functional_roles": [
+            "actuator_driver"
+          ],
+          "resolution_quality": "COMPATIBLE_GENERIC",
+          "component_definition_id": "drv8833-module",
+          "component_definition_version": "catalogue-v1",
+          "planner_intent": "Generic motor driver"
+        },
+        "interfaces": [
+          "power",
+          "ground",
+          "signal",
+          "load-output",
+          "body-mount"
+        ],
+        "dimensions": {
+          "width": {
+            "value": 32,
+            "unit": "mm"
+          },
+          "length": {
+            "value": 24,
+            "unit": "mm"
+          },
+          "height": {
+            "value": 8,
+            "unit": "mm"
+          }
+        },
+        "representation_status": "placeholder",
+        "assumption_refs": [
+          "assumption-motor-driver"
+        ]
+      },
+      "source_refs": [],
+      "verification_status": "source_verified",
+      "representation_refs": []
+    },
+    {
+      "id": "component-power",
+      "kind": "component",
+      "name": "Low-voltage power source",
+      "parent_id": "subsystem-power",
+      "metadata": {
+        "role": "low_voltage_power_source",
+        "family": "low_voltage_power_source",
+        "parameters": {
+          "voltage_v": 5.0,
+          "available_current_a": 3.4,
+          "mains_exposed": false,
+          "functional_roles": [
+            "power"
+          ],
+          "resolution_quality": "COMPATIBLE_GENERIC",
+          "planner_intent": "Low-voltage power source"
+        },
+        "interfaces": [
+          "power",
+          "ground",
+          "body-mount"
+        ],
+        "dimensions": {
+          "width": {
+            "value": 48,
+            "unit": "mm"
+          },
+          "length": {
+            "value": 30,
+            "unit": "mm"
+          },
+          "height": {
+            "value": 18,
+            "unit": "mm"
+          }
+        },
+        "representation_status": "placeholder",
+        "assumption_refs": [
+          "assumption-power"
+        ]
+      },
+      "source_refs": [],
+      "verification_status": "estimated",
+      "representation_refs": []
+    }
+  ],
+  "nets": [
+    {
+      "id": "net-control-d0607ab992ca",
+      "kind": "connection",
+      "name": "NET_CONTROL_D0607AB992CA",
+      "parent_id": "project-12253b3425675b0e8f965befadde43c9",
+      "metadata": {
+        "semantic_type": "electrical_net",
+        "role": "control",
+        "terminals": [
+          {
+            "componentId": "component-controller",
+            "interfaceId": "signal-2"
+          },
+          {
+            "componentId": "component-motor-driver",
+            "interfaceId": "signal"
+          }
+        ],
+        "displayStyle": {
+          "color": "#4fd1c5"
+        },
+        "connectionIds": [
+          "connection-controller-motor-driver-control-edge"
+        ]
+      },
+      "source_refs": [],
+      "verification_status": "conceptual",
+      "representation_refs": []
+    },
+    {
+      "id": "net-ground-61ec0a9e5d7b",
+      "kind": "connection",
+      "name": "NET_GROUND_61EC0A9E5D7B",
+      "parent_id": "project-12253b3425675b0e8f965befadde43c9",
+      "metadata": {
+        "semantic_type": "electrical_net",
+        "role": "ground",
+        "terminals": [
+          {
+            "componentId": "component-controller",
+            "interfaceId": "ground"
+          },
+          {
+            "componentId": "component-motor-2",
+            "interfaceId": "ground"
+          },
+          {
+            "componentId": "component-motor-3",
+            "interfaceId": "ground"
+          },
+          {
+            "componentId": "component-motor-4",
+            "interfaceId": "ground"
+          },
+          {
+            "componentId": "component-motor-driver",
+            "interfaceId": "ground"
+          },
+          {
+            "componentId": "component-motor",
+            "interfaceId": "ground"
+          },
+          {
+            "componentId": "component-power",
+            "interfaceId": "ground"
+          },
+          {
+            "componentId": "component-wireless-control",
+            "interfaceId": "ground"
+          }
+        ],
+        "displayStyle": {
+          "color": "#718096"
+        },
+        "connectionIds": [
+          "connection-power-controller-ground-edge",
+          "connection-power-motor-2-ground-edge",
+          "connection-power-motor-3-ground-edge",
+          "connection-power-motor-4-ground-edge",
+          "connection-power-motor-driver-ground-edge",
+          "connection-power-motor-ground-edge",
+          "connection-power-wireless-control-ground-edge"
+        ]
+      },
+      "source_refs": [],
+      "verification_status": "conceptual",
+      "representation_refs": []
+    },
+    {
+      "id": "net-power-1473d9b2c6f5",
+      "kind": "connection",
+      "name": "NET_POWER_1473D9B2C6F5",
+      "parent_id": "project-12253b3425675b0e8f965befadde43c9",
+      "metadata": {
+        "semantic_type": "electrical_net",
+        "role": "power",
+        "terminals": [
+          {
+            "componentId": "component-controller",
+            "interfaceId": "power"
+          },
+          {
+            "componentId": "component-motor-driver",
+            "interfaceId": "power"
+          },
+          {
+            "componentId": "component-power",
+            "interfaceId": "power"
+          },
+          {
+            "componentId": "component-wireless-control",
+            "interfaceId": "power"
+          }
+        ],
+        "displayStyle": {
+          "color": "#ef6f61"
+        },
+        "connectionIds": [
+          "connection-power-controller-power-edge",
+          "connection-power-motor-driver-power-edge",
+          "connection-power-wireless-control-power-edge"
+        ]
+      },
+      "source_refs": [],
+      "verification_status": "conceptual",
+      "representation_refs": []
+    },
+    {
+      "id": "net-power-8e7050862603",
+      "kind": "connection",
+      "name": "NET_POWER_8E7050862603",
+      "parent_id": "project-12253b3425675b0e8f965befadde43c9",
+      "metadata": {
+        "semantic_type": "electrical_net",
+        "role": "power",
+        "terminals": [
+          {
+            "componentId": "component-motor-2",
+            "interfaceId": "power"
+          },
+          {
+            "componentId": "component-motor-3",
+            "interfaceId": "power"
+          },
+          {
+            "componentId": "component-motor-4",
+            "interfaceId": "power"
+          },
+          {
+            "componentId": "component-motor-driver",
+            "interfaceId": "load-output"
+          },
+          {
+            "componentId": "component-motor",
+            "interfaceId": "power"
+          }
+        ],
+        "displayStyle": {
+          "color": "#ef6f61"
+        },
+        "connectionIds": [
+          "connection-motor-driver-motor-2-switched-power-edge",
+          "connection-motor-driver-motor-3-switched-power-edge",
+          "connection-motor-driver-motor-4-switched-power-edge",
+          "connection-motor-driver-motor-switched-power-edge"
+        ]
+      },
+      "source_refs": [],
+      "verification_status": "conceptual",
+      "representation_refs": []
+    },
+    {
+      "id": "net-signal-1e994fa912ed",
+      "kind": "connection",
+      "name": "NET_SIGNAL_1E994FA912ED",
+      "parent_id": "project-12253b3425675b0e8f965befadde43c9",
+      "metadata": {
+        "semantic_type": "electrical_net",
+        "role": "signal",
+        "terminals": [
+          {
+            "componentId": "component-controller",
+            "interfaceId": "signal-1"
+          },
+          {
+            "componentId": "component-wireless-control",
+            "interfaceId": "signal"
+          }
+        ],
+        "displayStyle": {
+          "color": "#63b3ed"
+        },
+        "connectionIds": [
+          "connection-wireless-control-controller-signal-edge"
+        ]
+      },
+      "source_refs": [],
+      "verification_status": "conceptual",
+      "representation_refs": []
+    }
+  ],
+  "modeledMotorLoadA": 2.4,
+  "modeledDriverMaxCurrentA": 1.2,
+  "note": "Four motors share one load-output net; one controller-to-driver control relationship; current demand exceeds declared driver max_current_a. Numerical facts are graph declarations, not measured hardware data."
+}

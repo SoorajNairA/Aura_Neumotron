@@ -12,7 +12,7 @@ from aura.planner.schemas import ProjectPlan
 
 from .catalogue import CATALOGUE, CATALOGUE_VERSION, evidence_records, search
 from .evidence import EvidenceKind
-from .results import VerificationDecision, VerificationFinding, VerificationResult, VerificationState
+from .results import CheckCoverage, VerificationDecision, VerificationFinding, VerificationResult, VerificationState
 from .plausibility import evaluate_plausibility
 from .graph_rules import evaluate_graph
 from .delta import DeltaClassification, compare_verification
@@ -35,16 +35,27 @@ class VerificationService:
 
     def verify(self, plan: ProjectPlan) -> VerificationResult:
         try: plan.validate()
-        except ValueError as exc: return VerificationResult(VerificationDecision.REJECT, VerificationState.FAILED, (str(exc),), None)
+        except ValueError as exc: return VerificationResult(VerificationDecision.REJECT, VerificationState.FAILED, (str(exc),), None,
+            execution_coverage=CheckCoverage("ProjectPlan schema/project-count checks; engineering rules not evaluated", False,
+                ("PLAN_SCHEMA",), ("PLAN_SCHEMA", "PLAN_SOLE_PROJECT"), (), ("PLAN_SOLE_PROJECT", "ENGINEERING_PLAN_RULES")))
         if sum(e.kind == EntityKind.PROJECT for e in plan.entities) != 1:
-            return VerificationResult(VerificationDecision.REJECT, VerificationState.FAILED, ("A project plan must contain exactly one project entity",), None)
-        if plan.components: return self._verify_engineering_plan(plan)
+            return VerificationResult(VerificationDecision.REJECT, VerificationState.FAILED, ("A project plan must contain exactly one project entity",), None,
+                execution_coverage=CheckCoverage("ProjectPlan schema/project-count checks; engineering rules not evaluated", False,
+                    ("PLAN_SCHEMA", "PLAN_SOLE_PROJECT"), ("PLAN_SCHEMA", "PLAN_SOLE_PROJECT"), (), ("ENGINEERING_PLAN_RULES",)))
+        if plan.components:
+            result = self._verify_engineering_plan(plan)
+            return replace(result, execution_coverage=CheckCoverage(
+                "ProjectPlan structural validation and engineering-rule dispatch; individual rule applicability is uninstrumented",
+                False, ("PLAN_SCHEMA", "PLAN_SOLE_PROJECT", "ENGINEERING_PLAN_RULES"),
+                ("PLAN_SCHEMA", "PLAN_SOLE_PROJECT", "ENGINEERING_PLAN_RULES"), (), ("ENGINEERING_PLAN_RULE_APPLICABILITY",)))
         operations=[]
         for op in plan.patch.operations:
             if op.operation == PatchOperation.ADD_ENTITY and op.entity:
                 operations.append(replace(op,entity=replace(op.entity,name=op.entity.name.strip(),verification_status=VerificationState.TOOL_VERIFIED.value)))
             else: operations.append(op)
-        return VerificationResult(VerificationDecision.MODIFY,VerificationState.TOOL_VERIFIED,("Schema and graph references passed deterministic checks",),replace(plan.patch,operations=tuple(operations)))
+        return VerificationResult(VerificationDecision.MODIFY,VerificationState.TOOL_VERIFIED,("Schema and graph references passed deterministic checks",),replace(plan.patch,operations=tuple(operations)),
+            execution_coverage=CheckCoverage("ProjectPlan schema and sole-project validation only; no engineering verification", True,
+                ("PLAN_SCHEMA", "PLAN_SOLE_PROJECT"), ("PLAN_SCHEMA", "PLAN_SOLE_PROJECT"), ("ENGINEERING_PLAN_RULES",)))
 
     def _verify_engineering_plan(self, plan: ProjectPlan) -> VerificationResult:
         components={c.id:c for c in plan.components}; connections=list(plan.connections); findings=[]; revision=1
@@ -313,8 +324,10 @@ class VerificationService:
         """
         try: graph.validate()
         except ValueError as exc:
-            finding=self._finding("GRAPH_INVALID",VerificationState.FAILED,"critical",str(exc),(graph.project_id,),category="graph",blocking=True)
-            return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,(str(exc),),None,(finding,),self._confidence((finding,)))
+            finding=self._finding("GRAPH_INVALID",VerificationState.FAILED,"critical",str(exc),(graph.project_id,),revision=len(graph.revisions),category="graph",blocking=True)
+            return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,(str(exc),),None,(finding,),self._confidence((finding,)),
+                execution_coverage=CheckCoverage("EngineeringGraph structural validation and graph-rule dispatch", False,
+                    ("GRAPH_SCHEMA",), ("GRAPH_SCHEMA", "GRAPH_RULE_DISPATCH"), (), ("GRAPH_RULE_DISPATCH", "GRAPH_RULE_APPLICABILITY")))
         candidate=self._with_authoritative_nets(deepcopy(graph))
         findings=[];revision=len(graph.revisions)
         def add(check,state,severity,message,ids,**kwargs):
@@ -326,7 +339,10 @@ class VerificationService:
         state=VerificationState.FAILED if blocking else VerificationState.ESTIMATED if limited else VerificationState.CROSS_CHECKED
         decision=VerificationDecision.REJECT if blocking else VerificationDecision.ACCEPT
         reasons=tuple(item.message for item in blocking) or ("Complete Engineering Graph verification passed.",)
-        return VerificationResult(decision,state,reasons,None,tuple(findings),self._confidence(tuple(findings)))
+        return VerificationResult(decision,state,reasons,None,tuple(findings),self._confidence(tuple(findings)),
+            execution_coverage=CheckCoverage(
+                "EngineeringGraph structural validation and graph-rule dispatch; individual rule applicability is uninstrumented",
+                False, ("GRAPH_SCHEMA", "GRAPH_RULE_DISPATCH"), ("GRAPH_SCHEMA", "GRAPH_RULE_DISPATCH"), (), ("GRAPH_RULE_APPLICABILITY",)))
 
     @staticmethod
     def _confidence(findings: tuple[VerificationFinding,...]) -> dict[str,int]:
@@ -371,7 +387,7 @@ class VerificationService:
         delta=compare_verification(before,verified)
         incremental=delta.classification in {DeltaClassification.IMPROVES,DeltaClassification.RESOLVES_ALL} and delta.blocking_introduced_count==0
         if not verified.accepted and not incremental:
-            return VerificationResult(VerificationDecision.REJECT,verified.state,verified.reasons,None,verified.findings,verified.confidence_ingredients,delta.to_dict())
+            return VerificationResult(VerificationDecision.REJECT,verified.state,verified.reasons,None,verified.findings,verified.confidence_ingredients,delta.to_dict(),verified.execution_coverage)
         for result in graph.find(kind=EntityKind.VERIFICATION_RESULT):
             dependencies=set(result.metadata.get("dependencyIds",result.metadata.get("entity_ids",[])))
             if dependencies & affected:
@@ -403,4 +419,4 @@ class VerificationService:
             operations.append(GraphOperation(PatchOperation.UPDATE_ENTITY,target_id=update_finding.id,changes={"name":update_finding.message,"metadata":update_finding.to_dict(),"verification_status":update_finding.state.value}))
         else:
             operations.append(GraphOperation(PatchOperation.ADD_ENTITY,entity=update_entity))
-        return VerificationResult(VerificationDecision.MODIFY,verified.state,(reason,),replace(patch,operations=tuple(operations)),verified.findings+(update_finding,),verified.confidence_ingredients,delta.to_dict())
+        return VerificationResult(VerificationDecision.MODIFY,verified.state,(reason,),replace(patch,operations=tuple(operations)),verified.findings+(update_finding,),verified.confidence_ingredients,delta.to_dict(),verified.execution_coverage)

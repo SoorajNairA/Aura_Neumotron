@@ -1,0 +1,483 @@
+{
+  "sourcePin": {
+    "repository": "repository",
+    "head": "eb5a756b3148bb1aa50bd36da6fd9aa5aae3b2b5",
+    "sourceHashes": {
+      "src/aura/verification/service.py": "0fbf8ca832b036b54ba138edd3862731c5e07c593dfd05a3f81bb3ecf57a61da",
+      "src/aura/workspace/bridge.py": "7dc6bd907a4d4a94666f520fbffaafc5c67cbc5b185ebf7258eea0fd185791ad",
+      "src/aura/engineering_graph/electrical.py": "a62b7d7e32fe2e7f4ce21ddd3fee1dba665946d2c66344914a000049fed86251",
+      "src/aura/workspace/modifications.py": "cb70152774de92ecad68416114e3793aa6819006112b185cb945418ec27133f8",
+      "src/aura/verification/catalogue.py": "180d38d1e207082651f0d33d5a3d40d435b375ad3fe3b56ad0479efa5d07ce68",
+      "src/aura/verification/evidence.py": "af161e13a23a1898af705e03efd697c7994809f7d6575233c06a20e29151dd12"
+    }
+  },
+  "scope": "Public graph API arbitrary GraphPatch, not directly exposed by current bounded UI",
+  "before": {
+    "graph": {
+      "schema_version": "1.0",
+      "project_id": "p",
+      "entities": [
+        {
+          "id": "load",
+          "kind": "component",
+          "name": "Load",
+          "parent_id": "p",
+          "metadata": {
+            "interfaces": [
+              {
+                "id": "in",
+                "role": "power_input",
+                "direction": "input",
+                "required": true,
+                "input_voltage_range_v": [
+                  4.5,
+                  5.5
+                ]
+              }
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "net-power-be2b64a68c7a",
+          "kind": "connection",
+          "name": "NET_POWER_BE2B64A68C7A",
+          "parent_id": "p",
+          "metadata": {
+            "semantic_type": "electrical_net",
+            "role": "power",
+            "terminals": [
+              {
+                "componentId": "load",
+                "interfaceId": "in"
+              },
+              {
+                "componentId": "source",
+                "interfaceId": "out"
+              }
+            ],
+            "displayStyle": {
+              "color": "#ef6f61"
+            },
+            "connectionIds": [
+              "r"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "p",
+          "kind": "project",
+          "name": "p",
+          "parent_id": null,
+          "metadata": {},
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "source",
+          "kind": "component",
+          "name": "Supply",
+          "parent_id": "p",
+          "metadata": {
+            "interfaces": [
+              {
+                "id": "out",
+                "role": "power_output",
+                "direction": "output",
+                "output_voltage_v": 5
+              }
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "wire",
+          "kind": "connection",
+          "name": "Wire",
+          "parent_id": "p",
+          "metadata": {
+            "source_interface": "out",
+            "target_interface": "in"
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        }
+      ],
+      "relationships": [
+        {
+          "id": "r",
+          "source_id": "source",
+          "target_id": "load",
+          "type": "power",
+          "metadata": {
+            "connection_id": "wire"
+          }
+        }
+      ],
+      "revisions": []
+    },
+    "verification": {
+      "accepted": true,
+      "state": "cross_checked",
+      "decision": "accept",
+      "reasons": [
+        "Complete Engineering Graph verification passed."
+      ],
+      "findings": []
+    }
+  },
+  "patch": {
+    "id": "audit-remove-power",
+    "summary": "Disconnect supply",
+    "base_revision_id": null,
+    "operations": [
+      {
+        "operation": "remove_relationship",
+        "entity": null,
+        "relationship": null,
+        "target_id": "r",
+        "changes": {}
+      }
+    ]
+  },
+  "candidate": {
+    "graph": {
+      "schema_version": "1.0",
+      "project_id": "p",
+      "entities": [
+        {
+          "id": "load",
+          "kind": "component",
+          "name": "Load",
+          "parent_id": "p",
+          "metadata": {
+            "interfaces": [
+              {
+                "id": "in",
+                "role": "power_input",
+                "direction": "input",
+                "required": true,
+                "input_voltage_range_v": [
+                  4.5,
+                  5.5
+                ]
+              }
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "net-power-be2b64a68c7a",
+          "kind": "connection",
+          "name": "NET_POWER_BE2B64A68C7A",
+          "parent_id": "p",
+          "metadata": {
+            "semantic_type": "electrical_net",
+            "role": "power",
+            "terminals": [
+              {
+                "componentId": "load",
+                "interfaceId": "in"
+              },
+              {
+                "componentId": "source",
+                "interfaceId": "out"
+              }
+            ],
+            "displayStyle": {
+              "color": "#ef6f61"
+            },
+            "connectionIds": [
+              "r"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "p",
+          "kind": "project",
+          "name": "p",
+          "parent_id": null,
+          "metadata": {},
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "source",
+          "kind": "component",
+          "name": "Supply",
+          "parent_id": "p",
+          "metadata": {
+            "interfaces": [
+              {
+                "id": "out",
+                "role": "power_output",
+                "direction": "output",
+                "output_voltage_v": 5
+              }
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "wire",
+          "kind": "connection",
+          "name": "Wire",
+          "parent_id": "p",
+          "metadata": {
+            "source_interface": "out",
+            "target_interface": "in"
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        }
+      ],
+      "relationships": [],
+      "revisions": [
+        {
+          "id": "revision-fec11e9ebdff4809ba319ed52f409e1d",
+          "parent_id": null,
+          "patch_id": "audit-remove-power",
+          "summary": "Disconnect supply",
+          "created_at": "2026-10-05T17:30:36.351397+00:00"
+        }
+      ]
+    },
+    "modificationVerification": {
+      "accepted": true,
+      "state": "cross_checked",
+      "decision": "modify",
+      "reasons": [
+        "The complete candidate Engineering Graph passed re-verification."
+      ],
+      "findings": [
+        {
+          "findingId": "verification-mosfet-update",
+          "semanticId": "r",
+          "code": "driver-update",
+          "check": "driver-update",
+          "status": "estimated",
+          "severity": "WARN",
+          "legacySeverity": "warning",
+          "category": "general",
+          "blocking": false,
+          "summary": "Modified driver values require implementation confirmation.",
+          "expected": null,
+          "actual": null,
+          "evidenceIds": [],
+          "verifiedAt": "2026-10-05T17:30:36.352396+00:00",
+          "sourceVersions": {},
+          "dependencyIds": [
+            "r"
+          ],
+          "revision": 1,
+          "machineResult": {
+            "staleFindings": []
+          },
+          "requirementIds": [],
+          "netIds": [],
+          "interfaceIds": [],
+          "requiredCapability": null,
+          "repairHint": null,
+          "semanticIds": [
+            "r"
+          ],
+          "entity_ids": [
+            "r"
+          ]
+        }
+      ]
+    }
+  },
+  "after": {
+    "graph": {
+      "schema_version": "1.0",
+      "project_id": "p",
+      "entities": [
+        {
+          "id": "load",
+          "kind": "component",
+          "name": "Load",
+          "parent_id": "p",
+          "metadata": {
+            "interfaces": [
+              {
+                "id": "in",
+                "role": "power_input",
+                "direction": "input",
+                "required": true,
+                "input_voltage_range_v": [
+                  4.5,
+                  5.5
+                ]
+              }
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "p",
+          "kind": "project",
+          "name": "p",
+          "parent_id": null,
+          "metadata": {},
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "source",
+          "kind": "component",
+          "name": "Supply",
+          "parent_id": "p",
+          "metadata": {
+            "interfaces": [
+              {
+                "id": "out",
+                "role": "power_output",
+                "direction": "output",
+                "output_voltage_v": 5
+              }
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        },
+        {
+          "id": "verification-mosfet-update",
+          "kind": "verification_result",
+          "name": "Modified driver values require implementation confirmation.",
+          "parent_id": "p",
+          "metadata": {
+            "findingId": "verification-mosfet-update",
+            "semanticId": "r",
+            "code": "driver-update",
+            "check": "driver-update",
+            "status": "estimated",
+            "severity": "WARN",
+            "legacySeverity": "warning",
+            "category": "general",
+            "blocking": false,
+            "summary": "Modified driver values require implementation confirmation.",
+            "expected": null,
+            "actual": null,
+            "evidenceIds": [],
+            "verifiedAt": "2026-10-05T17:30:36.352396+00:00",
+            "sourceVersions": {},
+            "dependencyIds": [
+              "r"
+            ],
+            "revision": 1,
+            "machineResult": {
+              "staleFindings": []
+            },
+            "requirementIds": [],
+            "netIds": [],
+            "interfaceIds": [],
+            "requiredCapability": null,
+            "repairHint": null,
+            "semanticIds": [
+              "r"
+            ],
+            "entity_ids": [
+              "r"
+            ]
+          },
+          "source_refs": [],
+          "verification_status": "estimated",
+          "representation_refs": []
+        },
+        {
+          "id": "wire",
+          "kind": "connection",
+          "name": "Wire",
+          "parent_id": "p",
+          "metadata": {
+            "source_interface": "out",
+            "target_interface": "in"
+          },
+          "source_refs": [],
+          "verification_status": "conceptual",
+          "representation_refs": []
+        }
+      ],
+      "relationships": [],
+      "revisions": [
+        {
+          "id": "revision-2acc0ef460474d2193ef9f632fc340a2",
+          "parent_id": null,
+          "patch_id": "audit-remove-power",
+          "summary": "Disconnect supply",
+          "created_at": "2026-10-05T17:30:36.352396+00:00"
+        }
+      ]
+    },
+    "verification": {
+      "accepted": false,
+      "state": "failed",
+      "decision": "reject",
+      "reasons": [
+        "Load has unconnected required interfaces: in."
+      ],
+      "findings": [
+        {
+          "findingId": "verification-elec-required-port-unconnected-267fbcb6f1",
+          "semanticId": "load",
+          "code": "ELEC_REQUIRED_PORT_UNCONNECTED",
+          "check": "ELEC_REQUIRED_PORT_UNCONNECTED",
+          "status": "failed",
+          "severity": "FAIL",
+          "legacySeverity": "critical",
+          "category": "electrical",
+          "blocking": true,
+          "summary": "Load has unconnected required interfaces: in.",
+          "expected": null,
+          "actual": {
+            "connectedInterfaces": []
+          },
+          "evidenceIds": [],
+          "verifiedAt": "2026-10-05T17:30:36.353396+00:00",
+          "sourceVersions": {},
+          "dependencyIds": [
+            "load"
+          ],
+          "revision": 1,
+          "machineResult": {},
+          "requirementIds": [],
+          "netIds": [],
+          "interfaceIds": [
+            "in"
+          ],
+          "requiredCapability": null,
+          "repairHint": null,
+          "semanticIds": [
+            "load"
+          ],
+          "entity_ids": [
+            "load"
+          ]
+        }
+      ]
+    }
+  }
+}

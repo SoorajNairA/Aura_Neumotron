@@ -1,0 +1,20 @@
+{
+    "head":  "eb5a756b3148bb1aa50bd36da6fd9aa5aae3b2b5",
+    "repository":  "repository",
+    "sourceChanged":  false,
+    "dependencyInstalled":  false,
+    "committed":  false,
+    "pushed":  false,
+    "pythonPassed":  297,
+    "pythonSkipped":  2,
+    "frontendUnitPassed":  14,
+    "typescriptExit":  0,
+    "frontendBuildExit":  0,
+    "compileallExit":  0,
+    "browserPassed":  28,
+    "browserSkipped":  1,
+    "browserFailed":  1,
+    "liveModel":  "IAM403 not verified",
+    "report":  "REPORT.md",
+    "gallery":  "gallery.html"
+}

@@ -1,0 +1,1 @@
+{"kind":"mechanical_3d","semanticIds":["component-resistor-4"],"units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"geometry":{"operation":"box","width":7.0,"depth":3.0,"height":3.0},"semanticCoverage":{"componentId":"component-resistor-4","family":"resistor","proxy":true,"renderStrategy":"family_proxy","representationClass":"generic"}}

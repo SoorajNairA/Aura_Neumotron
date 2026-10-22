@@ -1,0 +1,239 @@
+{
+  "metrics": {
+    "activeProjectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "renders": 5,
+    "triangles": 10829,
+    "objects": 5,
+    "recursiveObjects": 60,
+    "meshes": 47,
+    "visibleMeshes": 47,
+    "geometries": 48,
+    "materials": 48,
+    "rendererGeometries": 48,
+    "rendererTextures": 1,
+    "bounds": {
+      "min": [
+        -75,
+        -50,
+        -14.879999999999999
+      ],
+      "max": [
+        75,
+        50,
+        83.59999961853028
+      ]
+    },
+    "finiteBounds": true,
+    "canvas": {
+      "width": 1048,
+      "height": 874
+    },
+    "contextLost": false
+  },
+  "statusText": "AURA\nENGINEERING WORKSPACE\nPROJECT\nLow-voltage Motorized Camera Slider With 400 Mm\n▾\nREV 01\nREADY WITH LIMITATIONS\nASSEMBLY\nSCHEMATIC\nSPLIT\nWORK\nVERIFICATION\nPASS · 0 FAILED\nWORK\n0 ACTIVE · 0 PAUSED\n● LIVE\n•••\n‹\nSYSTEMS\n5 COMPONENTS\nCOMPLETE SYSTEM\nSHOW ALL\n− ACTUATOR\nISOLATE\nSG90 Servo\nCONCEPTUAL\n− ELECTRONICS\nISOLATE\nArduino Nano\nCONCEPTUAL\n− MECHANICAL\nISOLATE\nCamera platform\nCONCEPTUAL\n− POWER\nISOLATE\nLow-voltage power source\nCONCEPTUAL\n− STRUCTURE\nISOLATE\nStructural base\nCONCEPTUAL\nFIT\nEXPLODE\nSOLID\nSHOW ALL\n›\nPROJECT\nREV 01\nLow-voltage Motorized Camera Slider With 400 Mm\nREADY WITH LIMITATIONS\nBUILD PIPELINE\nPLANNING\nCOMPLETE\nENGINEERING GRAPH\n5 COMPONENTS\nVERIFICATION\nPASS\nPHYSICAL ASSEMBLY\n5 PARTS / 4 MATES\nSCHEMATIC\n110 RECORDS\nLIMITATIONS\nObjective is within bounded small low-voltage mechatronics.\nWORK\n0\nCOMPLETED\n0\nIN PROGRESS\n0\nPAUSED\nOPEN WORK\nWHAT-IF ANALYSIS\nSelect a component to explore an engineering change.\nSelect a component in Assembly or Schematic, then choose WHAT IF?\nRevision 1\nAURA\nProject ready with 5 components across 5 subsystems: 0 source-verified checks, 5 estimates, and 0 failed checks.\nAURA >\nPREVIEW",
+  "errors": [
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)"
+  ],
+  "network": [
+    {
+      "url": "http://127.0.0.1:8877/assets/representation/fonts/Roboto.ttf",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:8877/assets/representation/fonts/Papyrus.ttf",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:8877/assets/representation/fonts/Consolas.ttf",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-c84039a7ffdb514ca3614ab9d48ade15/representations/repr-camera-platform-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-c84039a7ffdb514ca3614ab9d48ade15/representations/repr-controller-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-c84039a7ffdb514ca3614ab9d48ade15/representations/repr-power-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-c84039a7ffdb514ca3614ab9d48ade15/representations/repr-servo-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-c84039a7ffdb514ca3614ab9d48ade15/representations/repr-support-3d/status",
+      "status": 409
+    }
+  ],
+  "assembleRestore": {
+    "activeProjectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "renders": 7,
+    "triangles": 10829,
+    "objects": 5,
+    "recursiveObjects": 60,
+    "meshes": 47,
+    "visibleMeshes": 47,
+    "geometries": 48,
+    "materials": 48,
+    "rendererGeometries": 48,
+    "rendererTextures": 1,
+    "bounds": {
+      "min": [
+        -75,
+        -50,
+        -14.879999999999999
+      ],
+      "max": [
+        75,
+        50,
+        83.59999961853028
+      ]
+    },
+    "finiteBounds": true,
+    "canvas": {
+      "width": 1048,
+      "height": 874
+    },
+    "contextLost": false
+  },
+  "schematicSymbols": 3,
+  "schematicSelection": "component-controller",
+  "partSelection": "component-servo",
+  "projectAfter": {
+    "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "objective": "Build a low-voltage motorized camera slider with 400 mm travel, an 8 mm lead screw, a NEMA 17 stepper motor, two linear guide rails, end limit switches, an Arduino Nano, and a 12 V supply.",
+    "capability": {
+      "status": "SUPPORTED",
+      "reasons": [
+        "Objective is within bounded small low-voltage mechatronics."
+      ]
+    },
+    "planningMode": "deterministic_test",
+    "fallbackReason": null,
+    "revision": 1,
+    "status": "ready_with_limitations",
+    "createdAt": "2026-10-05T17:21:25.698676+00:00",
+    "updatedAt": "2026-10-05T17:21:26.931730+00:00",
+    "generationMessage": null,
+    "userIssues": [],
+    "representations": [
+      {
+        "representationId": "repr-camera-platform-3d",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "semanticIds": [
+          "component-camera-platform"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-04be13cbdad04b728702cc140c5cdc62",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-394c3bae26fb0f692f71",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-controller-3d",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "semanticIds": [
+          "component-controller"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-e6999e803336423790f0b29c9dc74918",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-25fc2c75b7bdd187ea3c",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-power-3d",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "semanticIds": [
+          "component-power"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-5d17a0e645344923a3e390e84f373d63",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-2f557b697d251b01a8a3",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-servo-3d",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "semanticIds": [
+          "component-servo"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-9576a39136034d3fb367c653ba924655",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-8a019d677e94498fd4fb",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-support-3d",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "semanticIds": [
+          "component-support"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-0ba9f9a21aed43c883295d8306a2b6be",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-68fe906316a0e257d9b4",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-system-schematic",
+        "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "revision": 1,
+        "semanticIds": [
+          "component-controller",
+          "component-power",
+          "component-servo"
+        ],
+        "type": "circuit_schematic",
+        "status": "ready",
+        "generator": "tscircuit",
+        "generatorVersion": "0.0.1609",
+        "artifactId": "artifact-4f55ce31828941078ce2cdd8609691c7",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-a02896bbca3cfacc6014",
+        "generation": 1
+      }
+    ]
+  }
+}

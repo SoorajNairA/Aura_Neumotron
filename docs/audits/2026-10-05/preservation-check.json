@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-05",
+  "baselineCommit": "eb5a756b3148bb1aa50bd36da6fd9aa5aae3b2b5",
+  "originalFilesVerified": 284,
+  "publishedEvidenceFilesVerified": 173,
+  "hashErrors": [],
+  "auditedSourceFilesUnchanged": 118,
+  "sourceHashErrors": [],
+  "preExistingMainFilesUnchanged": 8,
+  "mainStatusUnchanged": true,
+  "integrationTrackedAndStagedChanges": false,
+  "integrationStatusAfterPlanning": "?? docs/audits/\n?? docs/superpowers/plans/2026-10-05-nebius-nvidia-hackathon-plan.md\n?? docs/superpowers/plans/2026-10-05-nebius-nvidia-progress.md\n?? docs/superpowers/plans/2026-10-05-stage-1-honest-statuses.md",
+  "jsonErrors": [],
+  "unresolvedLocalLinks": [],
+  "credentialOrMachinePathFindings": [],
+  "markdownTrailingWhitespace": [],
+  "screenshots": "visually reviewed during capability audit; app-only screenshots retained",
+  "productTests": "historical audit results preserved; no implementation or full-suite rerun during planning"
+}

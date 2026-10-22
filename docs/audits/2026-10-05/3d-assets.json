@@ -1,0 +1,1705 @@
+{
+  "generatedAt": "2026-10-05T17:32:32.726055+00:00",
+  "repository": "repository",
+  "readOnlyAudit": true,
+  "scope": {
+    "searchedModelExtensions": [
+      ".3ds",
+      ".3mf",
+      ".blend",
+      ".brep",
+      ".dae",
+      ".dwg",
+      ".dxf",
+      ".fbx",
+      ".glb",
+      ".gltf",
+      ".iges",
+      ".igs",
+      ".obj",
+      ".off",
+      ".ply",
+      ".step",
+      ".stl",
+      ".stp",
+      ".usd",
+      ".usda",
+      ".usdc",
+      ".usdz",
+      ".wrl",
+      ".x3d"
+    ],
+    "includesIgnoredDependenciesAndBuildDirectories": true,
+    "excludedDirectories": [
+      ".git"
+    ],
+    "note": "Every model-format file found is listed with its exact size. Prepared renderers are source code templates, not authored mesh/CAD files. The served representation directory is separately inventoried, including all JS/CSS/HTML/WASM/worker files."
+  },
+  "summary": {
+    "applicationGeometryAssetCount": 0,
+    "dependencyGeometryFixtureCount": 58,
+    "totalGeometryFileCount": 58,
+    "geometryExtensionCounts": {
+      ".3ds": 0,
+      ".3mf": 0,
+      ".blend": 0,
+      ".brep": 1,
+      ".dae": 0,
+      ".dwg": 0,
+      ".dxf": 0,
+      ".fbx": 0,
+      ".glb": 0,
+      ".gltf": 0,
+      ".iges": 0,
+      ".igs": 1,
+      ".obj": 0,
+      ".off": 0,
+      ".ply": 0,
+      ".step": 8,
+      ".stl": 1,
+      ".stp": 47,
+      ".usd": 0,
+      ".usda": 0,
+      ".usdc": 0,
+      ".usdz": 0,
+      ".wrl": 0,
+      ".x3d": 0
+    },
+    "geometryBytes": 3063298,
+    "servedBundleFileCount": 7,
+    "servedBundleBytes": 23416478
+  },
+  "geometryFiles": [
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if-brep/as1_pe_203.brep",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if-brep\\as1_pe_203.brep",
+      "bytes": 42186,
+      "extension": ".brep",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/as1-oc-214.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\as1-oc-214.stp",
+      "bytes": 441968,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/as1-oc-214/as1-oc-214.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\as1-oc-214\\as1-oc-214.stp",
+      "bytes": 441968,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/as1-tu-203.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\as1-tu-203.stp",
+      "bytes": 142057,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/as1_pe_203.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\as1_pe_203.stp",
+      "bytes": 139752,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/dm1-id-214.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\dm1-id-214.stp",
+      "bytes": 87564,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/dm1-oc-214.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\dm1-oc-214.stp",
+      "bytes": 226281,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/dm1-pe-214.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\dm1-pe-214.stp",
+      "bytes": 78883,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/io1-cm-214.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\io1-cm-214.stp",
+      "bytes": 42711,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/io1-tu-203.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\io1-tu-203.stp",
+      "bytes": 78876,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/FOOT.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\FOOT.stp",
+      "bytes": 6751,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/FOOT_BACK_000.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\FOOT_BACK_000.stp",
+      "bytes": 26698,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/FOOT_FRONT_000.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\FOOT_FRONT_000.stp",
+      "bytes": 26630,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/HEAD.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\HEAD.stp",
+      "bytes": 6743,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/HEAD_BACK.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\HEAD_BACK.stp",
+      "bytes": 46859,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/HEAD_FRONT.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\HEAD_FRONT.stp",
+      "bytes": 15935,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/MAINBODY.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\MAINBODY.stp",
+      "bytes": 6785,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/MAINBODY_BACK.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\MAINBODY_BACK.stp",
+      "bytes": 115322,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/MAINBODY_FRONT.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\MAINBODY_FRONT.stp",
+      "bytes": 87512,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/TAIL.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\TAIL.stp",
+      "bytes": 7586,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/TAIL_MIDDLE_PART.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\TAIL_MIDDLE_PART.stp",
+      "bytes": 38757,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/TAIL_TURBINE.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\TAIL_TURBINE.stp",
+      "bytes": 40447,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-c5-214/s1-c5-214.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-c5-214\\s1-c5-214.stp",
+      "bytes": 12400,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-tu-203/footback.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-tu-203\\footback.stp",
+      "bytes": 26621,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-tu-203/footfront.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-tu-203\\footfront.stp",
+      "bytes": 32055,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-tu-203/headback.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-tu-203\\headback.stp",
+      "bytes": 37501,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-tu-203/headfront.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-tu-203\\headfront.stp",
+      "bytes": 18209,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-tu-203/mainbodyback.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-tu-203\\mainbodyback.stp",
+      "bytes": 45427,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-tu-203/mainbodyfront.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-tu-203\\mainbodyfront.stp",
+      "bytes": 74922,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-tu-203/s1-tu-203.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-tu-203\\s1-tu-203.stp",
+      "bytes": 47500,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-tu-203/tailmiddlepart.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-tu-203\\tailmiddlepart.stp",
+      "bytes": 30559,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1-tu-203/tailturbine.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1-tu-203\\tailturbine.stp",
+      "bytes": 61444,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/foot_asm.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\foot_asm.stp",
+      "bytes": 12877,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/foot_back_prt.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\foot_back_prt.stp",
+      "bytes": 16567,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/foot_front_prt.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\foot_front_prt.stp",
+      "bytes": 24072,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/head_asm.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\head_asm.stp",
+      "bytes": 12789,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/head_back_prt.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\head_back_prt.stp",
+      "bytes": 21109,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/head_front_prt.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\head_front_prt.stp",
+      "bytes": 12457,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/main_body_back_prt.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\main_body_back_prt.stp",
+      "bytes": 44953,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/main_body_front_prt.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\main_body_front_prt.stp",
+      "bytes": 55420,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/mainbody_asm.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\mainbody_asm.stp",
+      "bytes": 13072,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/s1_pe_214.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\s1_pe_214.stp",
+      "bytes": 22820,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/tail_asm.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\tail_asm.stp",
+      "bytes": 14979,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/tail_middle_part_prt.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\tail_middle_part_prt.stp",
+      "bytes": 40123,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/s1_pe_214/tail_turbine_prt.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\s1_pe_214\\tail_turbine_prt.stp",
+      "bytes": 44562,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cax-if/sg1-c5-214.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cax-if\\sg1-c5-214.stp",
+      "bytes": 23827,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/conical-surface/conical-surface.step",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\conical-surface\\conical-surface.step",
+      "bytes": 9640,
+      "extension": ".step",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cube-10x10mm/Cube 10x10.igs",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cube-10x10mm\\Cube 10x10.igs",
+      "bytes": 11562,
+      "extension": ".igs",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cube-10x10mm/Cube 10x10.stl",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cube-10x10mm\\Cube 10x10.stl",
+      "bytes": 684,
+      "extension": ".stl",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cube-10x10mm/Cube 10x10.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cube-10x10mm\\Cube 10x10.stp",
+      "bytes": 9404,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cube-fcstd/cube.step",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cube-fcstd\\cube.step",
+      "bytes": 17484,
+      "extension": ".step",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cube-fcstd/cube2.step",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cube-fcstd\\cube2.step",
+      "bytes": 18588,
+      "extension": ".step",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cube-fcstd/cube3.step",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cube-fcstd\\cube3.step",
+      "bytes": 17075,
+      "extension": ".step",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cube-units/cube-in.step",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cube-units\\cube-in.step",
+      "bytes": 18998,
+      "extension": ".step",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cube-units/cube-m.step",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cube-units\\cube-m.step",
+      "bytes": 17945,
+      "extension": ".step",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/cube-units/cube-mm.step",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\cube-units\\cube-mm.step",
+      "bytes": 18065,
+      "extension": ".step",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/rounded-cube/rounded-cube.step",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\rounded-cube\\rounded-cube.step",
+      "bytes": 21070,
+      "extension": ".step",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/node_modules/occt-import-js/test/testfiles/simple-basic-cube/cube.stp",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\frontend\\node_modules\\occt-import-js\\test\\testfiles\\simple-basic-cube\\cube.stp",
+      "bytes": 8247,
+      "extension": ".stp",
+      "classification": "dependency_importer_test_fixture",
+      "usedByCurrentApplication": false
+    }
+  ],
+  "servedBundleFiles": [
+    {
+      "path": "src/aura/workspace/web/representation/assets/index-BTHm8h14.js",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\representation\\assets\\index-BTHm8h14.js",
+      "bytes": 728704,
+      "extension": ".js",
+      "classification": "bundled_application_or_dependency_code_not_authored_model",
+      "sha256": "5d2a17050aab8088abe2157749c8f8ee0f7828cddb6489cc3b5fd654f3f1e205"
+    },
+    {
+      "path": "src/aura/workspace/web/representation/assets/index-Cm9JGUIb.css",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\representation\\assets\\index-Cm9JGUIb.css",
+      "bytes": 31300,
+      "extension": ".css",
+      "classification": "application_markup_or_style_not_geometry",
+      "sha256": "0f535afe0b9ea545ce4b0e74474356ae60c581c21690db80d2647c85de9bc8ef"
+    },
+    {
+      "path": "src/aura/workspace/web/representation/assets/index-D7Yb40d8.js",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\representation\\assets\\index-D7Yb40d8.js",
+      "bytes": 127460,
+      "extension": ".js",
+      "classification": "bundled_application_or_dependency_code_not_authored_model",
+      "sha256": "3ee8289778bb0895427e8460a7b04077285004cc324bf02f694e87a0d8f5d6a5"
+    },
+    {
+      "path": "src/aura/workspace/web/representation/assets/index-Fgna4VMX.js",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\representation\\assets\\index-Fgna4VMX.js",
+      "bytes": 912028,
+      "extension": ".js",
+      "classification": "bundled_application_or_dependency_code_not_authored_model",
+      "sha256": "8b7e527c11266d727cc330ffcfaae21af985ecaec761d048f49e17988ebef478"
+    },
+    {
+      "path": "src/aura/workspace/web/representation/cascade-worker.js",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\representation\\cascade-worker.js",
+      "bytes": 375242,
+      "extension": ".js",
+      "classification": "cad_worker_program_not_geometry",
+      "sha256": "b36e637132d7b94d3e216913184caf38873a44a17353a2295ef0a2f5fd6e54d5"
+    },
+    {
+      "path": "src/aura/workspace/web/representation/cascadestudio.wasm",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\representation\\cascadestudio.wasm",
+      "bytes": 21241345,
+      "extension": ".wasm",
+      "classification": "cad_engine_wasm_not_geometry",
+      "sha256": "cecef84e04dee37e11e2edf824746647194346dcc930022b995888d234727edb"
+    },
+    {
+      "path": "src/aura/workspace/web/representation/index.html",
+      "absolutePath": "repository\\src\\aura\\workspace\\web\\representation\\index.html",
+      "bytes": 399,
+      "extension": ".html",
+      "classification": "application_markup_or_style_not_geometry",
+      "sha256": "d344e66f79e0dceb091a6617e081240b70e5cefe5ce651de14810ca8ff0f8239"
+    }
+  ],
+  "preparedGeometryTemplates": [
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 69,
+      "predicate": "if(family===\"servo\"||id.includes(\"servo\"))",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "if(family===\"servo\"||id.includes(\"servo\")){const axis=p.outputAxis||[0,0,1],extent=Math.abs(axis[0])*w/2+Math.abs(axis[1])*l/2+Math.abs(axis[2])*h/2,shaft=[axis[0]*(extent+3),axis[1]*(extent+3),axis[2]*(extent+3)],tip=[axis[0]*(extent+8),axis[1]*(extent+8),axis[2]*(extent+8)],axisRot=Math.abs(axis[0])>.5?[0,0,-Math.PI/2]:Math.abs(axis[2])>.5?[Math.PI/2,0,0]:[0,0,0];this.add(g,new RoundedBoxGeometry(w,l,h,3,3),[0,0,0],0x171d22,.99,[0,0,0],.05,.72);this.add(g,new RoundedBoxGeometry(w+14,l,4,2,1.5),[0,0,-h/2+4],0x303a42,.99);for(const x of[-w*.43,w*.43])this.add(g,new THREE.CylinderGeometry(1.8,1.8,5,12),[x,0,-h/2+2],0x11191d,1,[0,0,0],.15,.7);this.add(g,new THREE.CylinderGeometry(7,7,6,24),shaft,0x89969d,1,axisRot,.9,.22);this.add(g,new THREE.CylinderGeometry(3,3,10,20),tip,0xc8d2d7,1,axisRot,.95,.18);const horn=new THREE.Group();horn.position.fromArray(tip);horn.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),new THREE.Vector3(axis[0],axis[1],axis[2]).normalize());this.add(horn,new RoundedBoxGeometry(32,4,4,2,1),[0,0,0],0x9ba8ae,1,[0,0,0],.88,.22);this.add(horn,new RoundedBoxGeometry(4,26,4,2,1),[0,0,0],0x9ba8ae,1,[0,0,0],.88,.22);g.add(horn);this.add(g,new RoundedBoxGeometry(7,5,4,1,1),[w/2+3,-l/2,-h*.25],0x343f46,1)}",
+      "familyEqualityMatches": [
+        "servo"
+      ],
+      "semanticIdSubstringMatches": [
+        "servo"
+      ]
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 70,
+      "predicate": "else if(id.includes(\"fan\"))",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry",
+        "TorusGeometry"
+      ],
+      "source": "else if(id.includes(\"fan\")){this.add(g,new RoundedBoxGeometry(w,8,h,3,4),[0,0,0],0x1c242a,.95,[0,0,0],.12,.6);this.add(g,new THREE.TorusGeometry(Math.min(w,h)*.38,4,8,36),[0,-6,0],0x3a464d,1,[Math.PI/2,0,0],.7,.3);this.add(g,new THREE.CylinderGeometry(8,8,12,24),[0,-6,0],0x77858d,1,[Math.PI/2,0,0],.82,.24);for(let i=0;i<5;i++){const b=this.add(g,new RoundedBoxGeometry(7,4,Math.min(w,h)*.3,2,1),[0,-7,0],0x303b42,.98,[0,0,0],.5,.38);b.rotation.y=i*Math.PI*2/5;b.position.x=Math.sin(b.rotation.y)*12;b.position.z=Math.cos(b.rotation.y)*12}}",
+      "familyEqualityMatches": [],
+      "semanticIdSubstringMatches": [
+        "fan"
+      ]
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 71,
+      "predicate": "else if(id.includes(\"pump\"))",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(id.includes(\"pump\")){this.add(g,new THREE.CylinderGeometry(h*.45,h*.45,l*.68,28),[0,0,0],0x222b31,1,[Math.PI/2,0,0],.45,.42);this.add(g,new THREE.CylinderGeometry(h*.32,h*.32,l*.42,24),[w*.25,0,0],0x727f86,1,[Math.PI/2,0,0],.85,.24);this.add(g,new THREE.CylinderGeometry(5,5,18,18),[-w*.3,0,0],0x9aa6ac,1,[0,0,Math.PI/2],.88,.2);this.add(g,new THREE.CylinderGeometry(5,5,18,18),[0,0,h*.45],0x9aa6ac,1,[0,0,0],.88,.2);this.add(g,new RoundedBoxGeometry(w*.75,l*.5,5,2,1),[0,0,-h*.42],0x303a40,1)}",
+      "familyEqualityMatches": [],
+      "semanticIdSubstringMatches": [
+        "pump"
+      ]
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 72,
+      "predicate": "else if(family===\"microcontroller_board\"||family===\"controller\"||id.includes(\"controller\")||id.includes(\"esp32\"))",
+      "primitiveConstructors": [
+        "BoxGeometry",
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"microcontroller_board\"||family===\"controller\"||id.includes(\"controller\")||id.includes(\"esp32\")){const template=p.visualKind||\"\",boardColor=template.includes(\"arduino\")?0x176b82:template===\"pico\"?0x174f3e:0x0a5747;this.add(g,new RoundedBoxGeometry(w,l,3,2,1),[0,0,0],boardColor,1,[0,0,0],.08,.62);this.add(g,new RoundedBoxGeometry(w*.35,l*.35,5,2,1),[0,2,4],0x8a969c,1,[0,0,0],.72,.3);this.add(g,new RoundedBoxGeometry(w*.28,8,5,2,1),[0,-l/2,2],0xc5cdd1,1,[0,0,0],.88,.22);this.add(g,new RoundedBoxGeometry(w*.3,l*.22,3,2,1),[0,l*.26,4],0x151b20,1,[0,0,0],.18,.55);for(const x of[-w*.43,w*.43])for(let y=-l*.35;y<=l*.35;y+=7)this.add(g,new THREE.CylinderGeometry(1,1,5,8),[x,y,3],0xc9a84c,1,[0,0,0],.85,.25);for(const x of[-w*.4,w*.4])for(const y of[-l*.4,l*.4]){this.add(g,new THREE.CylinderGeometry(1.8,1.8,4,12),[x,y,1],0x091716,1);this.add(g,new THREE.CylinderGeometry(2,2,5,12),[x,y,-h/2+2.5],0x55636a,1,[0,0,0],.78,.3)}if(template===\"esp32_devkit\"||template===\"nodemcu\")this.add(g,new THREE.BoxGeometry(w*.72,l*.16,2),[0,l*.39,4],0xc4d0d4,1,[0,0,0],.72,.25);if(template===\"arduino_uno\")this.add(g,new THREE.CylinderGeometry(5,5,10,16),[w*.3,-l*.38,5],0x22282c,1,[Math.PI/2,0,0],.2,.6)}",
+      "familyEqualityMatches": [
+        "microcontroller_board",
+        "controller"
+      ],
+      "semanticIdSubstringMatches": [
+        "controller",
+        "esp32"
+      ]
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 73,
+      "predicate": "else if(family===\"articulated_link\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry",
+        "TorusGeometry"
+      ],
+      "source": "else if(family===\"articulated_link\"){this.add(g,new RoundedBoxGeometry(w,l,h*.78,3,2),[0,0,0],0x242d33,1,[0,0,0],.78,.3);for(const z of[-h/2,h/2]){this.add(g,new THREE.CylinderGeometry(w*.48,w*.48,l,24),[0,0,z],0x59666d,1,[Math.PI/2,0,0],.84,.24);this.add(g,new THREE.TorusGeometry(w*.3,2,7,24),[0,-l*.55,z],0x9ba7ad,1,[Math.PI/2,0,0],.9,.18)}this.add(g,new RoundedBoxGeometry(w*.36,l+2,h*.52,2,1),[0,0,0],0x10171b,1)}",
+      "familyEqualityMatches": [
+        "articulated_link"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 74,
+      "predicate": "else if(family===\"panel\")",
+      "primitiveConstructors": [
+        "BoxGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"panel\"){const energy=p.visualKind===\"energy_collection\";this.add(g,new RoundedBoxGeometry(w,l,h,3,2),[0,0,0],energy?0x172733:0x303a40,1,[0,0,0],.35,.38);this.add(g,new RoundedBoxGeometry(w*.94,l*.92,Math.max(2,h*.3),2,1),[0,0,h*.58],energy?0x0c3155:0x27343b,1,[0,0,0],.18,.2);for(const x of[-w*.25,0,w*.25])this.add(g,new THREE.BoxGeometry(1.4,l*.88,1.4),[x,0,h*.82],energy?0x72a4b9:0x69777d,1);for(const y of[-l*.25,0,l*.25])this.add(g,new THREE.BoxGeometry(w*.9,1.4,1.4),[0,y,h*.82],energy?0x72a4b9:0x69777d,1);this.add(g,new RoundedBoxGeometry(w*.35,l*.12,3,2,1),[0,0,-h*.65],0x3c474d,1)}",
+      "familyEqualityMatches": [
+        "panel"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 75,
+      "predicate": "else if(family===\"rotating_platform\"||family===\"camera_platform\"||family===\"tool_platform\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"rotating_platform\"||family===\"camera_platform\"||family===\"tool_platform\"){this.add(g,new RoundedBoxGeometry(w,l,Math.max(h*.45,5),3,2),[0,0,0],0x303a40,1,[0,0,0],.72,.32);this.add(g,new THREE.CylinderGeometry(Math.min(w,l)*.18,Math.min(w,l)*.18,h,28),[0,0,-h*.35],0x8b989e,1,[0,0,0],.88,.2);if(family===\"camera_platform\"){this.add(g,new RoundedBoxGeometry(w*.52,l*.48,h*.9,3,2),[0,0,h*.75],0x171d22,1);this.add(g,new THREE.CylinderGeometry(l*.18,l*.24,w*.28,28),[0,-l*.15,h*.9],0x3b464c,1,[0,0,Math.PI/2],.65,.3)}}",
+      "familyEqualityMatches": [
+        "rotating_platform",
+        "camera_platform",
+        "tool_platform"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 76,
+      "predicate": "else if(family===\"light_sensor\")",
+      "primitiveConstructors": [
+        "BoxGeometry",
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"light_sensor\"){this.add(g,new RoundedBoxGeometry(w,l,Math.max(3,h*.5),2,1),[0,0,0],0x0c493e,1,[0,0,0],.08,.55);for(const x of[-w*.22,w*.22])for(const y of[-l*.22,l*.22])this.add(g,new THREE.CylinderGeometry(3,3,3,16),[x,y,h*.48],0xe0b850,1,[0,0,0],.18,.4);this.add(g,new THREE.BoxGeometry(2,l*.82,h*.58),[0,0,h*.55],0x1b2226,1);this.add(g,new THREE.BoxGeometry(w*.82,2,h*.58),[0,0,h*.55],0x1b2226,1);this.add(g,new THREE.CylinderGeometry(2,2,8,12),[0,0,-h*.65],0x8e9aa0,1,[0,0,0],.85,.22)}",
+      "familyEqualityMatches": [
+        "light_sensor"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 77,
+      "predicate": "else if(family.includes(\"sensor\")&&family!==\"distance_sensor\"&&family!==\"soil_moisture_sensor\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family.includes(\"sensor\")&&family!==\"distance_sensor\"&&family!==\"soil_moisture_sensor\"){this.add(g,new RoundedBoxGeometry(w,l,Math.max(3,h*.45),2,1),[0,0,0],0x0d594b,1,[0,0,0],.08,.62);this.add(g,new RoundedBoxGeometry(w*.42,l*.42,Math.max(4,h*.55),2,1),[0,0,h*.42],0x29343a,1);for(const x of[-w*.35,w*.35])this.add(g,new THREE.CylinderGeometry(1,1,3,8),[x,-l*.35,h*.3],0xc9a84c,1)}",
+      "familyEqualityMatches": [],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 78,
+      "predicate": "else if(family===\"low_voltage_power_source\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"low_voltage_power_source\"){this.add(g,new RoundedBoxGeometry(w,l,h,4,3),[0,0,0],0x273037,1,[0,0,0],.15,.62);this.add(g,new RoundedBoxGeometry(w*.36,l*.58,h*.55,3,2),[-w*.18,0,h*.15],0x344148,1);this.add(g,new RoundedBoxGeometry(w*.26,l*.58,h*.55,3,2),[w*.2,0,h*.15],0x344148,1);for(const x of[-w*.22,w*.22])this.add(g,new THREE.CylinderGeometry(2,2,4,12),[x,-l/2-2,h*.18],x<0?0x18191a:0xb74d3e,1,[Math.PI/2,0,0],.55,.35)}",
+      "familyEqualityMatches": [
+        "low_voltage_power_source"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 79,
+      "predicate": "else if(family===\"quadcopter_airframe\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry",
+        "TorusGeometry"
+      ],
+      "source": "else if(family===\"quadcopter_airframe\"){this.add(g,new RoundedBoxGeometry(w*.32,l*.32,h,5,3),[0,0,0],0x25323a,1,[0,0,0],.76,.3);for(const angle of[Math.PI/4,-Math.PI/4])this.add(g,new RoundedBoxGeometry(w*.84,18,8,4,2),[0,0,0],0x36444c,1,[0,0,angle],.82,.25);for(const x of[-w*.32,w*.32])for(const y of[-l*.32,l*.32]){this.add(g,new THREE.CylinderGeometry(18,20,6,24),[x,y,h*.35],0x202a30,1,[Math.PI/2,0,0],.78,.28);this.add(g,new THREE.TorusGeometry(13,2,8,24),[x,y,h*.7],0x829097,1,[0,0,0],.85,.2)}this.add(g,new RoundedBoxGeometry(w*.22,l*.22,4,3,2),[0,0,h*.65],0x64737a,1,[0,0,0],.65,.3)}",
+      "familyEqualityMatches": [
+        "quadcopter_airframe"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 80,
+      "predicate": "else if(family===\"propeller\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"propeller\"){this.add(g,new THREE.CylinderGeometry(Math.min(w,l)*.1,Math.min(w,l)*.1,h,28),[0,0,0],0xa5b0b5,1,[Math.PI/2,0,0],.88,.18);for(const angle of[0,Math.PI]){const blade=this.add(g,new RoundedBoxGeometry(w*.42,l*.12,Math.max(3,h*.45),4,2),[Math.cos(angle)*w*.23,Math.sin(angle)*l*.23,0],0x26343b,.96,[0,0,angle],.54,.38);blade.rotation.z=angle}this.add(g,new THREE.CylinderGeometry(Math.min(w,l)*.045,Math.min(w,l)*.045,h*1.3,18),[0,0,0],0x171d21,1,[Math.PI/2,0,0],.72,.25)}",
+      "familyEqualityMatches": [
+        "propeller"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 81,
+      "predicate": "else if(family===\"small_dc_motor\"&&p.visualKind===\"quadcopter_motor\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "TorusGeometry"
+      ],
+      "source": "else if(family===\"small_dc_motor\"&&p.visualKind===\"quadcopter_motor\"){this.add(g,new THREE.CylinderGeometry(w*.46,w*.46,h*.72,28),[0,0,0],0x3b454b,1,[Math.PI/2,0,0],.72,.28);this.add(g,new THREE.CylinderGeometry(3,3,h*.32,18),[0,0,h*.52],0xc5ced2,1,[Math.PI/2,0,0],.95,.16);this.add(g,new THREE.TorusGeometry(w*.42,2,8,28),[0,0,-h*.32],0x20282d,1,[0,0,0],.45,.5)}",
+      "familyEqualityMatches": [
+        "small_dc_motor"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 82,
+      "predicate": "else if(family===\"small_dc_motor\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"small_dc_motor\"){this.add(g,new THREE.CylinderGeometry(w*.46,w*.46,l*.78,28),[0,0,0],0x3b454b,1,[Math.PI/2,0,0],.72,.28);this.add(g,new THREE.CylinderGeometry(3,3,l*.35,18),[0,-l*.55,0],0xc5ced2,1,[Math.PI/2,0,0],.95,.16);this.add(g,new RoundedBoxGeometry(w*.9,5,h*.75,2,1),[0,l*.36,0],0x20282d,1)}",
+      "familyEqualityMatches": [
+        "small_dc_motor"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 83,
+      "predicate": "else if(family===\"drive_wheel\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry",
+        "TorusGeometry"
+      ],
+      "source": "else if(family===\"drive_wheel\"){const parameters=p.representationParameters||{},outerDiameter=parameters.outerDiameter||Math.max(w,l),tireWidth=parameters.tireWidth||Math.max(8,h),outerRadius=outerDiameter*.5,rimRadius=(parameters.rimDiameter||outerDiameter*.58)*.5,hubRadius=(parameters.hubDiameter||outerDiameter*.21)*.5,axleRadius=(parameters.axleBore||outerDiameter*.08)*.5,treadDepth=parameters.treadDepth||Math.max(1.4,outerDiameter*.026),sidewall:[number,number,number]=[Math.PI/2,0,0];this.add(g,new THREE.CylinderGeometry(outerRadius*.94,outerRadius*.94,tireWidth,48,2),[0,0,0],0x111619,1,[0,0,0],.03,.92);for(const y of[-tireWidth*.42,tireWidth*.42])this.add(g,new THREE.TorusGeometry(outerDiameter*.39,outerDiameter*.085,12,48),[0,y,0],0x171d20,1,sidewall,.03,.88);this.add(g,new THREE.CylinderGeometry(rimRadius,rimRadius,tireWidth*.88,40),[0,0,0],0x68777e,1,[0,0,0],.72,.3);this.add(g,new THREE.CylinderGeometry(rimRadius*.72,rimRadius*.72,tireWidth*.94,36),[0,0,0],0x263137,1,[0,0,0],.42,.48);for(let i=0;i<6;i++){const angle=i*Math.PI/3;this.add(g,new RoundedBoxGeometry(outerDiameter*.22,tireWidth*.18,Math.max(2,outerDiameter*.045),1,1),[Math.cos(angle)*outerDiameter*.085,0,Math.sin(angle)*outerDiameter*.085],0x8a989e,1,[0,-angle,0],.82,.24)}this.add(g,new THREE.CylinderGeometry(hubRadius,hubRadius,tireWidth*1.04,28),[0,0,0],0xa7b2b7,1,[0,0,0],.88,.18);this.add(g,new THREE.CylinderGeometry(axleRadius,axleRadius,tireWidth*1.12,20),[0,0,0],0x101518,1,[0,0,0],.08,.78);for(let i=0;i<16;i++){const angle=i*Math.PI/8,radius=outerRadius-treadDepth*.45;this.add(g,new RoundedBoxGeometry(outerDiameter*.085,tireWidth*.82,treadDepth,1,.7),[Math.cos(angle)*radius,0,Math.sin(angle)*radius],0x252c30,1,[0,-angle-Math.PI/2,0],.04,.9)}}",
+      "familyEqualityMatches": [
+        "drive_wheel"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 84,
+      "predicate": "else if(family===\"sliding_panel\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"sliding_panel\"){this.add(g,new RoundedBoxGeometry(w,Math.max(l,6),h,3,2),[0,0,0],0x344149,.96,[0,0,0],.7,.34);for(const x of[-w*.35,w*.35])this.add(g,new THREE.CylinderGeometry(3,3,Math.max(l,8),16),[x,0,-h*.48],0x7b898f,1,[Math.PI/2,0,0],.85,.22)}",
+      "familyEqualityMatches": [
+        "sliding_panel"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 85,
+      "predicate": "else if(family===\"structural_frame\")",
+      "primitiveConstructors": [
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"structural_frame\"){for(const x of[-w/2+6,w/2-6])this.add(g,new RoundedBoxGeometry(12,l,h,3,2),[x,0,0],0x29343a,1,[0,0,0],.78,.3);this.add(g,new RoundedBoxGeometry(w,l,12,3,2),[0,0,h/2-6],0x29343a,1,[0,0,0],.78,.3);this.add(g,new RoundedBoxGeometry(w,l,10,3,2),[0,0,-h/2+5],0x39464d,1,[0,0,0],.78,.3)}",
+      "familyEqualityMatches": [
+        "structural_frame"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 86,
+      "predicate": "else if(family===\"linear_drive\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"linear_drive\"){this.add(g,new RoundedBoxGeometry(w,l*.35,h,3,2),[0,-l*.3,0],0x2a343a,1);this.add(g,new THREE.CylinderGeometry(4,4,l*.7,20),[0,l*.15,0],0xa5b0b5,1,[Math.PI/2,0,0],.92,.18);this.add(g,new RoundedBoxGeometry(w*.75,8,h*.8,2,1),[0,l*.48,0],0x59666c,1)}",
+      "familyEqualityMatches": [
+        "linear_drive"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 87,
+      "predicate": "else if(family===\"distance_sensor\"||id.includes(\"distance\"))",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"distance_sensor\"||id.includes(\"distance\")){this.add(g,new RoundedBoxGeometry(w,l,3,2,1),[0,0,0],0x0d594b,1,[0,0,0],.08,.62);for(const x of[-w*.23,w*.23]){this.add(g,new THREE.CylinderGeometry(l*.25,l*.25,10,24),[x,0,6],0xa8b4b9,1,[0,0,0],.82,.24);this.add(g,new THREE.CylinderGeometry(l*.17,l*.17,11,24),[x,0,6.5],0x273137,1)}}",
+      "familyEqualityMatches": [
+        "distance_sensor"
+      ],
+      "semanticIdSubstringMatches": [
+        "distance"
+      ]
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 88,
+      "predicate": "else if(family===\"soil_moisture_sensor\"||(id.includes(\"sensor\")&&id.includes(\"soil\")))",
+      "primitiveConstructors": [
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"soil_moisture_sensor\"||(id.includes(\"sensor\")&&id.includes(\"soil\"))){this.add(g,new RoundedBoxGeometry(w,l*.3,4,2,1),[0,l*.3,0],0x0d594b,1,[0,0,0],.1,.62);for(const x of[-w*.2,w*.2])this.add(g,new RoundedBoxGeometry(4,l*.75,3,2,1),[x,-l*.25,0],0x9d8542,1,[0,0,0],.65,.35)}",
+      "familyEqualityMatches": [
+        "soil_moisture_sensor"
+      ],
+      "semanticIdSubstringMatches": [
+        "sensor",
+        "soil"
+      ]
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 89,
+      "predicate": "else if(family===\"flyback_diode\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "TorusGeometry"
+      ],
+      "source": "else if(family===\"flyback_diode\"){this.add(g,new THREE.CylinderGeometry(1.6,1.6,8,14),[0,0,0],0x202327,1,[0,0,Math.PI/2],.2,.5);this.add(g,new THREE.CylinderGeometry(.5,.5,16,8),[0,0,0],0xaeb8bc,1,[0,0,Math.PI/2],.85,.22);this.add(g,new THREE.TorusGeometry(1.7,.35,6,14),[2,0,0],0xd6d9da,1,[0,Math.PI/2,0],.65,.3)}",
+      "familyEqualityMatches": [
+        "flyback_diode"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 90,
+      "predicate": "else if(family===\"resistor\")",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "TorusGeometry"
+      ],
+      "source": "else if(family===\"resistor\"){this.add(g,new THREE.CylinderGeometry(1.7,1.7,7,14),[0,0,0],0xc7a55a,1,[0,0,Math.PI/2],.1,.58);this.add(g,new THREE.CylinderGeometry(.45,.45,15,8),[0,0,0],0xaeb8bc,1,[0,0,Math.PI/2],.85,.22);for(const x of[-2,0,2])this.add(g,new THREE.TorusGeometry(1.72,.25,6,14),[x,0,0],x===0?0x8c332c:0x3a2119,1,[0,Math.PI/2,0],.2,.55)}",
+      "familyEqualityMatches": [
+        "resistor"
+      ],
+      "semanticIdSubstringMatches": []
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 91,
+      "predicate": "else if(id.includes(\"driver\")||id.includes(\"relay\"))",
+      "primitiveConstructors": [
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(id.includes(\"driver\")||id.includes(\"relay\")){this.add(g,new RoundedBoxGeometry(w,l,3,2,1),[0,0,0],0x103a33,1,[0,0,0],.08,.62);this.add(g,new RoundedBoxGeometry(w*.38,l*.45,10,2,1),[0,0,6],id.includes(\"relay\")?0x324c5b:0x20262b,1,[0,0,0],.2,.52);for(const x of[-w*.35,w*.35])this.add(g,new RoundedBoxGeometry(7,l*.6,7,2,1),[x,0,4],0x65747b,1,[0,0,0],.7,.3)}",
+      "familyEqualityMatches": [],
+      "semanticIdSubstringMatches": [
+        "driver",
+        "relay"
+      ]
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 92,
+      "predicate": "else if(id.includes(\"container\")||id.includes(\"reservoir\"))",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "TorusGeometry"
+      ],
+      "source": "else if(id.includes(\"container\")||id.includes(\"reservoir\")){this.add(g,new THREE.CylinderGeometry(w*.46,w*.46,h,32,1,true),[0,0,h/2],0x25343b,.7,[0,0,0],.18,.45);this.add(g,new THREE.TorusGeometry(w*.46,3,8,32),[0,0,h],0x79868c,1,[0,0,0],.78,.28);this.add(g,new THREE.CylinderGeometry(w*.26,w*.3,10,24),[0,0,h+4],0x3c494f,1)}",
+      "familyEqualityMatches": [],
+      "semanticIdSubstringMatches": [
+        "container",
+        "reservoir"
+      ]
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 93,
+      "predicate": "else if(id.includes(\"upper-arm\")||id.includes(\"forearm\"))",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry",
+        "TorusGeometry"
+      ],
+      "source": "else if(id.includes(\"upper-arm\")||id.includes(\"forearm\")){this.add(g,new THREE.CylinderGeometry(w*.34,w*.48,l,6),[0,0,0],0x2a343b,.98,[Math.PI/2,0,0],.76,.3);for(const z of[-l*.44,l*.44]){this.add(g,new THREE.CylinderGeometry(w*.56,w*.56,h+5,28),[0,0,z],0x56636b,1,[Math.PI/2,0,0],.82,.24);this.add(g,new THREE.TorusGeometry(w*.34,2.2,8,24),[0,0,z+h*.55],0x9aa7ad,1,[0,0,0],.9,.2)}this.add(g,new RoundedBoxGeometry(w*.38,l*.55,h*.5,2,2),[0,0,0],0x151d22,1,[Math.PI/2,0,0],.35,.5);g.rotation.y=id.includes(\"upper-arm\")?.45:-.5}",
+      "familyEqualityMatches": [],
+      "semanticIdSubstringMatches": [
+        "upper-arm",
+        "forearm"
+      ]
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 94,
+      "predicate": "else if(id.includes(\"end-effector\"))",
+      "primitiveConstructors": [
+        "BoxGeometry",
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(id.includes(\"end-effector\")){this.add(g,new THREE.CylinderGeometry(w*.18,w*.22,18,24),[0,0,-12],0x89969d,1,[0,0,0],.88,.22);this.add(g,new RoundedBoxGeometry(w*.5,l*.45,h,3,2),[0,0,4],0x283139,1,[0,0,0],.62,.34);for(const x of[-w*.24,w*.24]){const jaw=this.add(g,new RoundedBoxGeometry(w*.13,l,h*.42,2,2),[x,l*.22,h*.25],0x66737a,1,[0,0,x<0?-.14:.14],.8,.27);jaw.castShadow=true}this.add(g,new THREE.BoxGeometry(w*.35,5,5),[0,-l*.2,4],0x12191e,1)}",
+      "familyEqualityMatches": [],
+      "semanticIdSubstringMatches": [
+        "end-effector"
+      ]
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 95,
+      "predicate": "else if(family===\"base\"||family===\"mounting_plate\"||id.includes(\"base\"))",
+      "primitiveConstructors": [
+        "CylinderGeometry",
+        "RoundedBoxGeometry"
+      ],
+      "source": "else if(family===\"base\"||family===\"mounting_plate\"||id.includes(\"base\")){this.add(g,new RoundedBoxGeometry(w,l,h,5,3),[0,0,0],0x252e34,1,[0,0,0],.76,.34);this.add(g,new THREE.CylinderGeometry(Math.min(w,l)*.22,Math.min(w,l)*.24,Math.max(h*.7,8),32),[0,0,h*.26],0x3b474e,1,[0,0,0],.75,.3);for(const x of[-w*.4,w*.4])for(const y of[-l*.38,l*.38])this.add(g,new THREE.CylinderGeometry(2.5,2.5,Math.max(h,8),14),[x,y,0],0x10171b,1,[0,0,0],.1,.8)}",
+      "familyEqualityMatches": [
+        "base",
+        "mounting_plate"
+      ],
+      "semanticIdSubstringMatches": [
+        "base"
+      ]
+    },
+    {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 96,
+      "predicate": "fallback for all unmatched families/ids",
+      "primitiveConstructors": [
+        "RoundedBoxGeometry"
+      ],
+      "source": "else this.add(g,new RoundedBoxGeometry(w,l,h,3,Math.min(3,Math.max(1,Math.min(w,l,h)/8))),[0,0,0],0x28333a,.82,[0,0,0],.55,.42);",
+      "familyEqualityMatches": [],
+      "semanticIdSubstringMatches": []
+    }
+  ],
+  "rendererRules": {
+    "dimensionClamp": {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 68,
+      "expression": "p.dimensions.map(x=>Math.max(Number(x)||10,4))",
+      "meaning": "Each dimension has minimum 4 mm; numeric 0/NaN falls back to 10 mm."
+    },
+    "colorClamp": {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 66,
+      "expression": "neutral.setHSL(tone.h,Math.min(tone.s,.48),Math.max(.14,Math.min(.62,tone.l)))",
+      "meaning": "Hue retained; saturation capped at 0.48; lightness constrained to [0.14,0.62]. Colors are selected in handwritten template code."
+    },
+    "familyProxySpec": {
+      "path": "src/aura/workspace/representation_service.py",
+      "lines": [
+        39,
+        40,
+        41
+      ],
+      "meaning": "All emitted mechanical specs proxy=True/renderStrategy=family_proxy."
+    },
+    "cadOperations": {
+      "path": "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx",
+      "line": 33,
+      "operations": [
+        "loft",
+        "pipe",
+        "sphere",
+        "filleted_enclosure",
+        "box fallback"
+      ],
+      "meaning": "Fixed source-expression generator, skipped for normal family_proxy specs."
+    },
+    "readyToGeneratingFailure": {
+      "pathsAndLines": [
+        "src/aura/workspace/representation_service.py:165",
+        "src/aura/workspace/web/frontend/src/WorkspaceApp.tsx:154",
+        "src/aura/workspace/representations.py:30",
+        "src/aura/workspace/server.py:686"
+      ],
+      "meaning": "Normal mechanical records are ready before browser requests generating; transition rejects with HTTP409, confirmed in runtime audit."
+    }
+  },
+  "runtimeAssemblyObservations": {
+    "soil-pump": {
+      "mechanicalMateCount": 0,
+      "mateTypeCounts": {},
+      "fluidGraphRelationshipCount": 0,
+      "unresolvedMechanicalRelationCount": 0,
+      "reportedPhysicalLimitationCount": 0,
+      "partPlacements": [
+        {
+          "semanticId": "component-pump",
+          "family": "small_dc_pump",
+          "dimensions": [
+            40.0,
+            60.0,
+            40.0
+          ],
+          "position": [
+            336.0,
+            135.0,
+            75.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-enclosure",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-controller",
+          "family": "microcontroller_board",
+          "dimensions": [
+            45.0,
+            18.0,
+            8.0
+          ],
+          "position": [
+            216.5,
+            -27.0,
+            59.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-enclosure",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-driver",
+          "family": "mosfet_driver",
+          "dimensions": [
+            32.0,
+            24.0,
+            8.0
+          ],
+          "position": [
+            332.0,
+            -27.0,
+            59.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-enclosure",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-flyback-diode",
+          "family": "flyback_diode",
+          "dimensions": [
+            10.0,
+            3.0,
+            3.0
+          ],
+          "position": [
+            77.0,
+            135.0,
+            56.5
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-enclosure",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-container",
+          "family": "container",
+          "dimensions": [
+            110.0,
+            100.0,
+            150.0
+          ],
+          "position": [
+            127.0,
+            -27.0,
+            130.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-enclosure",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-tube",
+          "family": "tube",
+          "dimensions": [
+            10.0,
+            150.0,
+            10.0
+          ],
+          "position": [
+            199.0,
+            297.0,
+            60.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-enclosure",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-power",
+          "family": "low_voltage_power_source",
+          "dimensions": [
+            48.0,
+            30.0,
+            18.0
+          ],
+          "position": [
+            218.0,
+            135.0,
+            64.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-enclosure",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-soil-sensor",
+          "family": "soil_moisture_sensor",
+          "dimensions": [
+            23.0,
+            98.0,
+            4.0
+          ],
+          "position": [
+            83.5,
+            297.0,
+            57.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-enclosure",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-enclosure",
+          "family": "enclosure",
+          "dimensions": [
+            120.0,
+            90.0,
+            55.0
+          ],
+          "position": [
+            0.0,
+            0.0,
+            27.5
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "graph_mate",
+          "mechanicalParents": []
+        }
+      ],
+      "fluidInterfaceCount": 0,
+      "auxiliarySemanticSupportPartCount": 8
+    },
+    "solar-tracker": {
+      "mechanicalMateCount": 8,
+      "mateTypeCounts": {
+        "fixed": 6,
+        "revolute": 2
+      },
+      "fluidGraphRelationshipCount": 0,
+      "unresolvedMechanicalRelationCount": 0,
+      "reportedPhysicalLimitationCount": 0,
+      "partPlacements": [
+        {
+          "semanticId": "component-servo-1",
+          "family": "servo",
+          "dimensions": [
+            23.0,
+            12.0,
+            29.0
+          ],
+          "position": [
+            0.0,
+            0.0,
+            26.5
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MATED",
+          "mountSource": "graph_mate",
+          "mechanicalParents": [
+            "component-support"
+          ]
+        },
+        {
+          "semanticId": "component-servo-2",
+          "family": "servo",
+          "dimensions": [
+            23.0,
+            12.0,
+            29.0
+          ],
+          "position": [
+            32.292275912182006,
+            -99.38540595284357,
+            44.0
+          ],
+          "rotation": [
+            0.6724985119639574,
+            0.2185080122244105,
+            0.0,
+            0.7071067811865476
+          ],
+          "placementClass": "MATED",
+          "mountSource": "graph_mate",
+          "mechanicalParents": [
+            "component-mechanism-1"
+          ]
+        },
+        {
+          "semanticId": "component-controller",
+          "family": "microcontroller_board",
+          "dimensions": [
+            45.0,
+            18.0,
+            8.0
+          ],
+          "position": [
+            -42.00000000000001,
+            -28.000000000000004,
+            16.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "graph_mate",
+          "mechanicalParents": [
+            "component-support"
+          ]
+        },
+        {
+          "semanticId": "component-resistor-1",
+          "family": "resistor",
+          "dimensions": [
+            7.0,
+            3.0,
+            3.0
+          ],
+          "position": [
+            155.39996596042155,
+            -4.0,
+            13.5
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-support",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-resistor-2",
+          "family": "resistor",
+          "dimensions": [
+            7.0,
+            3.0,
+            3.0
+          ],
+          "position": [
+            199.39996596042155,
+            -4.0,
+            13.5
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-support",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-resistor-3",
+          "family": "resistor",
+          "dimensions": [
+            7.0,
+            3.0,
+            3.0
+          ],
+          "position": [
+            243.39996596042155,
+            -4.0,
+            13.5
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-support",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-resistor-4",
+          "family": "resistor",
+          "dimensions": [
+            7.0,
+            3.0,
+            3.0
+          ],
+          "position": [
+            155.39996596042155,
+            22.0,
+            13.5
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-support",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-mechanism-1",
+          "family": "articulated_link",
+          "dimensions": [
+            18.0,
+            18.0,
+            90.0
+          ],
+          "position": [
+            13.905764746872634,
+            -42.79754323328192,
+            44.0
+          ],
+          "rotation": [
+            0.6984011233337103,
+            0.11061587104123714,
+            0.11061587104123716,
+            0.6984011233337104
+          ],
+          "placementClass": "MATED",
+          "mountSource": "graph_mate",
+          "mechanicalParents": [
+            "component-servo-1"
+          ]
+        },
+        {
+          "semanticId": "component-mechanism-2",
+          "family": "articulated_link",
+          "dimensions": [
+            18.0,
+            18.0,
+            90.0
+          ],
+          "position": [
+            47.55822633157008,
+            -65.86506091409039,
+            73.64097208722615
+          ],
+          "rotation": [
+            -0.30480169072407043,
+            -0.1672295539468773,
+            -0.5100486410712511,
+            0.7867531946931303
+          ],
+          "placementClass": "MATED",
+          "mountSource": "graph_mate",
+          "mechanicalParents": [
+            "component-servo-2"
+          ]
+        },
+        {
+          "semanticId": "component-panel",
+          "family": "panel",
+          "dimensions": [
+            180.0,
+            120.0,
+            8.0
+          ],
+          "position": [
+            49.89996596042155,
+            -34.00536766915695,
+            110.79573223783686
+          ],
+          "rotation": [
+            -0.34672799900723084,
+            0.025485075749645657,
+            0.0,
+            0.9376194353886211
+          ],
+          "placementClass": "MATED",
+          "mountSource": "graph_mate",
+          "mechanicalParents": [
+            "component-mechanism-2"
+          ]
+        },
+        {
+          "semanticId": "component-power",
+          "family": "low_voltage_power_source",
+          "dimensions": [
+            48.0,
+            30.0,
+            18.0
+          ],
+          "position": [
+            -42.00000000000001,
+            28.000000000000004,
+            21.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "graph_mate",
+          "mechanicalParents": [
+            "component-support"
+          ]
+        },
+        {
+          "semanticId": "component-light-sensor",
+          "family": "light_sensor",
+          "dimensions": [
+            32.0,
+            14.0,
+            7.0
+          ],
+          "position": [
+            110.70026333161142,
+            -1.0433775085898538,
+            88.59030397739659
+          ],
+          "rotation": [
+            -0.3467279990072309,
+            0.02548507574964566,
+            0.0,
+            0.937619435388621
+          ],
+          "placementClass": "MATED",
+          "mountSource": "graph_mate",
+          "mechanicalParents": [
+            "component-panel"
+          ]
+        },
+        {
+          "semanticId": "component-light-sensor-2",
+          "family": "light_sensor",
+          "dimensions": [
+            32.0,
+            14.0,
+            7.0
+          ],
+          "position": [
+            167.89996596042155,
+            -30.0,
+            15.5
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-support",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-light-sensor-3",
+          "family": "light_sensor",
+          "dimensions": [
+            32.0,
+            14.0,
+            7.0
+          ],
+          "position": [
+            211.89996596042155,
+            -30.0,
+            15.5
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-support",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-light-sensor-4",
+          "family": "light_sensor",
+          "dimensions": [
+            32.0,
+            14.0,
+            7.0
+          ],
+          "position": [
+            255.89996596042155,
+            -30.0,
+            15.5
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MOUNTED_INDEPENDENTLY",
+          "mountSource": "semantic_support:component-support",
+          "mechanicalParents": []
+        },
+        {
+          "semanticId": "component-support",
+          "family": "base",
+          "dimensions": [
+            150.0,
+            100.0,
+            12.0
+          ],
+          "position": [
+            0.0,
+            0.0,
+            6.0
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "placementClass": "MATED",
+          "mountSource": "graph_mate",
+          "mechanicalParents": []
+        }
+      ],
+      "lightSensorPanelMates": 1,
+      "lightSensorUnmatedCount": 3,
+      "lightSensorUnmatedCentersOutsideNamedBaseFootprint": 3
+    }
+  },
+  "visualObservations": {
+    "soil-pump": [
+      "Screenshot shows a horizontal barrel with a separated rim/cap cue and a disconnected straight rectangular tube proxy.",
+      "Graph has no fluid relationships and assembly has no mechanical mates; all auxiliary parts receive semantic_support placement and no reported physical limitations.",
+      "Container branch uses default-Y-axis CylinderGeometry with zero rotation despite scene Z-up, offsets cylinder center by h/2 along Z, and separately offsets rim/cap along Z (WorkspaceApp.tsx:92).",
+      "Tube has no dedicated renderer branch and falls through to rounded-box renderer (WorkspaceApp.tsx:96)."
+    ],
+    "solar-tracker": [
+      "Screenshot shows three LDR modules and resistor/wire cues extending right of the base.",
+      "Of four LDR sensors, only component-light-sensor has a panel graph mate; remaining three have no mechanical parent and use semantic_support placement.",
+      "The three unmatched sensors have center X=167.9/211.9/255.9 mm while the 150 mm wide base is centered X=0, so none is positioned over its cited support footprint.",
+      "Planner connects only sensors[0] to platforms[0] (planner/service.py:414); auxiliary placement follows assembly.py:166-199."
+    ]
+  },
+  "sourceVsBundleObservation": {
+    "sourceRendererLines": [
+      79,
+      80,
+      81
+    ],
+    "sourceFamilyLiterals": [
+      "quadcopter_airframe",
+      "propeller",
+      "quadcopter_motor"
+    ],
+    "committedApplicationChunk": "src/aura/workspace/web/representation/assets/index-Fgna4VMX.js",
+    "chunkRawLiteralCounts": {
+      "quadcopter_airframe": 0,
+      "propeller": 0,
+      "quadcopter_motor": 0
+    },
+    "limit": "Literal absence is evidence of a possible source/build mismatch; it alone does not certify the bundle source revision."
+  }
+}

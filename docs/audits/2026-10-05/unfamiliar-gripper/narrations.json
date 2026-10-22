@@ -1,0 +1,266 @@
+[
+  {
+    "narrationId": "narration-d4586aaddb114b2d4859",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 1,
+    "kind": "project_progress",
+    "text": "Planning the committed project structure.",
+    "semanticIds": [],
+    "verificationFindingIds": [],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-9d0c8a2c1f5848446fb8",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 40,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source, Arduino Nano remains an estimate: Voltage compatibility for Low-voltage power source to Arduino Nano is not proven by available properties.",
+    "semanticIds": [
+      "component-power",
+      "component-controller"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-d65e2d70d5"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-ba1516bb214bca41b9d1",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 41,
+    "kind": "warning",
+    "text": "Verification for Small DC motor remains an estimate: Actuator capability for Small DC motor is not proven because required or available torque is unknown.",
+    "semanticIds": [
+      "component-motor"
+    ],
+    "verificationFindingIds": [
+      "verification-mech-actuator-capability-not-proven-7ef9b236c5"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-fa31b0329379a290c758",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 42,
+    "kind": "warning",
+    "text": "Verification for Small DC motor remains an estimate: Actuator capability for Small DC motor is not proven because required or available torque is unknown.",
+    "semanticIds": [
+      "component-motor-2"
+    ],
+    "verificationFindingIds": [
+      "verification-mech-actuator-capability-not-proven-8f1e1e5aa2"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-92f4af3a8b5e79400deb",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 43,
+    "kind": "warning",
+    "text": "Verification for Driven moving component, Drive wheel, Drive wheel remains conceptual: Driven moving component is implemented by Drive wheel, Drive wheel as a conceptual role.",
+    "semanticIds": [
+      "requirement-drive-output",
+      "component-drive-wheel-1",
+      "component-drive-wheel-2"
+    ],
+    "verificationFindingIds": [
+      "verification-req-110-fd9be58f0d"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-157169b7530400649b77",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 44,
+    "kind": "warning",
+    "text": "Verification for 2 independently represented drive wheel instances, Drive wheel, Drive wheel remains conceptual: 2 independently represented drive wheel instances is implemented by Drive wheel, Drive wheel as a conceptual role.",
+    "semanticIds": [
+      "requirement-drive-wheel-count",
+      "component-drive-wheel-1",
+      "component-drive-wheel-2"
+    ],
+    "verificationFindingIds": [
+      "verification-req-110-fd5c0875e1"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-08ac9761b0f55479e9a1",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 45,
+    "kind": "warning",
+    "text": "Verification for Required moving body, Drive wheel, Drive wheel remains conceptual: Required moving body is implemented by Drive wheel, Drive wheel as a conceptual role.",
+    "semanticIds": [
+      "requirement-moving-body",
+      "component-drive-wheel-1",
+      "component-drive-wheel-2"
+    ],
+    "verificationFindingIds": [
+      "verification-req-110-c96fc762b5"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-b0c653f75b6b8f7353ec",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 46,
+    "kind": "warning",
+    "text": "Verification for Stationary support, Structural chassis remains conceptual: Stationary support is implemented by Structural chassis as a conceptual role.",
+    "semanticIds": [
+      "requirement-support",
+      "component-chassis"
+    ],
+    "verificationFindingIds": [
+      "verification-req-110-4a1fb13bfb"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-9e587ab922eebc25b944",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 47,
+    "kind": "warning",
+    "text": "Verification for Arduino Nano remains an estimate: Arduino Nano V3 uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-controller"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-31e1d752fb"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-cd4d6d7f4b4ef80e4e1f",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 48,
+    "kind": "warning",
+    "text": "Verification for Small DC motor remains an estimate: Small DC motor is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-motor"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-39e56b6dc7"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-22b16b3564352c7eaa65",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 49,
+    "kind": "warning",
+    "text": "Verification for Small DC motor remains an estimate: Small DC motor is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-motor-2"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-b27008e2c5"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-76bf3cfe67fd3bfd02bc",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 50,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source remains an estimate: Low-voltage power source is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-power"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-47e92dba19"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-f48368574f41506001df",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 0,
+    "eventId": 51,
+    "kind": "verification_explanation",
+    "text": "Independent evidence and a deterministic rule agree: Supply voltage is compatible with load.",
+    "semanticIds": [
+      "component-power",
+      "component-motor-2"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-load-voltage-compatible-0ca9a489cb"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-bda59b3503cea2a735bd",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 0,
+    "eventId": 51,
+    "kind": "verification_explanation",
+    "text": "Manufacturer documentation supports this result: Authoritative properties available from Texas Instruments DRV8833 module.",
+    "semanticIds": [
+      "component-motor-driver"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-d2f606126e"
+    ],
+    "evidenceIds": [
+      "evidence-ti-drivers"
+    ],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:27.194811+00:00"
+  },
+  {
+    "narrationId": "narration-993941b7995e4bfb7f29",
+    "projectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+    "revision": 1,
+    "eventId": 80,
+    "kind": "completion",
+    "text": "Project ready with 8 components across 5 subsystems: 1 source-verified checks, 7 estimates, and 0 failed checks.",
+    "semanticIds": [
+      "project-3d03839aa54158c2a0054c4ba36aa90e"
+    ],
+    "verificationFindingIds": [],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:28.656140+00:00"
+  }
+]

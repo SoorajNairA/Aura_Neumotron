@@ -1,0 +1,74 @@
+[
+  {
+    "name": "solar-tracker",
+    "sourceGraph": "audit-output\\solar-tracker\\graph.json",
+    "recordStatus": "ready_with_limitations",
+    "freshGraphVerification": {
+      "accepted": true,
+      "state": "cross_checked",
+      "findings": []
+    },
+    "componentCount": 16,
+    "propertyFactsCount": 0
+  },
+  {
+    "name": "four-wheel-rover",
+    "sourceGraph": "audit-output\\four-wheel-rover\\graph.json",
+    "recordStatus": "ready_with_limitations",
+    "freshGraphVerification": {
+      "accepted": true,
+      "state": "cross_checked",
+      "findings": []
+    },
+    "componentCount": 13,
+    "propertyFactsCount": 0
+  },
+  {
+    "name": "soil-pump",
+    "sourceGraph": "audit-output\\soil-pump\\graph.json",
+    "recordStatus": "ready_with_limitations",
+    "freshGraphVerification": {
+      "accepted": true,
+      "state": "cross_checked",
+      "findings": []
+    },
+    "componentCount": 9,
+    "propertyFactsCount": 0
+  },
+  {
+    "name": "dc-fan",
+    "sourceGraph": "audit-output\\dc-fan\\graph.json",
+    "recordStatus": "ready_with_limitations",
+    "freshGraphVerification": {
+      "accepted": true,
+      "state": "cross_checked",
+      "findings": []
+    },
+    "componentCount": 6,
+    "propertyFactsCount": 0
+  },
+  {
+    "name": "unfamiliar-gripper",
+    "sourceGraph": "audit-output\\unfamiliar-gripper\\graph.json",
+    "recordStatus": "ready_with_limitations",
+    "freshGraphVerification": {
+      "accepted": true,
+      "state": "cross_checked",
+      "findings": []
+    },
+    "componentCount": 8,
+    "propertyFactsCount": 0
+  },
+  {
+    "name": "unfamiliar-lead-screw",
+    "sourceGraph": "audit-output\\unfamiliar-lead-screw\\graph.json",
+    "recordStatus": "ready_with_limitations",
+    "freshGraphVerification": {
+      "accepted": true,
+      "state": "cross_checked",
+      "findings": []
+    },
+    "componentCount": 5,
+    "propertyFactsCount": 0
+  }
+]

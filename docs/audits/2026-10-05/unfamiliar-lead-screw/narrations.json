@@ -1,0 +1,176 @@
+[
+  {
+    "narrationId": "narration-30035bfa07601c43ff7c",
+    "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "revision": 1,
+    "eventId": 1,
+    "kind": "project_progress",
+    "text": "Planning the committed project structure.",
+    "semanticIds": [],
+    "verificationFindingIds": [],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:25.698676+00:00"
+  },
+  {
+    "narrationId": "narration-23e70bf17da9322108b1",
+    "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "revision": 1,
+    "eventId": 31,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source, Arduino Nano remains an estimate: Voltage compatibility for Low-voltage power source to Arduino Nano is not proven by available properties.",
+    "semanticIds": [
+      "component-power",
+      "component-controller"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-voltage-not-proven-d65e2d70d5"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:25.698676+00:00"
+  },
+  {
+    "narrationId": "narration-caa66a1528a2a6b402a2",
+    "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "revision": 1,
+    "eventId": 32,
+    "kind": "warning",
+    "text": "Verification for SG90 Servo remains an estimate: Actuator capability for SG90 Servo is not proven because required or available torque is unknown.",
+    "semanticIds": [
+      "component-servo"
+    ],
+    "verificationFindingIds": [
+      "verification-mech-actuator-capability-not-proven-7786b81355"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:25.698676+00:00"
+  },
+  {
+    "narrationId": "narration-99f0f2fc4c4082ef249f",
+    "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "revision": 1,
+    "eventId": 33,
+    "kind": "warning",
+    "text": "Verification for Required moving body, Camera platform remains conceptual: Required moving body is implemented by Camera platform as a conceptual role.",
+    "semanticIds": [
+      "requirement-moving-body",
+      "component-camera-platform"
+    ],
+    "verificationFindingIds": [
+      "verification-req-110-ef267110f4"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:25.698676+00:00"
+  },
+  {
+    "narrationId": "narration-3e4f912764669c143fdc",
+    "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "revision": 1,
+    "eventId": 34,
+    "kind": "warning",
+    "text": "Verification for Stationary support, Structural base remains conceptual: Stationary support is implemented by Structural base as a conceptual role.",
+    "semanticIds": [
+      "requirement-support",
+      "component-support"
+    ],
+    "verificationFindingIds": [
+      "verification-req-110-29d5418d70"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:25.698676+00:00"
+  },
+  {
+    "narrationId": "narration-05b66828d364acd76a3e",
+    "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "revision": 1,
+    "eventId": 35,
+    "kind": "warning",
+    "text": "Verification for Arduino Nano remains an estimate: Arduino Nano V3 uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-controller"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-31e1d752fb"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:25.698676+00:00"
+  },
+  {
+    "narrationId": "narration-06ab99cf491debac7c52",
+    "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "revision": 1,
+    "eventId": 36,
+    "kind": "warning",
+    "text": "Verification for SG90 Servo remains an estimate: SG90 class uses a bounded curated engineering assumption.",
+    "semanticIds": [
+      "component-servo"
+    ],
+    "verificationFindingIds": [
+      "verification-catalogue-properties-0c5f7b37db"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:25.698676+00:00"
+  },
+  {
+    "narrationId": "narration-821cbdde44a2ff504cec",
+    "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "revision": 1,
+    "eventId": 37,
+    "kind": "warning",
+    "text": "Verification for Low-voltage power source remains an estimate: Low-voltage power source is generic; exact operating values remain estimated.",
+    "semanticIds": [
+      "component-power"
+    ],
+    "verificationFindingIds": [
+      "verification-generic-component-47e92dba19"
+    ],
+    "evidenceIds": [],
+    "priority": "high",
+    "createdAt": "2026-10-05T17:21:25.698676+00:00"
+  },
+  {
+    "narrationId": "narration-ca1573d7750ecda6d56a",
+    "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "revision": 0,
+    "eventId": 38,
+    "kind": "verification_explanation",
+    "text": "Independent evidence and a deterministic rule agree: Supply voltage is compatible with load.",
+    "semanticIds": [
+      "component-power",
+      "component-servo"
+    ],
+    "verificationFindingIds": [
+      "verification-elec-load-voltage-compatible-7c19d2507b"
+    ],
+    "evidenceIds": [
+      "evidence-curated-component-assumptions"
+    ],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:25.698676+00:00"
+  },
+  {
+    "narrationId": "narration-7118c6dc00201fd3157e",
+    "projectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+    "revision": 1,
+    "eventId": 59,
+    "kind": "completion",
+    "text": "Project ready with 5 components across 5 subsystems: 0 source-verified checks, 5 estimates, and 0 failed checks.",
+    "semanticIds": [
+      "project-c84039a7ffdb514ca3614ab9d48ade15"
+    ],
+    "verificationFindingIds": [],
+    "evidenceIds": [],
+    "priority": "normal",
+    "createdAt": "2026-10-05T17:21:26.939640+00:00"
+  }
+]

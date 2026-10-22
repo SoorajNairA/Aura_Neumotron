@@ -1,0 +1,527 @@
+{
+  "method": "Fresh external build served by audit transport route; production API unchanged; no mocked API responses",
+  "projects": [
+    {
+      "slug": "solar-tracker",
+      "metrics": {
+        "activeProjectId": "project-1a7c0c14f66751e28e9ec8f6ca04043a",
+        "renders": 5,
+        "triangles": 27481,
+        "objects": 16,
+        "recursiveObjects": 177,
+        "meshes": 152,
+        "visibleMeshes": 152,
+        "geometries": 153,
+        "materials": 153,
+        "rendererGeometries": 153,
+        "rendererTextures": 1,
+        "bounds": {
+          "min": [
+            -75,
+            -117.12843965668017,
+            -14.879999999999999
+          ],
+          "max": [
+            271.8999659604216,
+            50,
+            157.14179758263444
+          ]
+        },
+        "finiteBounds": true,
+        "canvas": {
+          "width": 1048,
+          "height": 874
+        },
+        "contextLost": false
+      },
+      "network": [
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Papyrus.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Consolas.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Roboto.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-controller-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-light-sensor-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-light-sensor-2-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-light-sensor-3-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-light-sensor-4-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-mechanism-1-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-mechanism-2-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-panel-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-power-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-resistor-1-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-resistor-2-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-resistor-3-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-resistor-4-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-servo-1-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-servo-2-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-1a7c0c14f66751e28e9ec8f6ca04043a/representations/repr-support-3d/status",
+          "status": 409
+        }
+      ],
+      "body": "AURA\nENGINEERING WORKSPACE\nPROJECT\nTabletop Two-axis Solar Tracker That Automatically Points\n▾\nREV 01\nREADY WITH LIMITATIONS\nASSEMBLY\nSCHEMATIC\nSPLIT\nWORK\nVERIFICATION\nPASS · 0 FAILED\nWORK\n0 ACTIVE · 0 PAUSED\n◌ RECONNECTING\n•••\n‹\nSYSTEMS\n16 COMPONENTS\nCOMPLETE SYSTEM\nSHOW ALL\n− ACTUATOR\nISOLATE\nSG90 Servo\nCONCEPTUAL\nSG90 Servo\nCONCEPTUAL\n− ELECTRONICS\nISOLATE\nArduino Nano\nCONCEPTUAL\nLDR divider resistor\nCONCEPTUAL\nLDR divider resistor\nCONCEPTUAL\nLDR divider resistor\nCONCEPTUAL\nLDR divider resistor\nCONCEPTUAL\n− MECHANICAL\nISOLATE\nDriven link\nCONCEPTUAL\nDriven link\nCONCEPTUAL\nSolar panel\nCONCEPTUAL\n− POWER\nISOLATE\nLow-voltage power source\nCONCEPTUAL\n− SENSOR\nISOLATE\nLDR Direction Sensor 1\nCONCEPTUAL\nLDR Direction Sensor 2\nCONCEPTUAL\nLDR Direction Sensor 3\nCONCEPTUAL\nLDR Direction Sensor 4\nCONCEPTUAL\n− STRUCTURE\nISOLATE\nStructural base\nCONCEPTUAL\nFIT\nEXPLODE\nSOLID\nSHOW ALL\n›\nPROJECT\nREV 01\nTabletop Two-axis Solar Tracker That Automatically Points\nREADY WITH LIMITATIONS\nBUILD PIPELINE\nPLANNING\nCOMPLETE\nENGINEERING GRAPH\n16 COMPONENTS\nVERIFICATION\nPASS\nPHYSICAL ASSEMBLY\n16 PARTS / 8 MATES\nSCHEMATIC\n397 RECORDS\nLIMITATIONS\nObjective is within bounded small low-voltage mechatronics.\nWORK\n0\nCOMPLETED\n0\nIN PROGRESS\n0\nPAUSED\nOPEN WORK\nWHAT-IF ANALYSIS\nSelect a component to explore an engineering change.\nSelect a component in Assembly or Schematic, then choose WHAT IF?\nRevision 1\nAURA\nProject ready with 16 components across 6 subsystems: 4 source-verified checks, 15 estimates, and 0 failed checks.\nAURA >\nPREVIEW"
+    },
+    {
+      "slug": "dc-fan",
+      "metrics": {
+        "activeProjectId": "project-dabff80587375aa7998c6a46e9707d4d",
+        "renders": 5,
+        "triangles": 12977,
+        "objects": 6,
+        "recursiveObjects": 67,
+        "meshes": 54,
+        "visibleMeshes": 54,
+        "geometries": 55,
+        "materials": 55,
+        "rendererGeometries": 55,
+        "rendererTextures": 1,
+        "bounds": {
+          "min": [
+            -75,
+            -50,
+            -14.879999999999999
+          ],
+          "max": [
+            304,
+            50,
+            116.12518310546875
+          ]
+        },
+        "finiteBounds": true,
+        "canvas": {
+          "width": 1048,
+          "height": 874
+        },
+        "contextLost": false
+      },
+      "network": [
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Roboto.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Papyrus.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Consolas.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-dabff80587375aa7998c6a46e9707d4d/representations/repr-controller-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-dabff80587375aa7998c6a46e9707d4d/representations/repr-driver-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-dabff80587375aa7998c6a46e9707d4d/representations/repr-fan-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-dabff80587375aa7998c6a46e9707d4d/representations/repr-flyback-diode-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-dabff80587375aa7998c6a46e9707d4d/representations/repr-power-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-dabff80587375aa7998c6a46e9707d4d/representations/repr-support-3d/status",
+          "status": 409
+        }
+      ],
+      "body": "AURA\nENGINEERING WORKSPACE\nPROJECT\nArduino Nano Controlled Tabletop Dc Fan With\n▾\nREV 01\nREADY WITH LIMITATIONS\nASSEMBLY\nSCHEMATIC\nSPLIT\nWORK\nVERIFICATION\nPASS · 0 FAILED\nWORK\n0 ACTIVE · 0 PAUSED\n◌ RECONNECTING\n•••\n‹\nSYSTEMS\n6 COMPONENTS\nCOMPLETE SYSTEM\nSHOW ALL\n− ACTUATOR\nISOLATE\nDesk fan\nCONCEPTUAL\n− ELECTRONICS\nISOLATE\nArduino Nano\nCONCEPTUAL\nLogic-level N-channel MOSFET switch\nCONCEPTUAL\nD1 Flyback Diode\nCONCEPTUAL\n− POWER\nISOLATE\nLow-voltage power source\nCONCEPTUAL\n− STRUCTURE\nISOLATE\nStructural base\nCONCEPTUAL\nFIT\nEXPLODE\nSOLID\nSHOW ALL\n›\nPROJECT\nREV 01\nArduino Nano Controlled Tabletop Dc Fan With\nREADY WITH LIMITATIONS\nBUILD PIPELINE\nPLANNING\nCOMPLETE\nENGINEERING GRAPH\n6 COMPONENTS\nVERIFICATION\nPASS\nPHYSICAL ASSEMBLY\n6 PARTS / 2 MATES\nSCHEMATIC\n166 RECORDS\nLIMITATIONS\nObjective is within bounded small low-voltage mechatronics.\nWORK\n0\nCOMPLETED\n0\nIN PROGRESS\n0\nPAUSED\nOPEN WORK\nWHAT-IF ANALYSIS\nSelect a component to explore an engineering change.\nSelect a component in Assembly or Schematic, then choose WHAT IF?\nRevision 1\nAURA\nProject ready with 6 components across 4 subsystems: 1 source-verified checks, 6 estimates, and 0 failed checks.\nAURA >\nPREVIEW"
+    },
+    {
+      "slug": "four-wheel-rover",
+      "metrics": {
+        "activeProjectId": "project-12253b3425675b0e8f965befadde43c9",
+        "renders": 5,
+        "triangles": 36097,
+        "objects": 13,
+        "recursiveObjects": 202,
+        "meshes": 182,
+        "visibleMeshes": 182,
+        "geometries": 183,
+        "materials": 183,
+        "rendererGeometries": 183,
+        "rendererTextures": 1,
+        "bounds": {
+          "min": [
+            -90,
+            -68.28000007629396,
+            -47.61096889503981
+          ],
+          "max": [
+            90,
+            68.28000007629396,
+            49.537353515625
+          ]
+        },
+        "finiteBounds": true,
+        "canvas": {
+          "width": 1048,
+          "height": 874
+        },
+        "contextLost": false
+      },
+      "network": [
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Roboto.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Papyrus.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Consolas.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-chassis-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-controller-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-drive-wheel-1-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-drive-wheel-2-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-drive-wheel-3-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-drive-wheel-4-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-motor-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-motor-2-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-motor-3-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-motor-4-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-motor-driver-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-power-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-12253b3425675b0e8f965befadde43c9/representations/repr-wireless-control-3d/status",
+          "status": 409
+        }
+      ],
+      "body": "AURA\nENGINEERING WORKSPACE\nPROJECT\nRemote-controlled Four-wheel Rover With Microcontroller, Motor Driver,\n▾\nREV 01\nREADY WITH LIMITATIONS\nASSEMBLY\nSCHEMATIC\nSPLIT\nWORK\nVERIFICATION\nPASS · 0 FAILED\nWORK\n0 ACTIVE · 0 PAUSED\n◌ RECONNECTING\n•••\n‹\nSYSTEMS\n13 COMPONENTS\nCOMPLETE SYSTEM\nSHOW ALL\n− ACTUATOR\nISOLATE\nSmall DC motor\nCONCEPTUAL\nSmall DC motor\nCONCEPTUAL\nSmall DC motor\nCONCEPTUAL\nSmall DC motor\nCONCEPTUAL\n− ELECTRONICS\nISOLATE\nESP32 DevKit\nCONCEPTUAL\nGeneric motor driver\nCONCEPTUAL\nConceptual wireless control module\nCONCEPTUAL\n− MECHANICAL\nISOLATE\nDrive wheel\nCONCEPTUAL\nDrive wheel\nCONCEPTUAL\nDrive wheel\nCONCEPTUAL\nDrive wheel\nCONCEPTUAL\n− POWER\nISOLATE\nLow-voltage power source\nCONCEPTUAL\n− STRUCTURE\nISOLATE\nStructural chassis\nCONCEPTUAL\nFIT\nEXPLODE\nSOLID\nSHOW ALL\n›\nPROJECT\nREV 01\nRemote-controlled Four-wheel Rover With Microcontroller, Motor Driver,\nREADY WITH LIMITATIONS\nBUILD PIPELINE\nPLANNING\nCOMPLETE\nENGINEERING GRAPH\n13 COMPONENTS\nVERIFICATION\nPASS\nPHYSICAL ASSEMBLY\n13 PARTS / 8 MATES\nSCHEMATIC\n324 RECORDS\nLIMITATIONS\nObjective is within bounded small low-voltage mechatronics.\nWORK\n0\nCOMPLETED\n0\nIN PROGRESS\n0\nPAUSED\nOPEN WORK\nWHAT-IF ANALYSIS\nSelect a component to explore an engineering change.\nSelect a component in Assembly or Schematic, then choose WHAT IF?\nRevision 1\nAURA\nProject ready with 13 components across 5 subsystems: 2 source-verified checks, 11 estimates, and 0 failed checks.\nAURA >\nPREVIEW"
+    },
+    {
+      "slug": "soil-pump",
+      "metrics": {
+        "activeProjectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "renders": 5,
+        "triangles": 12593,
+        "objects": 9,
+        "recursiveObjects": 72,
+        "meshes": 56,
+        "visibleMeshes": 56,
+        "geometries": 57,
+        "materials": 57,
+        "rendererGeometries": 57,
+        "rendererTextures": 1,
+        "bounds": {
+          "min": [
+            -60,
+            -102,
+            0
+          ],
+          "max": [
+            358.80000019073486,
+            372,
+            317
+          ]
+        },
+        "finiteBounds": true,
+        "canvas": {
+          "width": 1048,
+          "height": 874
+        },
+        "contextLost": false
+      },
+      "network": [
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Roboto.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Papyrus.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Consolas.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-container-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-controller-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-driver-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-enclosure-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-flyback-diode-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-power-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-pump-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-soil-sensor-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-tube-3d/status",
+          "status": 409
+        }
+      ],
+      "body": "AURA\nENGINEERING WORKSPACE\nPROJECT\nArduino Nano System That Turns On Dc\n▾\nREV 01\nREADY WITH LIMITATIONS\nASSEMBLY\nSCHEMATIC\nSPLIT\nWORK\nVERIFICATION\nPASS · 0 FAILED\nWORK\n0 ACTIVE · 0 PAUSED\n◌ RECONNECTING\n•••\n‹\nSYSTEMS\n9 COMPONENTS\nCOMPLETE SYSTEM\nSHOW ALL\n− ACTUATOR\nISOLATE\nLow-voltage pump\nCONCEPTUAL\n− ELECTRONICS\nISOLATE\nArduino Nano\nCONCEPTUAL\nLogic-level N-channel MOSFET switch\nCONCEPTUAL\nD1 Flyback Diode\nCONCEPTUAL\n− MECHANICAL\nISOLATE\nContainer\nCONCEPTUAL\nFluid tube\nCONCEPTUAL\n− POWER\nISOLATE\nLow-voltage power source\nCONCEPTUAL\n− SENSOR\nISOLATE\nCapacitive soil moisture sensor\nCONCEPTUAL\n− STRUCTURE\nISOLATE\nProtective enclosure\nCONCEPTUAL\nFIT\nEXPLODE\nSOLID\nSHOW ALL\n›\nPROJECT\nREV 01\nArduino Nano System That Turns On Dc\nREADY WITH LIMITATIONS\nBUILD PIPELINE\nPLANNING\nCOMPLETE\nENGINEERING GRAPH\n9 COMPONENTS\nVERIFICATION\nPASS\nPHYSICAL ASSEMBLY\n9 PARTS / 0 MATES\nSCHEMATIC\n203 RECORDS\nLIMITATIONS\nObjective is within bounded small low-voltage mechatronics.\nWORK\n0\nCOMPLETED\n0\nIN PROGRESS\n0\nPAUSED\nOPEN WORK\nWHAT-IF ANALYSIS\nSelect a component to explore an engineering change.\nSelect a component in Assembly or Schematic, then choose WHAT IF?\nRevision 1\nAURA\nProject ready with 9 components across 6 subsystems: 2 source-verified checks, 8 estimates, and 0 failed checks.\nAURA >\nPREVIEW"
+    },
+    {
+      "slug": "unfamiliar-lead-screw",
+      "metrics": {
+        "activeProjectId": "project-c84039a7ffdb514ca3614ab9d48ade15",
+        "renders": 5,
+        "triangles": 10829,
+        "objects": 5,
+        "recursiveObjects": 60,
+        "meshes": 47,
+        "visibleMeshes": 47,
+        "geometries": 48,
+        "materials": 48,
+        "rendererGeometries": 48,
+        "rendererTextures": 1,
+        "bounds": {
+          "min": [
+            -75,
+            -50,
+            -14.879999999999999
+          ],
+          "max": [
+            75,
+            50,
+            83.59999961853028
+          ]
+        },
+        "finiteBounds": true,
+        "canvas": {
+          "width": 1048,
+          "height": 874
+        },
+        "contextLost": false
+      },
+      "network": [
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Roboto.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Papyrus.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Consolas.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-c84039a7ffdb514ca3614ab9d48ade15/representations/repr-camera-platform-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-c84039a7ffdb514ca3614ab9d48ade15/representations/repr-controller-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-c84039a7ffdb514ca3614ab9d48ade15/representations/repr-power-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-c84039a7ffdb514ca3614ab9d48ade15/representations/repr-servo-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-c84039a7ffdb514ca3614ab9d48ade15/representations/repr-support-3d/status",
+          "status": 409
+        }
+      ],
+      "body": "AURA\nENGINEERING WORKSPACE\nPROJECT\nLow-voltage Motorized Camera Slider With 400 Mm\n▾\nREV 01\nREADY WITH LIMITATIONS\nASSEMBLY\nSCHEMATIC\nSPLIT\nWORK\nVERIFICATION\nPASS · 0 FAILED\nWORK\n0 ACTIVE · 0 PAUSED\n◌ RECONNECTING\n•••\n‹\nSYSTEMS\n5 COMPONENTS\nCOMPLETE SYSTEM\nSHOW ALL\n− ACTUATOR\nISOLATE\nSG90 Servo\nCONCEPTUAL\n− ELECTRONICS\nISOLATE\nArduino Nano\nCONCEPTUAL\n− MECHANICAL\nISOLATE\nCamera platform\nCONCEPTUAL\n− POWER\nISOLATE\nLow-voltage power source\nCONCEPTUAL\n− STRUCTURE\nISOLATE\nStructural base\nCONCEPTUAL\nFIT\nEXPLODE\nSOLID\nSHOW ALL\n›\nPROJECT\nREV 01\nLow-voltage Motorized Camera Slider With 400 Mm\nREADY WITH LIMITATIONS\nBUILD PIPELINE\nPLANNING\nCOMPLETE\nENGINEERING GRAPH\n5 COMPONENTS\nVERIFICATION\nPASS\nPHYSICAL ASSEMBLY\n5 PARTS / 4 MATES\nSCHEMATIC\n110 RECORDS\nLIMITATIONS\nObjective is within bounded small low-voltage mechatronics.\nWORK\n0\nCOMPLETED\n0\nIN PROGRESS\n0\nPAUSED\nOPEN WORK\nWHAT-IF ANALYSIS\nSelect a component to explore an engineering change.\nSelect a component in Assembly or Schematic, then choose WHAT IF?\nRevision 1\nAURA\nProject ready with 5 components across 5 subsystems: 0 source-verified checks, 5 estimates, and 0 failed checks.\nAURA >\nPREVIEW"
+    },
+    {
+      "slug": "unfamiliar-gripper",
+      "metrics": {
+        "activeProjectId": "project-3d03839aa54158c2a0054c4ba36aa90e",
+        "renders": 5,
+        "triangles": 21797,
+        "objects": 8,
+        "recursiveObjects": 122,
+        "meshes": 107,
+        "visibleMeshes": 107,
+        "geometries": 108,
+        "materials": 108,
+        "rendererGeometries": 108,
+        "rendererTextures": 1,
+        "bounds": {
+          "min": [
+            -90,
+            -68.28000007629396,
+            -47.61096889503981
+          ],
+          "max": [
+            90,
+            68.28000007629396,
+            49.477928161621094
+          ]
+        },
+        "finiteBounds": true,
+        "canvas": {
+          "width": 1048,
+          "height": 874
+        },
+        "contextLost": false
+      },
+      "network": [
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Papyrus.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Roboto.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/assets/representation/fonts/Consolas.ttf",
+          "status": 404
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-chassis-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-controller-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-drive-wheel-1-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-drive-wheel-2-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-motor-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-motor-2-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-motor-driver-3d/status",
+          "status": 409
+        },
+        {
+          "url": "http://127.0.0.1:8877/api/projects/project-3d03839aa54158c2a0054c4ba36aa90e/representations/repr-power-3d/status",
+          "status": 409
+        }
+      ],
+      "body": "AURA\nENGINEERING WORKSPACE\nPROJECT\nTabletop Parallel-jaw Robotic Gripper With 60 Mm\n▾\nREV 01\nREADY WITH LIMITATIONS\nASSEMBLY\nSCHEMATIC\nSPLIT\nWORK\nVERIFICATION\nPASS · 0 FAILED\nWORK\n0 ACTIVE · 0 PAUSED\n◌ RECONNECTING\n•••\n‹\nSYSTEMS\n8 COMPONENTS\nCOMPLETE SYSTEM\nSHOW ALL\n− ACTUATOR\nISOLATE\nSmall DC motor\nCONCEPTUAL\nSmall DC motor\nCONCEPTUAL\n− ELECTRONICS\nISOLATE\nArduino Nano\nCONCEPTUAL\nGeneric motor driver\nCONCEPTUAL\n− MECHANICAL\nISOLATE\nDrive wheel\nCONCEPTUAL\nDrive wheel\nCONCEPTUAL\n− POWER\nISOLATE\nLow-voltage power source\nCONCEPTUAL\n− STRUCTURE\nISOLATE\nStructural chassis\nCONCEPTUAL\nFIT\nEXPLODE\nSOLID\nSHOW ALL\n›\nPROJECT\nREV 01\nTabletop Parallel-jaw Robotic Gripper With 60 Mm\nREADY WITH LIMITATIONS\nBUILD PIPELINE\nPLANNING\nCOMPLETE\nENGINEERING GRAPH\n8 COMPONENTS\nVERIFICATION\nPASS\nPHYSICAL ASSEMBLY\n8 PARTS / 4 MATES\nSCHEMATIC\n198 RECORDS\nLIMITATIONS\nObjective is within bounded small low-voltage mechatronics.\nWORK\n0\nCOMPLETED\n0\nIN PROGRESS\n0\nPAUSED\nOPEN WORK\nWHAT-IF ANALYSIS\nSelect a component to explore an engineering change.\nSelect a component in Assembly or Schematic, then choose WHAT IF?\nRevision 1\nAURA\nProject ready with 8 components across 5 subsystems: 1 source-verified checks, 7 estimates, and 0 failed checks.\nAURA >\nPREVIEW"
+    }
+  ]
+}

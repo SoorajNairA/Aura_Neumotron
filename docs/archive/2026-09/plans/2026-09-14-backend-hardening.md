@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12, FastAPI, pytest, SQLite/Postgres repository adapters.
 
-**Spec:** `docs/superpowers/specs/2026-09-14-release-hardening-design.md`
+**Spec:** `docs/archive/2026-09/specs/2026-09-14-release-hardening-design.md`
 
 ## Global Constraints
 

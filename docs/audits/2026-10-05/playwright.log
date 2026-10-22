@@ -1,0 +1,199 @@
+
+rtk.exe : [WebServer] (node:24156) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+At line:6 char:1
++ & rtk node node_modules/@playwright/test/cli.js test --workers=2 --ou ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([WebServer] (no... env being set.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] INFO:     Started server process [7104]
+
+[WebServer] INFO:     Waiting for application startup.
+[WebServer] INFO:     Application startup complete.
+
+[WebServer] INFO:     Uvicorn running on http://127.0.0.1:4184 (Press CTRL+C to quit)
+
+
+Running 30 tests using 2 workers
+
+(node:18596) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:3052) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/30] e2e\narration.spec.ts:2:1 › narration stays contextual and never becomes selection intent
+[2/30] e2e\audit.spec.ts:22:1 › late old-project artifact cannot overwrite the active scene or schematic
+[3/30] e2e\production.spec.ts:38:1 › startup is an uncluttered engineering objective surface
+[4/30] e2e\production.spec.ts:39:1 › creating from the welcome surface hydrates the 3D scene without a reload
+[5/30] e2e\audit.spec.ts:36:1 › returning to welcome invalidates late project hydration
+[6/30] e2e\production.spec.ts:40:1 › 3D dominates and rapid multi-surface selection remains stable
+[7/30] e2e\audit.spec.ts:46:1 › fifty project switches and twenty view cycles retain one bounded renderer
+[8/30] e2e\production.spec.ts:41:1 › useful assembly controls, verification and schematic remain functional
+[9/30] e2e\audit.spec.ts:60:1 › an old-project reconnect timer cannot reopen its socket after a switch
+[10/30] e2e\production.spec.ts:42:1 › one command surface previews, applies and preserves context
+[11/30] e2e\production.spec.ts:43:1 › normal mode hides diagnostics and viewport never scrolls
+[12/30] e2e\audit.spec.ts:76:1 › WebGL context loss is visible and restoration is reported
+[13/30] e2e\audit.spec.ts:82:1 › a missing restored project recovers to the launcher without a blank renderer
+[14/30] e2e\round2-lifecycle.spec.ts:6:1 › real workspace exposes Work creation and non-passive schematic zoom
+[15/30] e2e\production.spec.ts:44:1 › fan identity and paused live state remain visually restrained
+[16/30] e2e\production.spec.ts:45:1 › schematic camera remains user-owned through ten seconds of state changes
+[WebServer] INFO:     127.0.0.1:61178 - "WebSocket 
+/api/projects/project-25e434a20ced5532aa44616b70eab85f/events?afterEventId=0" [accepted]
+
+
+[WebServer] INFO:     connection open
+[WebServer] INFO:     connection closed
+
+[17/30] e2e\round2-lifecycle.spec.ts:17:1 › real Work lifecycle enforces reasons, persists history, and updates summary
+[WebServer] INFO:     127.0.0.1:60157 - "WebSocket 
+/api/projects/project-533334271dd15de7912946b40863023d/events?afterEventId=0" [accepted]
+
+[WebServer] INFO:     connection open
+
+[WebServer] INFO:     connection closed
+
+[WebServer] INFO:     127.0.0.1:62725 - "WebSocket 
+/api/projects/project-533334271dd15de7912946b40863023d/events?afterEventId=0" [accepted]
+
+
+[WebServer] INFO:     connection open
+[WebServer] INFO:     connection closed
+
+[18/30] e2e\round2-lifecycle.spec.ts:22:1 › real What-If isolates, applies one represented revision, and rejects stale candidate
+[WebServer] INFO:     127.0.0.1:63463 - "WebSocket 
+/api/projects/project-850499928eae555c8c35b4dd7aa54e28/events?afterEventId=0" [accepted]
+
+[WebServer] INFO:     connection open
+
+[19/30] e2e\production.spec.ts:46:1 › graph-owned schematic net selects endpoints without changing selection authority
+[20/30] e2e\production.spec.ts:47:1 › history and developer diagnostics remain contextual overlays
+[21/30] e2e\production.spec.ts:48:1 › label-free technical closeups retain component identity
+[22/30] e2e\production.spec.ts:50:1 › verification findings expose evidence without inventing provenance
+[23/30] e2e\production.spec.ts:52:1 › work mode requires a persisted reason for pausing and renders history
+[24/30] e2e\production.spec.ts:54:1 › What-If keeps current state immutable until backend candidate apply
+[25/30] e2e\production.spec.ts:56:1 › 1366 desktop layout keeps artifact, hierarchy, inspector and command visible
+[26/30] e2e\production.spec.ts:58:1 › compact viewports keep the workspace usable without horizontal clipping
+[27/30] e2e\production.spec.ts:60:1 › verification is a keyboard-contained dismissible dialog
+[28/30] e2e\runtime-rehearsal.spec.ts:13:1 › five-project 3d credibility runtime rehearsal
+[WebServer] INFO:     connection closed
+
+  1) e2e\round2-lifecycle.spec.ts:22:1 › real What-If isolates, applies one represented revision, and rejects stale candidate 
+
+    Test timeout of 45000ms exceeded.
+
+    Error: locator.click: Test timeout of 45000ms exceeded.
+    Call log:
+      - waiting for getByTestId('scenario-info').getByRole('button', { name: 'DISCARD' })
+        - locator resolved to <button>DISCARD</button>
+      - attempting click action
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <b>SG90 Servo</b> from <section class="scenario-target">…</section> subtree intercepts pointer events
+      - retrying click action
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <section class="scenario-target">…</section> intercepts pointer events
+      - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <b>SG90 Servo</b> from <section class="scenario-target">…</section> subtree intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        20 × waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <b>SG90 Servo</b> from <section class="scenario-target">…</section> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <section class="scenario-target">…</section> intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <b>SG90 Servo</b> from <section class="scenario-target">…</section> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <b>SG90 Servo</b> from <section class="scenario-target">…</section> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <b>SG90 Servo</b> from <section class="scenario-target">…</section> subtree intercepts pointer events
+      - retrying click action
+        - waiting 500ms
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <section class="scenario-target">…</section> intercepts pointer events
+      - retrying click action
+        - waiting 500ms
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <b>SG90 Servo</b> from <section class="scenario-target">…</section> subtree intercepts pointer events
+      - retrying click action
+        - waiting 500ms
+
+
+      21 |
+      22 | test("real What-If isolates, applies one represented revision, and rejects stale candidate",async({page,request})=>{
+    > 23 |  const p=await project(request),g=await (await request.get(`${backend}/api/projects/${p.projectId}/graph`)).json(),target=g.entities.find((x:any)=>x.kind==="component"&&x.metadata?.family==="servo"),before=await (await request.get(`${backend}/api/projects/${p.projectId}`)).json();await page.goto(`${backend}/?projectId=${p.projectId}`);await expect(page.getByText("Select a component to explore an engineering change.")).toBeVisible();await page.getByRole("button",{name:new RegExp(target.id)}).click();await page.getByRole("button",{name:"WHAT IF?"}).click();await expect(page.locator(".scenario-target")).toContainText(target.name);await expect(page.getByRole("button",{name:"ANALYZE WITH AI"})).toBeDisabled();await page.getByLabel("Candidate engineering change").fill("Replace with Candidate Servo");await expect(page.getByRole("button",{name:"ANALYZE WITH AI"})).toBeEnabled();await page.getByRole("button",{name:"ANALYZE WITH AI"}).click();const panel=page.getByTestId("scenario-info");await expect(panel).toContainText("Candidate Servo");expect((await (await request.get(`${backend}/api/projects/${p.projectId}`)).json()).revision).toBe(before.revision);await panel.getByRole("button",{name:"DISCARD"}).click();
+         |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            ^
+      24 |  const first=await (await request.post(`${backend}/api/projects/${p.projectId}/scenarios`,{data:{targetSemanticId:target.id,changeType:"REPLACE_COMPONENT",value:{name:"A"}}})).json(),second=await (await request.post(`${backend}/api/projects/${p.projectId}/scenarios`,{data:{targetSemanticId:target.id,changeType:"REPLACE_COMPONENT",value:{name:"B"}}})).json();expect((await request.post(`${backend}/api/projects/${p.projectId}/scenarios/${first.scenarioId}/apply`)).status()).toBe(404);const applied=await request.post(`${backend}/api/projects/${p.projectId}/scenarios/${second.scenarioId}/apply`);expect(applied.ok()).toBeTruthy();const result=await applied.json();expect(result.representations.some((x:any)=>x.revision===before.revision+1)).toBeTruthy();const stale=await (await request.post(`${backend}/api/projects/${p.projectId}/scenarios`,{data:{targetSemanticId:target.id,changeType:"REPLACE_COMPONENT",value:{name:"Stale"}}})).json(),newer=await (await request.post(`${backend}/api/projects/${p.projectId}/scenarios`,{data:{targetSemanticId:target.id,changeType:"REPLACE_COMPONENT",value:{name:"Newer"}}})).json();expect((await request.post(`${backend}/api/projects/${p.projectId}/scenarios/${newer.scenarioId}/apply`)).ok()).toBeTruthy();expect((await request.post(`${backend}/api/projects/${p.projectId}/scenarios/${stale.scenarioId}/apply`)).status()).toBe(404);
+      25 | });
+      26 |
+        at repository\src\aura\workspace\web\frontend\e2e\round2-lifecycle.spec.ts:23:1212
+
+    Error Context: ..\..\..\..\..\..\..\Users\black\AppData\Local\Temp\aura-capability-audit-20261005\playwright-results\round2-lifecycle-real-What-74cd7-and-rejects-stale-candidate\error-context.md
+
+
+(node:3076) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[29/30] e2e\round2-lifecycle.spec.ts:27:1 › What-If uncertainty can become explicit planned engineering work
+[WebServer] INFO:     127.0.0.1:61887 - "WebSocket 
+/api/projects/project-8a212221c632511bbd8fe4fac14dc7c6/events?afterEventId=0" [accepted]
+
+
+[WebServer] INFO:     connection open
+
+[WebServer] INFO:     connection closed
+[30/30] e2e\round2-lifecycle.spec.ts:31:1 › AI rejects a light sensor to servo substitution and keeps Apply disabled
+[WebServer] INFO:     127.0.0.1:56084 - "WebSocket 
+/api/projects/project-5b22aa67ceb4558c835d0fa4172d1a2c/events?afterEventId=0" [accepted]
+
+[WebServer] INFO:     connection open
+
+[WebServer] INFO:     connection closed
+
+  1 failed
+    e2e\round2-lifecycle.spec.ts:22:1 › real What-If isolates, applies one represented revision, and rejects stale candidate 
+  1 skipped
+  28 passed (1.3m)

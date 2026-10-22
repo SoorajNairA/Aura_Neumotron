@@ -1,0 +1,47 @@
+vite v7.3.6 building client environment for production...
+transforming...
+rtk.exe : [plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by 
+"repository/src/aura/workspace/web/frontend/node_modules/openscad-parser/dist/CodeFile.js". See 
+https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+At line:6 char:1
++ & rtk node node_modules/vite/bin/vite.js build *> '<host-runtime-path> ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([plugin vite:re...r more details.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[plugin vite:resolve] Module "path" has been externalized for browser compatibility, imported by 
+"repository/src/aura/workspace/web/frontend/node_modules/openscad-parser/dist/CodeFile.js". See 
+https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+[plugin vite:resolve] Module "path" has been externalized for browser compatibility, imported by 
+"repository/src/aura/workspace/web/frontend/node_modules/openscad-parser/dist/SolutionManager.js". See 
+https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by 
+"repository/src/aura/workspace/web/frontend/node_modules/openscad-parser/dist/prelude/PreludeUtil.js". See 
+https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+[plugin vite:resolve] Module "path" has been externalized for browser compatibility, imported by 
+"repository/src/aura/workspace/web/frontend/node_modules/openscad-parser/dist/prelude/PreludeUtil.js". See 
+https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+[plugin vite:resolve] Module "path" has been externalized for browser compatibility, imported by "repository/src/aur
+a/workspace/web/frontend/node_modules/openscad-parser/dist/semantic/FilenameCompletionProvider.js". See 
+https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by "repository/src/aura/
+workspace/web/frontend/node_modules/openscad-parser/dist/semantic/FilenameCompletionProvider.js". See 
+https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+[plugin vite:resolve] Module "fs" has been externalized for browser compatibility, imported by 
+"repository/src/aura/workspace/web/frontend/node_modules/openscad-parser/dist/semantic/IncludeResolver.js". See 
+https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+[plugin vite:resolve] Module "os" has been externalized for browser compatibility, imported by 
+"repository/src/aura/workspace/web/frontend/node_modules/openscad-parser/dist/semantic/IncludeResolver.js". See 
+https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+[plugin vite:resolve] Module "path" has been externalized for browser compatibility, imported by 
+"repository/src/aura/workspace/web/frontend/node_modules/openscad-parser/dist/semantic/IncludeResolver.js". See 
+https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+✓ 712 modules transformed.
+rendering chunks...
+computing gzip size...
+../../../../../../../Users/black/AppData/Local/Temp/aura-capability-audit-20261005/frontend-build/index.html                   0.40 kB │ gzip:   0.27 kB
+../../../../../../../Users/black/AppData/Local/Temp/aura-capability-audit-20261005/frontend-build/assets/index-Cm9JGUIb.css   31.30 kB │ gzip:   6.84 kB
+../../../../../../../Users/black/AppData/Local/Temp/aura-capability-audit-20261005/frontend-build/assets/index-CicbxcTA.js   127.34 kB │ gzip:  28.36 kB
+../../../../../../../Users/black/AppData/Local/Temp/aura-capability-audit-20261005/frontend-build/assets/index-D6QGNu1k.js   646.48 kB │ gzip: 151.54 kB
+../../../../../../../Users/black/AppData/Local/Temp/aura-capability-audit-20261005/frontend-build/assets/index-DWaQ0OJ2.js   909.31 kB │ gzip: 252.65 kB
+✓ built in 6.03s

@@ -43,7 +43,12 @@ def test_writes_are_idempotent_and_durable_across_restart(tmp_path):
     app.state.workspace.repository.close()
     app=create_app(storage_mode="sqlite",db_path=db,artifact_dir=artifacts)
     with TestClient(app) as client:
-        assert client.post(url,headers={"Idempotency-Key":"apply-1"}).json()==one
+        replayed=client.post(url,headers={"Idempotency-Key":"apply-1"}).json()
+        # The original operation fields are durable; its proof is stale after undo.
+        assert {key:value for key,value in replayed.items() if key!="assessment"}=={key:value for key,value in one.items() if key!="assessment"}
+        assert replayed["assessment"]["freshness"]=="STALE"
+        assert replayed["assessment"]["revisionNumber"]==one["revision"]==2
+        assert replayed["assessment"]["assessedRevisionId"]==one["assessment"]["assessedRevisionId"]
         assert client.get(f'/api/projects/{first["projectId"]}').json()["revision"]==3
 
 

@@ -78,10 +78,84 @@ export function statusLabel(value:unknown){return words(value).replaceAll("_"," 
 
 export function statusTone(value:unknown){
   const state=words(value);
+  if(["not_run","not_verified","not_assessed","unknown","stale","cad_unverified"].includes(state))return "neutral";
+  if(state==="partial")return "warn";
   if(state.includes("fail")||state.includes("abandon")||state.includes("unsupported")||state.includes("incompatible")||state.includes("invalid")||state.includes("reject"))return "fail";
   if(state.includes("estimate")||state.includes("concept")||state.includes("pause")||state.includes("limit")||state.includes("warn"))return "warn";
   if(state.includes("verified")||state.includes("cross_checked")||state.includes("ready")||state.includes("complete")||state.includes("pass"))return "pass";
   return "neutral";
+}
+
+export function sanitizeDisplayText(value:unknown){
+  if(typeof value!=="string")return "";
+  return value.replace(/\bBearer\s+[^\s\x22\x27<>]+/gi,"Bearer [redacted]")
+    .replace(/\b(?:api[_ -]?key|access[_ -]?token|authorization|password)[\x22\x27]?\s*[:=]\s*(?:\x22(?:\\.|[^\x22\\])*\x22|\x27(?:\\.|[^\x27\\])*\x27|[^\s,;&]+)/gi,"[credential redacted]")
+    .replace(/\b(?:sk-[\w-]+|AIza[\w-]+|gh[pousr]_[\w]+|eyJ[\w-]+\.[\w-]+\.[\w-]+)\b/g,"[key redacted]")
+    .slice(0,2000);
+}
+
+const textList=(value:unknown)=>Array.isArray(value)?value.filter(item=>typeof item==="string").map(sanitizeDisplayText):[];
+const evidenceOrigin=(value:unknown)=>({DECLARED:"Declared / assumed",CURATED:"Curated reference",RETRIEVED:"Retrieved reference",MEASURED:"Measured",UNKNOWN:"Origin unknown"}[String(value)]||"Origin unknown");
+
+/** Present backend decisions; never infer obligations or engineering validity. */
+export function assessmentPresentation(raw:any,currentRevision?:number,currentRevisionId?:string){
+  const valid=raw?.assessmentVersion===1&&Number.isInteger(raw.revisionNumber)&&raw.revisionNumber>0&&typeof raw.assessedRevisionId==="string"&&raw.assessedRevisionId.length>0;
+  const stale=valid&&(raw.freshness==="STALE"||(currentRevision!==undefined&&raw.revisionNumber!==currentRevision)||(currentRevisionId!==undefined&&raw.assessedRevisionId!==currentRevisionId));
+  const current=valid&&!stale&&raw.freshness==="CURRENT";
+  const freshness=stale?"Stale":current?"Current":"Unknown";
+  const result=(label:string,tone:string,reasons:string[]=[])=>({label,tone,reasons});
+  const request=raw?.request,checks=raw?.softwareChecks,evidence=raw?.engineeringEvidence;
+  const requestLabels:Record<string,string>={FULFILLED:"Request met within assessed scope",PARTIAL:"Request partially met",UNSUPPORTED:"Request unsupported",NEEDS_CLARIFICATION:"Request needs clarification",NOT_ASSESSED:"Request not assessed",STALE:"Request assessment stale"};
+  const requestResult=current?result(requestLabels[request?.state]||"Request not assessed",request?.state==="FULFILLED"?"pass":request?.state==="UNSUPPORTED"?"fail":request?.state==="PARTIAL"?"warn":"neutral",[...textList(request?.reasons),sanitizeDisplayText(request?.evaluationScope)].filter(Boolean)):
+    result(stale?"Request assessment stale":"Request not assessed",stale?"warn":"neutral",["Current original-request coverage is unavailable"]);
+  const coverage=checks?.coverage;
+  const coverageDetails=coverage?[
+    sanitizeDisplayText(coverage.scope),
+    `Ran: ${textList(coverage.executedCheckIds).join(", ")||"Unknown"}`,
+    `Applicable: ${textList(coverage.applicableCheckIds).join(", ")||"Unknown"}`,
+    `Not applicable: ${textList(coverage.notApplicableCheckIds).join(", ")||"None reported"}`,
+    `Unevaluated: ${textList(coverage.notEvaluatedCheckIds).join(", ")||"None reported"}`,
+  ]:["Execution and applicability coverage are unknown"];
+  const checkPassed=current&&checks?.state==="PASSED"&&coverage?.applicabilityKnown===true;
+  const software=current?result(checks?.state==="FAILED"?"Software checks failed":checkPassed?"Software checks passed within scope":"Not run / coverage unknown",checks?.state==="FAILED"?"fail":checkPassed?"pass":"neutral",textList(checks?.reasons)):
+    result(stale?"Software check assessment stale":"Software checks not run / unknown","neutral",["Current execution proof is unavailable"]);
+  const evidenceResult=current?result(evidence?.state==="INVALID"?"Engineering evidence invalid":evidence?.state==="LIMITED"?"Limited property evidence":"Engineering properties not verified",evidence?.state==="INVALID"?"fail":"warn",textList(evidence?.reasons)):
+    result(stale?"Engineering evidence assessment stale":"Engineering evidence unknown","neutral",["No current property evidence assessment"]);
+  const records=valid&&Array.isArray(raw.representations)?raw.representations.filter((item:any)=>item?.representationType==="mechanical_3d"):[];
+  const proxy=records.some((item:any)=>item.kind==="PROCEDURAL_PROXY");
+  const evaluated=records.length>0&&records.every((item:any)=>item.kind==="CAD_UNVERIFIED"&&item.cadEvaluationState==="SUCCEEDED");
+  const geometry=current?result(proxy?"Procedural concept proxy":evaluated?"CAD evaluated; validity unverified":records.length?"CAD / 3D unverified":"3D assessment unavailable","warn",[
+    proxy?"CAD is not evaluated for a concept mesh":"CAD evaluation is " +(evaluated?"reported by the backend":"not run or unconfirmed"),
+    "Physical correctness is not verified",
+  ]):result(stale?"3D assessment stale":"3D / CAD assessment unknown","neutral",["No current representation assessment"]);
+  const origin=valid?raw.planningOrigin:undefined;
+  const mode:Record<string,string>={deterministic_test:"Deterministic test",deterministic_fallback:"Deterministic fallback",live_model:"Live model"};
+  const originDetails=origin?[origin.planningMode?`Planning: ${mode[origin.planningMode]||sanitizeDisplayText(origin.planningMode)}`:"",
+    origin.provider?`Provider: ${sanitizeDisplayText(origin.provider)}`:"",origin.model?`Model: ${sanitizeDisplayText(origin.model)}`:"",
+    origin.reusedProject===true?"Saved project reused":""].filter(Boolean):[];
+  return {request:requestResult,software,evidence:evidenceResult,geometry,
+    revision:valid?`Assessed revision ${raw.revisionNumber} · ${freshness}`:"Assessed revision unknown",revisionId:valid?sanitizeDisplayText(raw.assessedRevisionId):"",
+    origin:originDetails.join(" · ")||"Planning origin unknown",originReason:sanitizeDisplayText(origin?.fallbackReason),
+    obligations:valid&&Array.isArray(request?.obligations)?request.obligations.filter((item:any)=>["MISSING","UNASSESSED"].includes(item?.disposition)).map((item:any)=>({
+      id:sanitizeDisplayText(item.obligation?.id),text:sanitizeDisplayText(item.obligation?.originalText)||"Original requirement unavailable",state:item.disposition,reason:sanitizeDisplayText(item.reason),
+    })):[],
+    counts:current?`${request?.satisfiedCount??"?"} met · ${request?.missingCount??"?"} missing · ${request?.unassessedCount??"?"} unassessed`:"Current requirement counts unknown",
+    coverage:coverageDetails,properties:valid&&Array.isArray(evidence?.properties)?evidence.properties.map((item:any)=>({target:sanitizeDisplayText(`${item.entityId}.${item.propertyName}`),origin:evidenceOrigin(item.origin)})):[],
+    representations:records.map((item:any)=>({id:sanitizeDisplayText(item.representationId),kind:item.kind==="PROCEDURAL_PROXY"?"Procedural concept proxy":item.kind==="CAD_UNVERIFIED"?"CAD unverified":"3D unknown",
+      artifact:sanitizeDisplayText(item.artifactState)||"Unknown",cad:sanitizeDisplayText(item.cadEvaluationState)||"Unknown"})),
+    limitations:valid?textList(raw.limitations):["Backend assessment is missing or unsupported; no engineering success is inferred"],
+  };
+}
+
+export function providerErrorPresentation(payload:any,status=500){
+  const detail=payload?.detail??payload;
+  const text=sanitizeDisplayText(typeof detail==="string"?detail:detail?.userMessage??detail?.message??"");
+  const supplied=sanitizeDisplayText(detail?.code);
+  const code=/\bIAM403\b/i.test(text+supplied)?"IAM403":/^[A-Z][A-Z0-9_-]{0,79}$/.test(supplied)?supplied:`HTTP_${status}`;
+  const auth=status===401||status===403||/IAM403|PERMISSION_DENIED|UNAUTHENTICATED|AUTHENTICATION|ADC\/IAM/i.test(code+" "+text);
+  return {code,title:auth?"Provider account or permission issue":status===504?"Provider request timed out":"Request could not complete",
+    message:auth?"Check the configured provider account and its access permissions, then retry.":text||"Retry the request or reopen the saved project.",
+    details:auth?text:""};
 }
 
 export function projectStatus(project:{status?:string;capability?:{status?:string}}|undefined,verification:any){
@@ -105,7 +179,7 @@ export function findingPresentation(raw:any):VerificationFindingPresentation {
     status:String(raw?.status??raw?.state??"unsupported"),
     category:raw?.category??raw?.domain,
     summary:String(raw?.summary??raw?.check??raw?.title??raw?.id??"Engineering finding"),
-    details:raw?.details??raw?.message??raw?.reason??raw?.userMessage,
+    details:sanitizeDisplayText(raw?.details??raw?.message??raw?.reason??raw?.userMessage),
     semanticTargets:[...(raw?.semanticTargets??raw?.entity_ids??raw?.entityIds??[])],
     evidenceIds:[...(raw?.evidenceIds??raw?.evidence_ids??[])],
     severity:raw?.severity??raw?.criticality,
@@ -123,7 +197,7 @@ export function evidencePresentation(raw:any,id="evidence"):EvidencePresentation
     retrievedAt:raw?.retrievedAt??raw?.retrieved_at??raw?.timestamp,
     status:raw?.status??raw?.state,
     sourceUrl:raw?.sourceUrl??raw?.source_url??raw?.url??source?.url,
-    details:raw?.details??raw?.summary??raw?.message,
+    details:sanitizeDisplayText(raw?.details??raw?.summary??raw?.message),
   };
 }
 

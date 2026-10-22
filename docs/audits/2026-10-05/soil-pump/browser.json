@@ -1,0 +1,334 @@
+{
+  "metrics": {
+    "activeProjectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "renders": 5,
+    "triangles": 12593,
+    "objects": 9,
+    "recursiveObjects": 72,
+    "meshes": 56,
+    "visibleMeshes": 56,
+    "geometries": 57,
+    "materials": 57,
+    "rendererGeometries": 57,
+    "rendererTextures": 1,
+    "bounds": {
+      "min": [
+        -60,
+        -102,
+        0
+      ],
+      "max": [
+        358.80000019073486,
+        372,
+        317
+      ]
+    },
+    "finiteBounds": true,
+    "canvas": {
+      "width": 1048,
+      "height": 874
+    },
+    "contextLost": false
+  },
+  "statusText": "AURA\nENGINEERING WORKSPACE\nPROJECT\nArduino Nano System That Turns On Dc\n▾\nREV 01\nREADY WITH LIMITATIONS\nASSEMBLY\nSCHEMATIC\nSPLIT\nWORK\nVERIFICATION\nPASS · 0 FAILED\nWORK\n0 ACTIVE · 0 PAUSED\n● LIVE\n•••\n‹\nSYSTEMS\n9 COMPONENTS\nCOMPLETE SYSTEM\nSHOW ALL\n− ACTUATOR\nISOLATE\nLow-voltage pump\nCONCEPTUAL\n− ELECTRONICS\nISOLATE\nArduino Nano\nCONCEPTUAL\nLogic-level N-channel MOSFET switch\nCONCEPTUAL\nD1 Flyback Diode\nCONCEPTUAL\n− MECHANICAL\nISOLATE\nContainer\nCONCEPTUAL\nFluid tube\nCONCEPTUAL\n− POWER\nISOLATE\nLow-voltage power source\nCONCEPTUAL\n− SENSOR\nISOLATE\nCapacitive soil moisture sensor\nCONCEPTUAL\n− STRUCTURE\nISOLATE\nProtective enclosure\nCONCEPTUAL\nFIT\nEXPLODE\nSOLID\nSHOW ALL\n›\nPROJECT\nREV 01\nArduino Nano System That Turns On Dc\nREADY WITH LIMITATIONS\nBUILD PIPELINE\nPLANNING\nCOMPLETE\nENGINEERING GRAPH\n9 COMPONENTS\nVERIFICATION\nPASS\nPHYSICAL ASSEMBLY\n9 PARTS / 0 MATES\nSCHEMATIC\n203 RECORDS\nLIMITATIONS\nObjective is within bounded small low-voltage mechatronics.\nWORK\n0\nCOMPLETED\n0\nIN PROGRESS\n0\nPAUSED\nOPEN WORK\nWHAT-IF ANALYSIS\nSelect a component to explore an engineering change.\nSelect a component in Assembly or Schematic, then choose WHAT IF?\nRevision 1\nAURA\nProject ready with 9 components across 6 subsystems: 2 source-verified checks, 8 estimates, and 0 failed checks.\nAURA >\nPREVIEW",
+  "errors": [
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)"
+  ],
+  "network": [
+    {
+      "url": "http://127.0.0.1:8877/assets/representation/fonts/Roboto.ttf",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:8877/assets/representation/fonts/Papyrus.ttf",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:8877/assets/representation/fonts/Consolas.ttf",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-container-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-controller-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-driver-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-enclosure-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-flyback-diode-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-power-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-pump-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-soil-sensor-3d/status",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:8877/api/projects/project-3407f9d16a4d575e9bb47e152f465b3d/representations/repr-tube-3d/status",
+      "status": 409
+    }
+  ],
+  "assembleRestore": {
+    "activeProjectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "renders": 7,
+    "triangles": 12593,
+    "objects": 9,
+    "recursiveObjects": 72,
+    "meshes": 56,
+    "visibleMeshes": 56,
+    "geometries": 57,
+    "materials": 57,
+    "rendererGeometries": 57,
+    "rendererTextures": 1,
+    "bounds": {
+      "min": [
+        -60,
+        -102,
+        0
+      ],
+      "max": [
+        358.80000019073486,
+        372,
+        317
+      ]
+    },
+    "finiteBounds": true,
+    "canvas": {
+      "width": 1048,
+      "height": 874
+    },
+    "contextLost": false
+  },
+  "schematicSymbols": 6,
+  "schematicSelection": "component-controller",
+  "partSelection": "component-pump",
+  "projectAfter": {
+    "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+    "objective": "Build an Arduino Nano system that turns on a small DC water pump when soil moisture becomes low.",
+    "capability": {
+      "status": "SUPPORTED",
+      "reasons": [
+        "Objective is within bounded small low-voltage mechatronics."
+      ]
+    },
+    "planningMode": "deterministic_test",
+    "fallbackReason": null,
+    "revision": 1,
+    "status": "ready_with_limitations",
+    "createdAt": "2026-10-05T17:21:24.073546+00:00",
+    "updatedAt": "2026-10-05T17:21:25.505795+00:00",
+    "generationMessage": null,
+    "userIssues": [],
+    "representations": [
+      {
+        "representationId": "repr-container-3d",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "semanticIds": [
+          "component-container"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-80dee5de95824857bc1e1a5ac7ceb86e",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-4588aa8a89124cbf0bb7",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-controller-3d",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "semanticIds": [
+          "component-controller"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-5c96fce8ca884a84874148c10769b4b8",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-eadf73841c960ee6d9d0",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-driver-3d",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "semanticIds": [
+          "component-driver"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-16ca7e7174014b0ab0979ae4b7586a93",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-6b39c0e4aec1ad3a3507",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-enclosure-3d",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "semanticIds": [
+          "component-enclosure"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-33a9d440f0ba437ab69f7e9875a8ef66",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-dd9fbe1f9245fb828838",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-flyback-diode-3d",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "semanticIds": [
+          "component-flyback-diode"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-a4f293a39e3a45b68f19154f20e6a066",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-2df129d298e284251739",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-power-3d",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "semanticIds": [
+          "component-power"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-f6222df6888441d993b87cb0f4404cde",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-9b4f9c1a8458901bbe3d",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-pump-3d",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "semanticIds": [
+          "component-pump"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-85e5b8bd714142c196b8853d335cfb42",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-1899a6fc898370322f16",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-soil-sensor-3d",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "semanticIds": [
+          "component-soil-sensor"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-b570c474fcdb44d6908c681bc0d98ea5",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-de67e0c3bb0b9b6b0822",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-tube-3d",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "semanticIds": [
+          "component-tube"
+        ],
+        "type": "mechanical_3d",
+        "status": "ready",
+        "generator": "cascade-core",
+        "generatorVersion": "2.0.6",
+        "artifactId": "artifact-07241a261d9c4ddf86d3f67533a34889",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-98c567e5db2b0215d5d0",
+        "generation": 1
+      },
+      {
+        "representationId": "repr-system-schematic",
+        "projectId": "project-3407f9d16a4d575e9bb47e152f465b3d",
+        "revision": 1,
+        "semanticIds": [
+          "component-controller",
+          "component-driver",
+          "component-flyback-diode",
+          "component-power",
+          "component-pump",
+          "component-soil-sensor"
+        ],
+        "type": "circuit_schematic",
+        "status": "ready",
+        "generator": "tscircuit",
+        "generatorVersion": "0.0.1609",
+        "artifactId": "artifact-f520f628d25d44e28e0855b400274c66",
+        "fallbackType": "placeholder",
+        "verificationStatus": "accepted",
+        "error": null,
+        "operationId": "representation-dd37fb3733debf8cf91c",
+        "generation": 1
+      }
+    ]
+  }
+}

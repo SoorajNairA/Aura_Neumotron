@@ -1,0 +1,1 @@
+{"kind":"mechanical_3d","semanticIds":["component-support"],"units":"mm","coordinateSystem":{"forward":"+X","left":"+Y","up":"+Z"},"geometry":{"operation":"box","width":150.0,"depth":100.0,"height":12.0},"semanticCoverage":{"componentId":"component-support","family":"base","proxy":true,"renderStrategy":"family_proxy","representationClass":"conceptual"}}
