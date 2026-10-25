@@ -63,9 +63,10 @@ class PlannerService:
         non_indicator_motion=(has_term(text,"turn") and "turn on" not in text and "turns on" not in text)
         explicit_motion=bool(re.search(r"\b(?:move|moves|moving|rotate|rotates|rotating|lift|lifts|lifting|tilt|tilts|tilting|pan|pans|panning|balance|balances|balancing|conveyor|dispens\w*|arm|arms|drive|drives|driving|slid\w*)\b",text))
         needs_motion=aerial_vehicle or explicit_motion or non_indicator_motion or any(has_term(planner_labels,word) for word in ("motor","servo","actuator")) or (any(has_term(text,word) for word in ("lid","flap","shade")) and any(has_term(text,word) for word in ("open","close")))
-        mobile_drive=(any(has_term(text,word) or has_term(planner_labels,word) for word in ("wheel","vehicle","car","chassis"))
-                      or bool(re.search(r"\bdrive(?:s|n|ing)?\b",text))
-                      or bool(re.search(r"\bdrive(?:s|n|ing)?\b",planner_labels)))
+        # Whole words only: "carriage" is not a car, and "servo-driven" is not locomotion.
+        mobile_drive=(any(re.search(rf"\b{word}s?\b",value) for word in ("wheel","vehicle","car","chassis") for value in (text,planner_labels))
+                      or bool(re.search(r"\bdrive(?:s|ing)?\b",text))
+                      or bool(re.search(r"\bdrive(?:s|ing)?\b",planner_labels)))
         solar_powered=has_term(text,"solar")
         remote_controlled=(any(has_term(text,word) or has_term(planner_labels,word) for word in ("remote","wireless","receiver","bluetooth"))
                            or (mobile_drive and has_term(text,"rc")))
@@ -256,10 +257,14 @@ class PlannerService:
             raw_trace.append({"plannerIntent":raw,**resolved})
             if family: raw_counts[family]=raw_counts.get(family,0)+1
         for family,count in raw_counts.items(): include(family,count)
+        # No supported family models these mechanisms. Record them as unresolved
+        # intent instead of substituting a look-alike servo, wheel, or platform.
+        unsupported_mechanisms=[term for term in ("stepper","lead screw","linear guide","rack and pinion","jaw","limit switch") if has_term(objective_text,term)]
+        raw_trace.extend({"plannerIntent":term,"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"no supported component family models this mechanism; it is not substituted"} for term in unsupported_mechanisms)
         # Choose a fallback actuator only after structured Planner intent has
         # been normalized. Otherwise a valid requested motor architecture also
         # inherits a phantom default servo (or vice versa).
-        if needs_motion and not any(family in families for family in ("servo","motor","propulsion-motor")): include("servo")
+        if needs_motion and "stepper" not in unsupported_mechanisms and not any(family in families for family in ("servo","motor","propulsion-motor")): include("servo")
         if raw_counts.get("mounting-plate") and "support" in families:
             families.pop("support")
         if (families.get("motor-driver") and not families.get("motor")
@@ -462,7 +467,8 @@ class PlannerService:
     @staticmethod
     def _named_component_count(text: str, family: str) -> int:
         words={"one":1,"single":1,"two":2,"dual":2,"three":3,"tri":3,"four":4,"quad":4,"five":5,"six":6,"seven":7,"eight":8}
-        match=re.search(rf"\b(?P<count>\d+|{'|'.join(words)})(?:\s+|-)\s*(?:(?:independently\s+)?(?:controlled|driven)\s+)?(?:(?:hobby|small|dc|raw)\s+)?{re.escape(family)}s?\b",text.lower())
+        # A NEMA frame size ("NEMA 17 motor") is an identifier, not a quantity.
+        match=re.search(rf"(?<!nema )(?<!nema-)\b(?P<count>\d+|{'|'.join(words)})(?:\s+|-)\s*(?:(?:independently\s+)?(?:controlled|driven)\s+)?(?:(?:hobby|small|dc|raw)\s+)?{re.escape(family)}s?\b",text.lower())
         if not match: return 0
         token=match.group("count");return int(token) if token.isdigit() else words[token]
 

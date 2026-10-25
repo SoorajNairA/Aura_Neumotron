@@ -66,7 +66,7 @@ If a feature needs an integration-owned change, describe it in the handoff. Do n
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **Aura** (10417 symbols, 27203 relationships, 523 execution flows).
+This project is indexed by GitNexus as **Aura_Neumotron** (11020 symbols, 28646 relationships, 567 execution flows).
 
 > Index stale? Run `node .gitnexus/run.cjs analyze --index-only` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? Bootstrap with `npx`, `bunx`, or `pnpm dlx` — e.g. `bunx gitnexus@latest analyze` (npm 11 npx crash; #1939).
 
@@ -90,10 +90,10 @@ This project is indexed by GitNexus as **Aura** (10417 symbols, 27203 relationsh
 
 | Resource | Use for |
 | --- | --- |
-| `gitnexus://repo/Aura/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/Aura/clusters` | All functional areas |
-| `gitnexus://repo/Aura/processes` | All execution flows |
-| `gitnexus://repo/Aura/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/Aura_Neumotron/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/Aura_Neumotron/clusters` | All functional areas |
+| `gitnexus://repo/Aura_Neumotron/processes` | All execution flows |
+| `gitnexus://repo/Aura_Neumotron/process/{name}` | Step-by-step execution trace |
 
 ## CLI
 

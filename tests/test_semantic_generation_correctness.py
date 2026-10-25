@@ -127,3 +127,45 @@ def test_semantic_generation_sweep_has_no_silent_critical_failures():
         graph = WorkspaceBridge().commit(EngineeringGraph(plan.entities[0].id), result)
         circuit = next(spec for spec in representation_specs(graph) if spec.kind is RepresentationType.CIRCUIT_SCHEMATIC)
         assert circuit.payload["fidelity"]["portsComplete"] and circuit.payload["fidelity"]["netsComplete"], objective
+
+
+SLIDER = "Build a low-voltage motorized camera slider with 400 mm travel, an 8 mm lead screw, a NEMA 17 stepper motor, two linear guide rails, end limit switches, an Arduino Nano, and a 12 V supply."
+GRIPPER = "Build a tabletop parallel-jaw robotic gripper with a 60 mm opening, two symmetric sliding jaws on linear guides, a servo-driven rack and pinion, an Arduino Nano, and a 5 V supply."
+
+
+def _roles(objective: str):
+    plan = PlannerService().plan(ProjectRequest("Family boundary", objective, ("Use low voltage",)))
+    return plan, [component.role for component in plan.components]
+
+
+@pytest.mark.parametrize("objective", ("Build a servo-driven pan platform.", "Make a lid opener with a servo driven hinge.", GRIPPER))
+def test_actuator_driven_wording_does_not_select_a_vehicle(objective: str):
+    _, roles = _roles(objective)
+    assert "servo" in roles
+    assert not {"drive_wheel", "small_dc_motor", "motor_driver"} & set(roles)
+
+
+@pytest.mark.parametrize("objective", ("Build a turntable with a NEMA 17 motor.", "Build a NEMA 23 motor conveyor."))
+def test_model_frame_number_is_not_a_component_quantity(objective: str):
+    _, roles = _roles(objective)
+    assert roles.count("small_dc_motor") <= 1
+    assert PlannerService._named_component_count(objective, "motor") == 0
+    assert PlannerService._named_component_count("Use two NEMA 17 motors and 2 motors.", "motor") == 2
+
+
+@pytest.mark.parametrize("objective,mechanisms", (
+    (SLIDER, {"stepper", "lead screw", "linear guide", "limit switch"}),
+    (GRIPPER, {"jaw", "linear guide", "rack and pinion"}),
+    ("Build a camera slider with a lead screw, rails, carriage, a NEMA 17 stepper motor, limit switches, 400 mm travel, and a 12 V supply.",
+     {"stepper", "lead screw", "limit switch"}),
+))
+def test_unsupported_mechanisms_are_explicit_instead_of_substituted(objective: str, mechanisms: set[str]):
+    plan, roles = _roles(objective)
+    assert not {"drive_wheel", "small_dc_motor"} & set(roles)
+    if "stepper" in mechanisms:
+        assert "servo" not in roles
+    trace = dict(next(entity for entity in plan.entities if entity.kind is EntityKind.PROJECT).metadata)["plannerIntentTrace"]
+    unresolved = {item["plannerIntent"] for item in trace if item["resolutionQuality"] == "UNRESOLVED"}
+    assert mechanisms <= unresolved
+    warnings = [finding for finding in VerificationService().verify(plan).findings if finding.check == "FAMILY_104"]
+    assert mechanisms <= {finding.expected["plannerIntent"] for finding in warnings}

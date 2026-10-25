@@ -230,7 +230,7 @@ class WorkspaceApplication:
             if provider is not None:
                 self.provider=provider
                 outcome = LivePlanner(provider, self.planner_timeout).plan(request)
-                if outcome.mode=="deterministic_fallback" and outcome.fallback_reason and any(term in outcome.fallback_reason for term in ("Application Default Credentials","ADC/IAM access")):
+                if outcome.mode=="deterministic_fallback" and outcome.fallback_reason and any(term in outcome.fallback_reason for term in ("Application Default Credentials","ADC/IAM access","NEBIUS_API_KEY")):
                     raise RuntimeError(outcome.fallback_reason)
                 if outcome.mode == "deterministic_fallback" and not fallback_enabled:
                     raise RuntimeError(outcome.fallback_reason or "live planning failed")
@@ -255,6 +255,9 @@ class WorkspaceApplication:
                     except Exception as exc:raise RuntimeError("Vertex Planner ADC is unavailable; run: gcloud auth application-default login") from exc
                 if not project or not settings.vertex_model:raise RuntimeError("Vertex Planner requires an ADC project or AURA_GCP_PROJECT and AURA_VERTEX_MODEL")
                 return VertexPlannerProvider(project,settings.gcp_location,settings.vertex_model,settings.vertex_timeout)
+            if settings.planner_provider=="nebius":
+                from aura.infrastructure.llm.nebius import NebiusPlannerProvider
+                return NebiusPlannerProvider(settings.nebius_api_key,settings.nebius_base_url,settings.nebius_model,settings.planner_timeout)
             if settings.planner_provider=="deterministic":return None
             raise RuntimeError(f"Unsupported Planner provider: {settings.planner_provider}")
         except RuntimeError:raise
@@ -472,7 +475,7 @@ class WorkspaceApplication:
             if creation_info is not None: creation_info["reusedProject"] = True
             return await self._resume_incomplete_representations(self.recover_interrupted(existing))
         planner_metadata = dict(outcome.provider_metadata or {})
-        planner_metadata.update({"provider": "vertex" if outcome.mode == "live_model" else "deterministic", "fallbackUsed": outcome.mode != "live_model", "planId": plan.patch.id, "componentCount": len(plan.components), "relationshipCount": len(plan.relationships)})
+        planner_metadata.update({"provider": (self.provider.get_diagnostics().get("backend","live_model") if hasattr(self.provider,"get_diagnostics") else "live_model") if outcome.mode == "live_model" else "deterministic", "fallbackUsed": outcome.mode != "live_model", "planId": plan.patch.id, "componentCount": len(plan.components), "relationshipCount": len(plan.relationships)})
         event_drafts = [{"type": "project.started", "payload": {"planningMode": outcome.mode,"operationId":body.operationId,"planner":planner_metadata}, "semantic_ids": []}]
         if outcome.mode == "live_model":
             event_drafts.append({"type": "planning.live_model", "payload": {"message": "Planning with live model"}, "semantic_ids": []})
