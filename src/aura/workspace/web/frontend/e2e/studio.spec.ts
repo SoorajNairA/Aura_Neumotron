@@ -65,3 +65,42 @@ test("component rail handles an empty build",async({page})=>{
  await page.goto("/?projectId=project-fan");
  await expect(page.getByText("No components yet")).toBeVisible();
 });
+
+const conn=(source_id:string,source_interface:string,target_id:string,target_interface:string,connection_type:string)=>({id:`c-${source_id}-${target_id}-${connection_type}`,kind:"connection",name:"c",metadata:{source_id,target_id,source_interface,target_interface,connection_type}});
+const pinGraph={project_id:"project-fan",entities:[{id:"project-fan",kind:"project",name:"Desk fan"},
+ {id:"component-controller",kind:"component",name:"ESP32 DevKit",metadata:{family:"microcontroller_board",parameters:{logic_voltage_v:3.3,component_definition_id:"esp32-devkit-v1",gpio_map:{"signal-1":4,"signal-2":16}}}},
+ {id:"component-temperature-sensor",kind:"component",name:"DS18B20",metadata:{family:"temperature_sensor",parameters:{component_definition_id:"ds18b20-module"}}},
+ {id:"component-driver",kind:"component",name:"MOSFET",metadata:{family:"mosfet_driver",parameters:{}}},
+ {id:"component-fan",kind:"component",name:"Desk fan",metadata:{family:"fan",parameters:{}}},
+ conn("component-temperature-sensor","signal","component-controller","signal-1","signal"),
+ conn("component-controller","vcc-out","component-temperature-sensor","power","regulated-power"),
+ conn("component-controller","ground","component-temperature-sensor","ground","ground"),
+ conn("component-controller","signal-2","component-driver","signal","control"),
+ conn("component-driver","load-output","component-fan","power","switched-power")],relationships:[]};
+
+test("inspector shows real pins, derived pin check and connections",async({page})=>{
+ await mock(page);await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:pinGraph}));
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:/component-temperature-sensor/}).click();
+ const rows=page.getByTestId("connection-rows");
+ await expect(rows).toContainText("GPIO 4");await expect(rows).toContainText("3.3 V");await expect(rows).toContainText("GND");
+ await expect(page.getByTestId("component-checks")).toContainText("Pin assigned");
+ await expect(page.getByTestId("part-info")).toContainText("DS18B20");
+ await page.getByRole("button",{name:"Show connections"}).click();
+ await page.getByRole("button",{name:/Desk fan component-fan/}).click();
+ await expect(page.getByTestId("connection-rows")).not.toContainText("GPIO");
+});
+
+test("simulation preview card shares state with the Simulation space",async({page})=>{
+ await mock(page);await page.goto("/?projectId=project-fan");
+ const preview=page.getByTestId("sim-preview");await expect(preview).toBeVisible();
+ await preview.getByRole("slider").fill("27");await expect(preview).toContainText("Fan on");
+ await page.getByRole("button",{name:"Simulation",exact:true}).click();
+ await expect(page.getByTestId("sim-temperature")).toHaveValue("27");await expect(page.getByTestId("sim-fan-state")).toHaveText("ON");
+});
+
+test("simulation preview is absent for unsupported designs",async({page})=>{
+ await mock(page,{supported:false,reasons:["No fan"],revisionId:"r",lastCompile:null,lastCompileCurrent:false});await page.goto("/?projectId=project-fan");
+ await expect(page.getByTestId("part-info").or(page.getByTestId("pipeline-panel"))).toBeVisible();
+ await expect(page.getByTestId("sim-preview")).toHaveCount(0);
+});

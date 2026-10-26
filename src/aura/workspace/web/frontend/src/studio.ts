@@ -50,7 +50,8 @@ export function connectionRows(componentId:string,graph:{entities:Entity[]}|unde
   if(type==="switched-power"&&mine==="target"&&port==="power"){add({port,label:"Supply (+)",value:`Switched by ${family(other)==="mosfet_driver"?"MOSFET":humanize(family(other)||"driver")}`,tone:"supply"});continue}
   if(type==="power"&&mine==="target"&&port==="power"){const volts=params(other).voltage_v;add({port,label:"Supply (VCC)",value:volts?`${volts} V`:"Supply",tone:"supply"})}
  }
- return rows;
+ const order={data:0,control:0,supply:1,ground:2};
+ return rows.sort((a,b)=>order[a.tone]-order[b.tone]);
 }
 
 const PASS=new Set(["passed","source_verified","tool_verified","cross_checked"]);
@@ -69,4 +70,15 @@ export function modelBadge(project:any):string{
  const origin=project.assessment?.planningOrigin||{};const provider=origin.provider?humanize(String(origin.provider)):"Live model";
  const model=String(origin.model||"");
  return /nemotron/i.test(model)?`Nemotron · ${provider}`:`${model||"Model"} · ${provider}`;
+}
+
+// One-line descriptions for curated parts, limited to facts held in the catalogue evidence.
+const DESCRIPTIONS:Record<string,string>={"ds18b20-module":"Digital temperature sensor, ±0.5 °C from −10 to +85 °C (datasheet). 1-Wire interface.","esp32-devkit-v1":"ESP32 development board with 3.3 V logic GPIO.","logic-mosfet-module":"Logic-level N-MOSFET switch for the fan supply.","dc-fan-5v":"5 V DC fan. Current draw is a curated estimate.","resistor-4k7":"Pull-up on the 1-Wire data line.","1n4007-diode":"Flyback diode across the inductive load."};
+export function partDescription(entity:any):string{
+ const id=entity?.metadata?.parameters?.component_definition_id as string|undefined;
+ return (id&&DESCRIPTIONS[id])||"";
+}
+export const GROUP_ROLE:Record<ComponentGroup,string>={Controller:"Controller",Sensors:"Sensor",Actuators:"Actuator",Power:"Power",Other:"Component"};
+export function neighbours(componentId:string,graph:{entities:any[]}|undefined):string[]{
+ return [...new Set((graph?.entities||[]).filter(entity=>entity.kind==="connection").flatMap(entity=>{const m=entity.metadata||{};return m.source_id===componentId?[m.target_id]:m.target_id===componentId?[m.source_id]:[]}))];
 }

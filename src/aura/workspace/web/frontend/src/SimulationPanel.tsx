@@ -12,24 +12,42 @@ export const SIMULATION_LABEL="Behavioral simulation — control logic only. Not
 const REASON_TEXT:Record<FanReason,string>={above_on:"at or above on threshold",below_off:"at or below off threshold",in_band:"inside hysteresis band, state held",sensor_fault:"sensor fault, fail-safe on"};
 const PIN_LABEL:Record<string,string>={temperature_data:"DS18B20 data",fan_gate:"MOSFET gate"};
 
-export function SimulationPanel({firmware,onFanChange,compile}:{firmware:FirmwareInfo;onFanChange:(on:boolean)=>void;compile:()=>Promise<CompileInfo>}){
- const tOn=firmware.tOnC??26,tOff=firmware.tOffC??24;
+export type FanSimulation=ReturnType<typeof useFanSimulation>;
+
+// One simulation state shared by the Simulation space and the inspector preview card.
+export function useFanSimulation(firmware:FirmwareInfo|undefined){
+ const tOn=firmware?.tOnC??26,tOff=firmware?.tOffC??24;
  // The slider always spans both thresholds, even for designs outside a typical room range.
  const minC=Math.min(10,Math.floor(tOff)-5),maxC=Math.max(40,Math.ceil(tOn)+5);
+ const [temperature,setTemperature]=useState(tOff-1),[fault,setFault]=useState(false),[on,setOn]=useState(false),[reason,setReason]=useState<FanReason>("below_off");
+ const [log,setLog]=useState<{time:string;text:string}[]>([]);
+ const previous=useRef(false);
+ useEffect(()=>{
+  if(!firmware?.supported){previous.current=false;setOn(false);return}
+  const result=fanControl(previous.current,fault?null:temperature,tOn,tOff);
+  if(result.on!==previous.current||result.reason==="sensor_fault")setLog(entries=>[{time:new Date().toLocaleTimeString(),text:`${fault?"sensor fault":`${temperature.toFixed(1)} °C`} → fan ${result.on?"ON":"OFF"} (${REASON_TEXT[result.reason]})`},...entries].slice(0,50));
+  previous.current=result.on;setOn(result.on);setReason(result.reason);
+ },[temperature,fault,tOn,tOff,firmware?.supported]);
+ return {tOn,tOff,minC,maxC,temperature,setTemperature,fault,setFault,on,reason,reasonText:REASON_TEXT[reason],log};
+}
+
+export function SimulationPreview({sim}:{sim:FanSimulation}){
+ return <section className="sim-preview" data-testid="sim-preview">
+  <header><b>Simulation preview</b><span className={sim.on?"dot on":"dot"} aria-hidden="true"/></header>
+  <div className="sim-preview-body"><div><small>Simulated input</small><strong>{sim.fault?"—":`${sim.temperature.toFixed(1)} °C`}</strong>
+   <input type="range" min={sim.minC} max={sim.maxC} step={0.5} value={sim.temperature} disabled={sim.fault} aria-label="Preview temperature" onChange={event=>sim.setTemperature(Number(event.target.value))}/>
+   <span className="sim-range"><span>{sim.minC} °C</span><span>{sim.maxC} °C</span></span></div>
+   <div><small>Fan status</small><p className={sim.on?"fan-on":"fan-off"}>{sim.on?"Fan on":"Fan off"}</p><span className="sim-reason">({sim.reasonText})</span></div></div>
+ </section>;
+}
+
+export function SimulationPanel({firmware,sim,compile}:{firmware:FirmwareInfo;sim:FanSimulation;compile:()=>Promise<CompileInfo>}){
+ const {tOn,tOff,minC,maxC,temperature,setTemperature,fault,setFault,on,log}=sim,reason=sim.reason;
  const [compileResult,setCompileResult]=useState<CompileInfo|null>(firmware.lastCompile??null),[compileCurrent,setCompileCurrent]=useState(!!firmware.lastCompileCurrent);
  const [compiling,setCompiling]=useState(false),[compileError,setCompileError]=useState("");
  const runCompile=async()=>{setCompiling(true);setCompileError("");try{const result=await compile();setCompileResult(result);setCompileCurrent(result.revisionId===firmware.revisionId)}catch(error){setCompileError((error as Error).message)}finally{setCompiling(false)}};
  const firmwareStatus=compiling?"Compiling…":compileError?`Compile request failed: ${compileError}`:!compileResult?"Not compiled yet":
   `${compileText(compileResult)}${compileCurrent?"":" — compiled for an earlier revision, not the current design revision"}`;
- const [temperature,setTemperature]=useState(tOff-1),[fault,setFault]=useState(false),[on,setOn]=useState(false),[reason,setReason]=useState<FanReason>("below_off");
- const [log,setLog]=useState<{time:string;text:string}[]>([]);
- const previous=useRef(false);
- useEffect(()=>{
-  const result=fanControl(previous.current,fault?null:temperature,tOn,tOff);
-  if(result.on!==previous.current||result.reason==="sensor_fault")setLog(entries=>[{time:new Date().toLocaleTimeString(),text:`${fault?"sensor fault":`${temperature.toFixed(1)} °C`} → fan ${result.on?"ON":"OFF"} (${REASON_TEXT[result.reason]})`},...entries].slice(0,50));
-  previous.current=result.on;setOn(result.on);setReason(result.reason);onFanChange(result.on);
- },[temperature,fault,tOn,tOff]);
- useEffect(()=>()=>onFanChange(false),[]);
  return <aside className="simulation-panel" data-testid="simulation-panel">
   <small>SIMULATION</small>
   <p className="sim-label" data-testid="sim-label">{SIMULATION_LABEL}</p>
@@ -45,6 +63,6 @@ export function SimulationPanel({firmware,onFanChange,compile}:{firmware:Firmwar
    {firmware.source&&<details><summary>View generated sketch</summary><pre data-testid="fw-source">{firmware.source}</pre></details>}
   </section>
   <p className="sim-note">3D fan spin is an animation of the simulated output, not a measured movement.</p>
-  <ol className="sim-log" data-testid="sim-log">{log.map((entry,index)=><li key={index}><time>{entry.time}</time>{entry.text}</li>)}</ol>
+  <ol className="sim-log" data-testid="sim-log">{log.map((entry,index)=><li key={`${entry.time}-${log.length-index}`}><time>{entry.time}</time>{entry.text}</li>)}</ol>
  </aside>;
 }
