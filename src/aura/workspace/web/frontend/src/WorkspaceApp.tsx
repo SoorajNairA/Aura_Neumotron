@@ -7,6 +7,7 @@ import {SelectionKind,SelectionSource,SelectionStore} from "./selection";
 import {WorkspaceSession} from "./workspaceSession";
 import {loadWorkspaceData} from "./workspaceHydration";
 import {FirmwareInfo,SimulationPanel} from "./SimulationPanel";
+import {modelBadge} from "./studio";
 import {
  EvidencePresentation,ScenarioImpactPresentation,VerificationFindingPresentation,WorkItemPresentation,
  assessmentPresentation,evidencePresentation,findingPresentation,projectStatus,providerErrorPresentation,requiresReason,sanitizeDisplayText,scenarioPresentation,statusLabel,statusTone,
@@ -19,7 +20,10 @@ type Assembly={parts:Part[];relationships:{from:string;to:string;type:string}[];
 type Project={projectId:string;objective:string;revision:number;status:string;planningMode:string;representations:any[];assessment?:any;generationMessage?:string;userIssues?:string[];capability?:{status:string;reasons:string[]}};
 type Graph={project_id:string;entities:any[];relationships:any[];revisions?:{id:string}[]};
 type Proposal={proposalId:string;summary:string;operations:any[];affectedSemanticIds:string[];unaffectedAreas:string[];artifactsToRegenerate:string[];verification:{checks:any[]};preview?:{semanticId:string;position:number[];rotation:number[];dimensions:number[]};operationId?:string};
-type ViewMode="assembly"|"schematic"|"split"|"work"|"simulation";
+type ViewMode="assembly"|"schematic"|"split"|"work"|"simulation"|"code"|"build";
+type Space="design"|"code"|"simulation"|"build";
+const DESIGN_VIEWS:[ViewMode,string][]=[["assembly","3D view"],["schematic","Wiring"],["split","Split"]];
+const spaceOf=(mode:ViewMode):Space=>mode==="code"||mode==="simulation"||mode==="build"?mode:"design";
 type InspectorMode="project"|"component"|"net"|"finding"|"evidence"|"work"|"scenario";
 const query=new URLSearchParams(location.search), initialProject=query.get("projectId")||((window as any).auraDesktop?localStorage.getItem("aura:last-project"):null);
 const SchematicViewer=lazy(()=>import("@tscircuit/schematic-viewer").then(module=>({default:module.SchematicViewer})));
@@ -148,7 +152,9 @@ export function WorkspaceApp(){
  const [commandState,setCommandState]=useState<"idle"|"loading"|"error">("idle"),[commandError,setCommandError]=useState("");
  const [overlay,setOverlay]=useState(false),[developer,setDeveloper]=useState(false),[proposal,setProposal]=useState<Proposal>(),[circuit,setCircuit]=useState<any[]>([]),[mapping,setMapping]=useState<Record<string,string>>({});
  const [exploded,setExploded]=useState(false),[xray,setXray]=useState(true),[connection,setConnection]=useState(query.get("connection")||"connecting"),[hovered,setHovered]=useState<string|null>(null);
- const [firmware,setFirmware]=useState<FirmwareInfo>();
+ const [firmware,setFirmware]=useState<FirmwareInfo>(),[settingsOpen,setSettingsOpen]=useState(false),[designView,setDesignView]=useState<ViewMode>("assembly");
+  const space=spaceOf(mode);
+  useEffect(()=>{if(mode==="assembly"||mode==="schematic"||mode==="split")setDesignView(mode)},[mode]);
   useEffect(()=>{setFirmware(undefined);if(!project?.projectId)return;let live=true;optionalJson(`/api/projects/${project.projectId}/firmware`).then(info=>{if(live)setFirmware(info)}).catch(()=>{if(live)setFirmware(undefined)});return()=>{live=false}},[project?.projectId,project?.revision]);
   useEffect(()=>{if(mode==="simulation"&&firmware&&!firmware.supported)setMode("assembly");if(mode!=="simulation")scene.current?.setSpinning(null)},[mode,firmware]);
   const compact=()=>window.matchMedia("(max-width:900px)").matches;
@@ -222,15 +228,18 @@ export function WorkspaceApp(){
  return <main className={`aura-shell workspace ${railCollapsed?"rail-collapsed":""} ${inspectorCollapsed?"inspector-collapsed":""}`}>
   <div className="ambient-grid"/>
   <header className="topbar">
-   <button className="brand" aria-label="AURA" onClick={resetWorkspace}><b>AURA</b><small>ENGINEERING WORKSPACE</small></button>
-   <button className="project-switch" onClick={()=>setPanel(panel==="projects"?null:"projects")}><small>PROJECT</small><strong>{projectName}</strong><span>▾</span></button>
-   <button className="revision-switch" aria-label={`REV ${String(project?.revision||1).padStart(2,"0")}`} onClick={()=>setPanel(panel==="history"?null:"history")}>REV {String(project?.revision||1).padStart(2,"0")}</button>
+   <button className="brand" aria-label="AURA" onClick={resetWorkspace}><span className="brand-mark" aria-hidden="true"/><b>AURA</b></button>
+   <nav className="breadcrumb" data-testid="breadcrumb" aria-label="Breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><button className="project-switch" onClick={()=>setPanel(panel==="projects"?null:"projects")}><small>PROJECT</small><strong>{projectName}</strong><span>▾</span></button></nav>
+   <span className="saved-state" aria-hidden="true">✓ Saved ·</span><button className="revision-switch" aria-label={`REV ${String(project?.revision||1).padStart(2,"0")}`} onClick={()=>setPanel(panel==="history"?null:"history")}>rev {project?.revision||1}</button>
    <span className={`project-state tone-${statusTone(projectState)}`} aria-label={`Operational status: ${projectState}`} title="Operational project readiness; independent of engineering fulfillment">{projectState}</span>
-   <nav className="workspace-tabs" aria-label="Workspace views">{(["assembly","schematic","split","work","simulation"] as ViewMode[]).map(view=>{const unavailable=view==="simulation"&&!firmware?.supported;return <button className={mode===view?"active":""} key={view} disabled={unavailable} title={unavailable?(firmware?.reasons?.join("; ")||"Simulation is unavailable for this design"):undefined} onClick={()=>{setMode(view);if(view==="work"){setSelectedFinding(undefined);setEvidence(undefined)}}}>{view.toUpperCase()}</button>})}</nav>
+   <nav className="workspace-tabs space-tabs" aria-label="Workspace spaces">{([["design","Design"],["code","Code"],["simulation","Simulation"],["build","Build"]] as [Space,string][]).map(([target,label])=>{const unavailable=target==="build"||(target==="simulation"&&!firmware?.supported);const title=target==="build"?"Coming next: USB upload, live telemetry":unavailable?(firmware?.reasons?.join("; ")||"Simulation is unavailable for this design"):undefined;return <button className={space===target&&mode!=="work"?"active":""} key={target} disabled={unavailable} title={title} onClick={()=>setMode(target==="design"?designView:target)}><span className={`space-icon space-${target}`} aria-hidden="true"/>{label}</button>})}</nav>
    <button className="top-summary verify-status" aria-label="VERIFICATION AND ASSESSMENT" onClick={()=>setOverlay(true)}><span>ENGINEERING ASSESSMENT</span><b className={`tone-${assessment.request.tone==="pass"?"neutral":assessment.request.tone}`}>{assessment.request.label}</b></button>
-   <button className="top-summary work-summary" onClick={()=>setMode("work")}><span>WORK</span><b>{workStatus==="ready"?`${counts.in_progress||0} ACTIVE · ${counts.paused||0} PAUSED`:"UNAVAILABLE"}</b></button>
+   <span className="model-badge" data-testid="model-badge" title="Model that planned this project. Model switching comes later.">{modelBadge(project)}</span>
    <span className={`backend-state ${connection}`} title="Backend connection">{connection==="connected"?"● LIVE":connection==="reconnecting"?"◌ RECONNECTING":"○ OFFLINE"}</span>
-   <button className="icon-button" aria-label="Settings" onClick={()=>setDeveloper(!developer)}>•••</button>
+   <div className="settings-menu"><button className="icon-button" aria-label="Settings" aria-haspopup="menu" aria-expanded={settingsOpen} onClick={()=>setSettingsOpen(!settingsOpen)}>⚙</button>
+    {settingsOpen&&<div role="menu" className="menu-popover"><button role="menuitem" onClick={()=>{setSettingsOpen(false);setMode("work");setSelectedFinding(undefined);setEvidence(undefined)}}>Work items<small>{workStatus==="ready"?`${counts.in_progress||0} active · ${counts.paused||0} paused`:"unavailable"}</small></button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setOverlay(true)}}>Verification details</button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setDeveloper(!developer)}}>Developer panel</button></div>}
+   </div>
+   <button className="connect-device" disabled title="Coming next: USB serial upload and telemetry">Connect device</button>
   </header>
 
   <aside className="systems-rail">
@@ -247,8 +256,10 @@ export function WorkspaceApp(){
    {mode==="simulation"&&firmware?.supported&&<SimulationPanel firmware={firmware} compile={()=>fetch(`${API}/api/projects/${project?.projectId}/firmware/compile`,{method:"POST"}).then(async response=>{const body=await response.json().catch(()=>undefined);if(!response.ok)throw new Error(body?.detail?.code||`HTTP ${response.status}`);return body})} onFanChange={on=>scene.current?.setSpinning(assembly?.parts.find(part=>part.family==="fan"||part.semanticId.includes("fan"))?.semanticId??null,on)}/>}
     {mode==="work"&&workStatus==="ready"&&workItems.length>0&&<button className="work-create primary" onClick={openWorkCreate}>CREATE WORK ITEM</button>}
    {mode==="work"&&workStatus==="ready"&&workItems.length>0&&<div className="work-terminal-counts"><b>{(counts.completed||0)+(counts.skipped||0)+(counts.abandoned||0)} DONE</b><span>{counts.skipped||0} SKIPPED · {counts.abandoned||0} ABANDONED</span></div>}
-   {mode!=="work"&&<div className="canvas-toolbar"><button onClick={()=>scene.current?.frameAll()}>FIT</button><button onClick={()=>{setExploded(!exploded);scene.current?.setExploded(!exploded)}}>{exploded?"ASSEMBLE":"EXPLODE"}</button><button onClick={()=>{setXray(!xray);scene.current?.setXray(!xray)}}>{xray?"SOLID":"X-RAY"}</button><button onClick={()=>scene.current?.isolate("all")}>SHOW ALL</button></div>}
-   {hoveredPart&&mode!=="work"&&<div className="hover-label"><b>{hoveredPart.label}</b><span>{statusLabel(hoveredPart.verificationState)}</span></div>}
+   {space==="design"&&<div className="view-switch" role="group" aria-label="Design view">{DESIGN_VIEWS.map(([view,label])=><button key={view} className={mode===view?"active":""} onClick={()=>setMode(view)}>{label}</button>)}</div>}
+    {mode==="code"&&<div className="code-canvas" data-testid="code-view">{firmware?.supported?<pre className="code-source">{firmware.source}</pre>:<p>{firmware?.reasons?.join("; ")||"No firmware for this design yet."}</p>}</div>}
+    {(space==="design"&&mode!=="work"||mode==="simulation")&&<div className="canvas-toolbar"><button onClick={()=>scene.current?.frameAll()}>FIT</button><button onClick={()=>{setExploded(!exploded);scene.current?.setExploded(!exploded)}}>{exploded?"ASSEMBLE":"EXPLODE"}</button><button onClick={()=>{setXray(!xray);scene.current?.setXray(!xray)}}>{xray?"SOLID":"X-RAY"}</button><button onClick={()=>scene.current?.isolate("all")}>SHOW ALL</button></div>}
+   {hoveredPart&&(space==="design"&&mode!=="work"||mode==="simulation")&&<div className="hover-label"><b>{hoveredPart.label}</b><span>{statusLabel(hoveredPart.verificationState)}</span></div>}
    {!project&&<div className="loading-curtain"><div className="loading-mark"/><b>AURA // LOADING PROJECT</b><span>Clearing the previous workspace and reading authoritative state.</span></div>}
   </section>
 

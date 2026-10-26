@@ -25,7 +25,7 @@ test("late old-project artifact cannot overwrite the active scene or schematic",
  await page.getByRole("button",{name:/project-a/i}).first().click();
  await page.getByTestId("projects-panel").getByRole("button",{name:/build project-b system/i}).click();
  await expect(page.getByRole("button",{name:/PROJECT project-b/i})).toBeVisible();
- await page.getByRole("button",{name:"SCHEMATIC"}).click();
+ await page.getByRole("button",{name:"Wiring",exact:true}).click();
  await page.waitForTimeout(1000);
  const metrics=await page.evaluate(()=>(window as any).__auraSceneMetrics());
  expect(metrics.activeProjectId).toBe("project-b");
@@ -52,7 +52,7 @@ test("fifty project switches and twenty view cycles retain one bounded renderer"
   await page.getByTestId("projects-panel").getByRole("button",{name:new RegExp(`build ${next} system`,"i")}).click();
   await expect(page.getByRole("button",{name:new RegExp(`PROJECT ${next}`,"i")})).toBeVisible();
  }
- for(let index=0;index<20;index++)for(const mode of ["SCHEMATIC","SPLIT","ASSEMBLY"])await page.getByRole("button",{name:mode,exact:true}).click();
+ for(let index=0;index<20;index++)for(const mode of ["Wiring","Split","3D view"])await page.getByRole("button",{name:mode,exact:true}).click();
  await page.waitForTimeout(500);const metrics=await page.evaluate(()=>(window as any).__auraSceneMetrics());
  expect(metrics.activeProjectId).toBe("project-a");expect(metrics.finiteBounds).toBe(true);expect(metrics.visibleMeshes).toBeGreaterThan(0);expect(metrics.rendererGeometries).toBeLessThanOrEqual(baseline.rendererGeometries+4);await expect(page.locator("canvas")).toHaveCount(1);
 });

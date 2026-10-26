@@ -128,3 +128,44 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .sim-label{background:#fdf3ea;color:#7a4a22;border-left-color:var(--warn)}
 .sim-firmware pre{background:var(--surface-muted);color:var(--text)}
 .dialog-scrim{background:rgba(30,39,34,.32)}
+
+/* Studio top bar: brand + breadcrumb + status on row one, space tabs on row two. */
+:root{--top-height:100px}
+.topbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;height:var(--top-height);padding:8px 18px 0;grid-template-columns:none;grid-template-rows:none}
+.topbar>*{align-self:center}
+.brand{flex-direction:row;gap:10px;align-items:center;border:0;padding:0 8px 0 0;background:transparent;grid-row:auto}
+.brand b{font:600 18px/1 var(--serif);letter-spacing:.3em;color:var(--text)}
+.brand-mark{width:26px;height:26px;border:2px solid var(--accent);border-radius:50%;box-shadow:inset 0 0 0 5px var(--surface),inset 0 0 0 8px var(--accent-soft)}
+.breadcrumb{display:flex;align-items:center;gap:8px;flex:1;min-width:0;color:var(--text-dim);font-size:14px}
+.breadcrumb .project-switch{padding:2px 22px 2px 4px;border:0;background:transparent}
+.breadcrumb .project-switch small{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.breadcrumb .project-switch strong{color:var(--text);font-size:14px;font-weight:600}
+.saved-state{color:var(--text-dim);font-size:13px}
+.revision-switch{border:0;background:transparent;color:var(--text-dim);font:400 13px var(--serif);padding:0 4px;margin-left:-8px}
+.project-state{font-size:11px;padding:4px 8px;border-radius:999px;background:var(--surface-muted)}
+.top-summary.verify-status{border:1px solid var(--line);border-radius:var(--radius-sm);padding:4px 10px}
+.model-badge{padding:7px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:13px;font-weight:600}
+.backend-state{border:0;padding:0 4px;font-size:11px}
+.settings-menu{position:relative}
+.settings-menu .icon-button{width:36px;height:36px;border:1px solid var(--line);border-radius:var(--radius-sm);font-size:16px}
+.menu-popover{position:absolute;z-index:80;right:0;top:42px;display:flex;flex-direction:column;min-width:220px;padding:6px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
+.menu-popover button{display:flex;justify-content:space-between;gap:12px;border:0;padding:9px 10px;text-align:left;font-size:13px;color:var(--text)}
+.menu-popover small{color:var(--text-dim);font-size:11px}
+.connect-device{padding:9px 16px;border-radius:var(--radius-sm);background:var(--accent);color:#fff;font-weight:600;font-size:13px}
+.connect-device:disabled{opacity:.55;background:var(--accent);color:#fff}
+.space-tabs{order:20;flex-basis:100%;display:flex;gap:6px;padding:4px 0 8px 2px;align-items:center}
+.space-tabs button{display:inline-flex;align-items:center;gap:8px;min-width:0;padding:8px 16px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text-soft);font:600 14px var(--body,inherit);letter-spacing:0;text-transform:none}
+.space-tabs button.active{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 1px #cfe0d6}
+.space-tabs button:disabled{opacity:.45}
+.space-icon{width:14px;height:14px;border:1.5px solid currentColor;border-radius:3px}
+.space-code{border-radius:2px;transform:skewX(-12deg)}
+.space-simulation{border-radius:50%}
+.space-build{border-style:dashed}
+/* Floating design view switch under the stage. */
+.view-switch{position:absolute;z-index:9;left:50%;bottom:16px;display:flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow);transform:translateX(-50%)}
+.view-switch button{border:0;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-soft);background:transparent}
+.view-switch button.active{background:var(--accent);color:#fff}
+.mode-code .three,.mode-build .three{visibility:hidden}
+.code-canvas{position:absolute;inset:0;overflow:auto;padding:20px;background:var(--bg)}
+.code-source{margin:0;padding:16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);color:var(--text);font:12px/1.55 "Cascadia Mono",Consolas,monospace;white-space:pre}
+.view-switch{bottom:64px}

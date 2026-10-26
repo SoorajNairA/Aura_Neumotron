@@ -22,7 +22,7 @@ const spinning=(page:Page)=>page.evaluate(()=>(window as any).__auraFanSpinning(
 
 test("simulation tab drives the fan with hysteresis and an honest label",async({page})=>{
  await mock(page);await page.goto("/?projectId=project-fan");
- await page.getByRole("button",{name:"SIMULATION"}).click();
+ await page.getByRole("button",{name:"Simulation",exact:true}).click();
  await expect(page.getByTestId("sim-label")).toHaveText(LABEL);
  const slider=page.getByTestId("sim-temperature"),state=page.getByTestId("sim-fan-state");
  await slider.fill("26");await expect(state).toHaveText("ON");expect(await spinning(page)).toBe(true);
@@ -36,14 +36,14 @@ test("simulation tab drives the fan with hysteresis and an honest label",async({
 test("simulation tab is disabled with the reason for unsupported designs",async({page})=>{
  await mock(page,{supported:false,reasons:["Firmware generation supports only an ESP32 DevKit V1 controller"],revisionId:"revision-1",lastCompile:null,lastCompileCurrent:false});
  await page.goto("/?projectId=project-fan");
- const tab=page.getByRole("button",{name:"SIMULATION"});
+ const tab=page.getByRole("button",{name:"Simulation",exact:true});
  await expect(tab).toBeDisabled();
  await expect(tab).toHaveAttribute("title",/ESP32 DevKit V1/);
 });
 
 test("simulation uses the design's own thresholds",async({page})=>{
  await mock(page,{...supported,tOnC:30,tOffC:28});await page.goto("/?projectId=project-fan");
- await page.getByRole("button",{name:"SIMULATION"}).click();
+ await page.getByRole("button",{name:"Simulation",exact:true}).click();
  const slider=page.getByTestId("sim-temperature"),state=page.getByTestId("sim-fan-state");
  await slider.fill("29");await expect(state).toHaveText("OFF");
  await slider.fill("30");await expect(state).toHaveText("ON");
@@ -51,7 +51,7 @@ test("simulation uses the design's own thresholds",async({page})=>{
 
 test("slider range follows thresholds outside 10-40 °C",async({page})=>{
  await mock(page,{...supported,tOnC:45,tOffC:43});await page.goto("/?projectId=project-fan");
- await page.getByRole("button",{name:"SIMULATION"}).click();
+ await page.getByRole("button",{name:"Simulation",exact:true}).click();
  await page.getByTestId("sim-temperature").fill("46");
  await expect(page.getByTestId("sim-fan-state")).toHaveText("ON");
 });
@@ -59,7 +59,7 @@ test("slider range follows thresholds outside 10-40 °C",async({page})=>{
 test("firmware can be compiled from the panel with honest status and source view",async({page})=>{
  await mock(page,{...supported,source:"#define FAN_PIN 16",lastCompile:{status:"passed",revisionId:"revision-0",sizeBytes:1,errors:[],missing:null},lastCompileCurrent:false});
  await page.route("**/api/projects/project-fan/firmware/compile",r=>r.fulfill({json:{status:"toolchain_missing",missing:"arduino-cli",errors:[],sizeBytes:null,revisionId:"revision-1"}}));
- await page.goto("/?projectId=project-fan");await page.getByRole("button",{name:"SIMULATION"}).click();
+ await page.goto("/?projectId=project-fan");await page.getByRole("button",{name:"Simulation",exact:true}).click();
  const status=page.getByTestId("fw-status");
  await expect(status).toContainText("not the current design revision");
  await page.getByRole("button",{name:"COMPILE"}).click();

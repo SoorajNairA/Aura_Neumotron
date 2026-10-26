@@ -59,7 +59,7 @@ for(const item of archived)test(`real archived ${item.name}: diagnostic artifact
  await page.getByRole("button",{name:new RegExp(part.semanticId)}).first().click();
  await expect(page.getByTestId("selected")).toHaveText(part.semanticId);
  await expect(page.getByTestId("part-info")).toContainText(part.label);
- await page.getByRole("button",{name:"SPLIT",exact:true}).click();
+ await page.getByRole("button",{name:"Split",exact:true}).click();
  await expect(page.getByTestId("schematic-camera")).toBeVisible();
  await expect(page.locator(".schematic-loading")).toHaveCount(0);
  await expect(page.getByTestId("schematic-camera").locator("svg").first()).toBeVisible();

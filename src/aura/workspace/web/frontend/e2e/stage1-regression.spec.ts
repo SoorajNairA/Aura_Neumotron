@@ -67,7 +67,7 @@ for(const original of archived)test(`Stage 1 archived ${original.slug}`,async fu
  await page.getByLabel("Close verification").click();
  const part=assembly.parts[0];await page.getByRole("button",{name:new RegExp(part.semanticId)}).first().click();
  await expect(page.getByTestId("selected")).toHaveText(part.semanticId);
- await page.getByRole("button",{name:"SPLIT",exact:true}).click();
+ await page.getByRole("button",{name:"Split",exact:true}).click();
  await expect(page.getByTestId("schematic-camera")).toBeVisible();
  await expect(page.locator(".schematic-loading")).toHaveCount(0);
  await expect(page.getByTestId("schematic-camera").locator("svg").first()).toBeVisible();
@@ -98,7 +98,7 @@ test("real diagnostic schematic selection uses graph net identity and returns to
  const graph=await request.get(`${backend}/api/projects/${project.projectId}/graph`).then(r=>r.json());
  const net=graph.entities.find((e:any)=>e.metadata?.semantic_type==="electrical_net");expect(net).toBeDefined();
  await page.goto(`${backend}/?projectId=${project.projectId}`);
- await page.getByRole("button",{name:"SPLIT",exact:true}).click();
+ await page.getByRole("button",{name:"Split",exact:true}).click();
  await page.locator(`.schematic-nets [data-net-id="${net.id}"]`).click();
  await expect(page.getByTestId("selected")).toHaveText(net.id);
  await expect(page.getByTestId("net-info")).toContainText(net.id);
