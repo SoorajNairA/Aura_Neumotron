@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import signal
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -36,6 +37,23 @@ def find_cli() -> str | None:
     return os.environ.get("AURA_ARDUINO_CLI") or shutil.which("arduino-cli")
 
 
+def _run_process_tree(command: list[str], *, timeout: float) -> subprocess.CompletedProcess:
+    """Run with output in a file (not pipes) and kill the whole tree on timeout: arduino-cli spawns gcc/esptool."""
+    windows = os.name == "nt"
+    with tempfile.TemporaryFile() as output:
+        process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT, start_new_session=not windows,
+                                   creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0)
+        try:
+            code = process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            if windows: subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True)
+            else: os.killpg(process.pid, signal.SIGKILL)
+            process.wait(10)
+            raise
+        output.seek(0)
+        return subprocess.CompletedProcess(command, code, output.read().decode("utf-8", "replace"), "")
+
+
 def compile_sketch(artifact: FirmwareArtifact, *, cli: str | None = None, timeout_s: float = DEFAULT_TIMEOUT_S,
                    run: Callable[..., subprocess.CompletedProcess] | None = None) -> CompileResult:
     """Compile with arduino-cli; a missing toolchain is reported, never treated as a pass."""
@@ -43,19 +61,21 @@ def compile_sketch(artifact: FirmwareArtifact, *, cli: str | None = None, timeou
     cli = cli or find_cli()
     if cli is None:
         return CompileResult("toolchain_missing", (), None, artifact.revision_id, now(), "", "arduino-cli")
-    run = run or subprocess.run
-    with tempfile.TemporaryDirectory(prefix="aura-fw-") as root:
+    run = run or _run_process_tree
+    root = tempfile.mkdtemp(prefix="aura-fw-")
+    try:
         sketch_dir = Path(root) / "aura_fan"
         sketch_dir.mkdir()
         (sketch_dir / "aura_fan.ino").write_text(artifact.source, encoding="utf-8")
         try:
-            done = run([cli, "compile", "--fqbn", artifact.fqbn, "--warnings", "default", str(sketch_dir)],
-                       capture_output=True, text=True, timeout=timeout_s)
+            done = run([cli, "compile", "--fqbn", artifact.fqbn, "--warnings", "default", str(sketch_dir)], timeout=timeout_s)
         except subprocess.TimeoutExpired:
             return CompileResult("failed", ({"file": None, "line": None, "message": f"Compile timed out after {timeout_s:g}s"},), None,
                                  artifact.revision_id, now(), "")
         except FileNotFoundError:
             return CompileResult("toolchain_missing", (), None, artifact.revision_id, now(), "", "arduino-cli")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)  # a killed compiler may briefly hold files on Windows
     output = f"{done.stdout or ''}\n{done.stderr or ''}"
     if done.returncode == 0:
         size = _SIZE.search(output)

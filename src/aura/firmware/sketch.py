@@ -8,7 +8,7 @@ from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, En
 TEMPLATE_PATH = Path(__file__).with_name("fan_sketch.ino.tmpl")
 FQBN = "esp32:esp32:esp32"
 # shortcut: library versions are pinned by hand; confirm against the installed toolchain when it changes.
-LIBRARIES = ("OneWire@2.3.8", "DallasTemperature@3.9.0")
+LIBRARIES = ("OneWire@2.3.8", "DallasTemperature@4.0.5")
 HYSTERESIS_C = 2.0
 DEFAULT_THRESHOLD_C = 26.0
 

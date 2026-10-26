@@ -976,6 +976,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     # Firmware is generated on demand from the current revision; only the latest compile result is kept.
     firmware_compiles:dict[str,CompileResult]={}
+    firmware_compiling:set[str]=set()
 
     @app.get("/api/projects/{project_id}/firmware")
     def get_firmware(project_id:str)->dict[str,Any]:
@@ -992,8 +993,12 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         graph=_record(application,project_id).graph
         try: artifact=generate_fan_sketch(graph)
         except FirmwareUnsupported as exc: raise HTTPException(422,detail={"code":"FIRMWARE_UNSUPPORTED","reasons":list(exc.reasons)}) from exc
-        result=await run_in_threadpool(compile_sketch,artifact)
-        firmware_compiles[project_id]=result
+        # One compile per project at a time, so repeated clicks cannot exhaust the worker pool.
+        if project_id in firmware_compiling: raise HTTPException(409,detail={"code":"COMPILE_IN_PROGRESS"})
+        firmware_compiling.add(project_id)
+        try: result=await run_in_threadpool(compile_sketch,artifact)
+        finally: firmware_compiling.discard(project_id)
+        if result.revision_id==_record(application,project_id).graph.current_revision_id: firmware_compiles[project_id]=result
         return result.to_dict()
 
     @app.get("/api/projects/{project_id}/work")

@@ -98,3 +98,8 @@ button:disabled{opacity:.55}
 .sim-log{flex:1;min-height:60px;margin:0;padding:0;overflow:auto;list-style:none;border-top:1px solid var(--line);font-size:11px;color:var(--text-soft)}
 .sim-log li{padding:5px 0;border-bottom:1px solid var(--line)}
 .sim-log time{display:block;color:var(--text-dim);font-family:"Cascadia Mono","JetBrains Mono",ui-monospace,Consolas,monospace}
+.sim-firmware{display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid var(--line)}
+.sim-firmware>div{display:flex;align-items:center;justify-content:space-between;font-size:12px}
+.sim-firmware p{margin:0;font-size:12px;line-height:1.4;color:var(--text-soft)}
+.sim-firmware summary{cursor:pointer;color:var(--text-soft);font-size:12px}
+.sim-firmware pre{max-height:220px;overflow:auto;margin:6px 0 0;padding:8px;border-radius:var(--radius-sm);background:#05090c;color:#c8d6de;font:11px/1.45 "Cascadia Mono","JetBrains Mono",ui-monospace,Consolas,monospace;white-space:pre}

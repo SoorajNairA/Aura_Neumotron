@@ -198,7 +198,7 @@ def _create(client, objective):
 
 def test_firmware_api_lifecycle(monkeypatch):
     from aura.firmware import compile as firmware_compile
-    monkeypatch.setattr(firmware_compile.subprocess, "run", lambda *a, **k: _completed(0, stdout="Sketch uses 1000 bytes (1%) of program storage space."))
+    monkeypatch.setattr(firmware_compile, "_run_process_tree", lambda *a, **k: _completed(0, stdout="Sketch uses 1000 bytes (1%) of program storage space."))
     monkeypatch.setenv("AURA_ARDUINO_CLI", "arduino-cli")
     app = create_app(storage_mode="memory")
     with TestClient(app) as client:
@@ -234,3 +234,42 @@ def test_real_compile_when_toolchain_present():
     if result.status == "toolchain_missing":
         pytest.skip(f"toolchain incomplete: {result.missing}")
     assert result.status == "passed", result.raw_output[-2000:]
+
+
+import sys
+import time
+
+
+def test_compile_timeout_kills_hung_grandchild(tmp_path):
+    # arduino-cli runs gcc/esptool as children; a hung child must not outlive the timeout.
+    if sys.platform != "win32":
+        pytest.skip("Windows process-tree behavior")
+    from aura.firmware.compile import compile_sketch
+    fake_cli = tmp_path / "fake-cli.bat"
+    fake_cli.write_text(f'@"{sys.executable}" -c "import subprocess,sys;subprocess.Popen([sys.executable,\'-c\',\'import time;time.sleep(30)\']).wait()"\n')
+    started = time.monotonic()
+    result = compile_sketch(_artifact(), cli=str(fake_cli), timeout_s=2)
+    assert time.monotonic() - started < 8
+    assert result.status == "failed" and "timed out" in result.errors[0]["message"]
+
+
+def test_concurrent_compile_for_same_project_is_rejected(monkeypatch):
+    import threading
+    import aura.workspace.server as server_module
+    from aura.firmware.compile import CompileResult
+    entered, release = threading.Event(), threading.Event()
+    def slow_compile(artifact):
+        entered.set(); release.wait(10)
+        return CompileResult("passed", (), 1, artifact.revision_id, "now", "")
+    monkeypatch.setattr(server_module, "compile_sketch", slow_compile)
+    app = create_app(storage_mode="memory")
+    with TestClient(app) as client:
+        project_id = _create(client, FAN_OBJECTIVE)
+        first = {}
+        worker = threading.Thread(target=lambda: first.update(response=client.post(f"/api/projects/{project_id}/firmware/compile")))
+        worker.start()
+        assert entered.wait(10)
+        second = client.post(f"/api/projects/{project_id}/firmware/compile")
+        release.set(); worker.join(10)
+        assert second.status_code == 409
+        assert first["response"].json()["status"] == "passed"
