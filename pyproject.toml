@@ -75,6 +75,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "aura.legacy.ui" = ["qml/*.qml"]
+"aura.firmware" = ["*.tmpl"]
 "aura.workspace" = ["web/*", "web/representation/*", "web/representation/assets/*", "web/frontend/*.json", "web/frontend/generators/tscircuit/*.mjs"]
 
 [tool.pytest.ini_options]

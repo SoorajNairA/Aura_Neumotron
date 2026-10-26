@@ -1,0 +1,11 @@
+[
+  [false, 25, false],
+  [false, 26, true],
+  [true, 25, true],
+  [true, 24, false],
+  [true, 23.9, false],
+  [false, null, true],
+  [true, null, true],
+  [false, 40, true],
+  [true, 10, false]
+]

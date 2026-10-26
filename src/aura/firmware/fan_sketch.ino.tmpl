@@ -1,0 +1,48 @@
+// AURA generated firmware for Engineering Graph revision {{REVISION_ID}}.
+// Reference parts are assumptions until confirmed: ESP32 DevKit V1, DS18B20 with a 4.7 kohm
+// pull-up to 3V3, logic-level N-MOSFET module, 5 V DC fan, 1N4007 flyback diode.
+// Behavior: fan on at >= T_ON_C, off at <= T_OFF_C, unchanged in between; a sensor fault runs the fan.
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+#define ONE_WIRE_PIN {{ONE_WIRE_PIN}}
+#define FAN_PIN {{FAN_PIN}}
+#define T_ON_C {{T_ON_C}}
+#define T_OFF_C {{T_OFF_C}}
+static const char *REVISION_ID = "{{REVISION_ID}}";
+
+OneWire oneWire(ONE_WIRE_PIN);
+DallasTemperature sensors(&oneWire);
+bool fanOn = false;
+unsigned long lastReport = 0;
+
+// BEGIN fanControl
+bool fanControl(bool prevOn, float tC, bool valid, float tOn, float tOff) {
+  if (!valid) return true;  // fail-safe: a cooling fan runs while temperature is unknown
+  if (tC >= tOn) return true;
+  if (tC <= tOff) return false;
+  return prevOn;
+}
+// END fanControl
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(FAN_PIN, OUTPUT);
+  digitalWrite(FAN_PIN, LOW);
+  sensors.begin();
+}
+
+void loop() {
+  if (millis() - lastReport < 1000) return;
+  lastReport = millis();
+  sensors.requestTemperatures();
+  float tC = sensors.getTempCByIndex(0);
+  bool valid = tC != DEVICE_DISCONNECTED_C;
+  fanOn = fanControl(fanOn, tC, valid, T_ON_C, T_OFF_C);
+  digitalWrite(FAN_PIN, fanOn ? HIGH : LOW);
+  if (valid) {
+    Serial.printf("{\"t_c\":%.2f,\"fan\":%d,\"rev\":\"%s\"}\n", tC, fanOn ? 1 : 0, REVISION_ID);
+  } else {
+    Serial.printf("{\"t_c\":null,\"fan\":%d,\"rev\":\"%s\",\"fault\":\"sensor\"}\n", fanOn ? 1 : 0, REVISION_ID);
+  }
+}
