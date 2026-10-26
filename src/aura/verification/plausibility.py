@@ -4,6 +4,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from aura.engineering_graph.interfaces import ESP32_INPUT_ONLY_GPIOS, ESP32_OUTPUT_GPIOS
 from aura.engineering_graph.model import EntityKind
 from aura.planner.schemas import ComponentSpec, ConnectionSpec, ProjectPlan
 
@@ -145,6 +146,16 @@ def evaluate_plausibility(plan: ProjectPlan, add: AddFinding) -> None:
         if incompatible:
             add("ELEC_PORT_ROLE_INCOMPATIBLE",VerificationState.FAILED,"critical",f"Connection {edge.id} assigns {edge.connection_type} to a {target_kind}-only endpoint.",(source.id,target.id),
                 category="electrical",interface_ids=(edge.source_interface,edge.target_interface),expected={"compatibleEndpointRole":edge.connection_type},actual={"sourceRole":source_kind,"targetRole":target_kind,"connectionId":edge.id},blocking=True)
+
+    # Recorded ESP32 pin assignments must be unique, never strapping/flash pins, and outputs never input-only pins.
+    for controller in sorted((c for c in components.values() if c.parameters.get("gpio_map")), key=lambda item: item.id):
+        gpio=controller.parameters["gpio_map"];pins=list(gpio.values())
+        control_ports={edge.source_interface for edge in index.outgoing.get(controller.id,()) if edge.connection_type=="control"}
+        invalid={port:pin for port,pin in gpio.items() if pins.count(pin)>1 or pin not in (*ESP32_OUTPUT_GPIOS,*ESP32_INPUT_ONLY_GPIOS)
+                 or (pin in ESP32_INPUT_ONLY_GPIOS and port in control_ports)}
+        if invalid:
+            add("ELEC_GPIO",VerificationState.FAILED,"critical",f"{controller.name} has unsafe or conflicting GPIO assignments: {', '.join(f'{port}=GPIO{pin}' for port,pin in sorted(invalid.items()))}.",(controller.id,),
+                category="electrical",interface_ids=tuple(sorted(invalid)),expected={"allowedOutputGpios":list(ESP32_OUTPUT_GPIOS)},actual={"gpioMap":dict(gpio)},blocking=True)
 
     # Compare only explicit known voltages on actual power paths. Never default a missing value.
     for edge in sorted(plan.connections, key=lambda item: item.id):

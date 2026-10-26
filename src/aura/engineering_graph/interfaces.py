@@ -15,6 +15,12 @@ class InterfaceDefinition:
     clearance_mm: float = 0
 
 
+# ESP32-WROOM-32 GPIO safety: strapping (0, 2, 12, 15) and flash (6-11) pins are never assigned;
+# 34-39 are input-only.
+ESP32_OUTPUT_GPIOS = (4, 5, 13, 14, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33)
+ESP32_INPUT_ONLY_GPIOS = (34, 35, 36, 37, 38, 39)
+
+
 def component_interfaces(family: str, dimensions: tuple[float, float, float], parameters: dict[str, Any] | None = None) -> tuple[InterfaceDefinition, ...]:
     """Return reusable physical/electrical interfaces for a component family."""
     width, length, height = dimensions

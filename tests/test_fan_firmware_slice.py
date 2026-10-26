@@ -41,3 +41,37 @@ def test_fan_plan_powers_ds18b20_from_logic_rail_with_pullup():
     # The 5 V rail must not reach the DS18B20, or its pulled-up data line would drive 5 V into an ESP32 GPIO.
     assert not any(x.target_id == sensor.id and x.target_interface == "power" and x.source_id != controller.id for x in plan.connections)
     assert VerificationService().verify(plan).accepted
+
+
+from dataclasses import replace
+
+
+def _controller_interface_to(plan, role):
+    target = _role(plan, role).id
+    controller = _role(plan, "microcontroller_board").id
+    for edge in plan.connections:
+        if {edge.source_id, edge.target_id} == {controller, target} and edge.connection_type in {"signal", "control"}:
+            return edge.source_interface if edge.source_id == controller else edge.target_interface
+    raise AssertionError(f"no controller signal edge to {role}")
+
+
+def _with_gpio_map(plan, gpio_map):
+    components = tuple(replace(c, parameters={**c.parameters, "gpio_map": gpio_map}) if c.role == "microcontroller_board" else c
+                       for c in plan.components)
+    return replace(plan, components=components)
+
+
+def test_fan_plan_assigns_gpio4_sensor_and_gpio16_gate():
+    plan = _fan_plan()
+    gpio = _role(plan, "microcontroller_board").parameters["gpio_map"]
+    assert gpio[_controller_interface_to(plan, "temperature_sensor")] == 4
+    assert gpio[_controller_interface_to(plan, "mosfet_driver")] == 16
+
+
+def test_gpio_check_rejects_duplicate_strapping_and_input_only_pins():
+    plan = _fan_plan()
+    sensor_if, gate_if = _controller_interface_to(plan, "temperature_sensor"), _controller_interface_to(plan, "mosfet_driver")
+    for bad in ({sensor_if: 4, gate_if: 4}, {sensor_if: 4, gate_if: 0}, {sensor_if: 4, gate_if: 34}, {sensor_if: 7, gate_if: 16}):
+        result = VerificationService().verify(_with_gpio_map(plan, bad))
+        assert any(f.check == "ELEC_GPIO" and f.state.value == "failed" for f in result.findings), bad
+    assert not any(f.check == "ELEC_GPIO" for f in VerificationService().verify(plan).findings if f.state.value == "failed")

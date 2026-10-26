@@ -8,7 +8,7 @@ from uuid import NAMESPACE_URL, uuid5
 from aura.engineering_graph.model import EngineeringEntity, EntityKind, Relationship
 from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation
 from aura.capabilities import CapabilityStatus, classify_objective
-from aura.engineering_graph.interfaces import component_interfaces
+from aura.engineering_graph.interfaces import ESP32_OUTPUT_GPIOS, component_interfaces
 
 from .schemas import (
     ComponentSpec, ConnectionSpec, PlannedEntity, PlannedRelationship, ProjectPlan, ProjectRequest, SubsystemSpec,
@@ -428,6 +428,16 @@ class PlannerService:
         for index,diode in enumerate(component_by_family.get("flyback-diode",[])):
             if drivers:
                 connect(drivers[min(index,len(drivers)-1)],diode,"switched-power");connect(diode,power,"ground")
+        # ESP32 DevKit pins live in the graph: fixed pins for the qualified fan workflow, then the next safe output pin.
+        if by_component[controller].parameters.get("component_definition_id")=="esp32-devkit-v1":
+            preferred={"temperature_sensor":4,"mosfet_driver":16};free=[pin for pin in ESP32_OUTPUT_GPIOS if pin not in preferred.values()];gpio_map={}
+            for edge in connections:
+                if edge.connection_type not in {"signal","control"} or controller not in (edge.source_id,edge.target_id): continue
+                port,other=(edge.source_interface,edge.target_id) if edge.source_id==controller else (edge.target_interface,edge.source_id)
+                if port in gpio_map: continue
+                pin=preferred.get(by_component[other].role)
+                gpio_map[port]=pin if pin is not None and pin not in gpio_map.values() else free.pop(0)
+            by_component[controller].parameters["gpio_map"]=gpio_map
         servos=component_by_family.get("servo",[]);mechanisms=component_by_family.get("mechanism",[]);platforms=component_by_family.get("controlled-platform",[])+component_by_family.get("camera-platform",[])+component_by_family.get("panel",[])+component_by_family.get("tool-platform",[])+component_by_family.get("conveyor",[])+component_by_family.get("lid",[])+component_by_family.get("dispensing-mechanism",[])
         mounts=component_by_family.get("mounting-plate",[])+component_by_family.get("support",[])+component_by_family.get("frame",[])+component_by_family.get("airframe",[])
         if servos and mounts: connect(mounts[0],servos[0],"mechanical")
