@@ -87,6 +87,7 @@ class PlannerService:
         if solar_powered: require("energy-collection","Solar energy collection",("energy_collection",))
         if remote_controlled:
             require("remote-control-input","Remote control input",("remote_control_input",))
+        threshold_c=self._temperature_threshold(objective_text)
         axis_count=self._requested_axis_count(intent_text)
         if not axis_count and (("pan" in text and "tilt" in text) or "balanc" in text): axis_count=2
         servo_count=self._named_component_count(f"{intent_text} {planner_labels}","servo")
@@ -109,7 +110,7 @@ class PlannerService:
         for family,count in requested_counts.items():
             require(f"{family}-count",f"{count} independently represented {family.replace('-',' ')} instances",(count_roles[family],),quantity=count)
         if any(word in text for word in ("position","balanc")): require("position-feedback","Position/state feedback",("feedback_position",))
-        if "temperature" in text or "thermal" in text or "warm" in text: require("temperature-feedback","Temperature feedback",("feedback_temperature",))
+        if "temperature" in text or "thermal" in text or "warm" in text or threshold_c is not None: require("temperature-feedback","Temperature feedback",("feedback_temperature",))
         if "drawer" in text and any(word in text for word in ("detect","opened","open state")): require("open-state-feedback","Open-state feedback",("feedback_open_state",))
         if "light" in text and any(word in text for word in ("turn on","turns on","output","illuminate")): require("light-output","Light output",("light_output",))
         directional_light=("light" in text and any(word in text for word in ("brightest","direction","track","point toward")))
@@ -120,7 +121,7 @@ class PlannerService:
         families={"controller":1,"power":1}
         def include(family:str,count:int=1)->None: families[family]=max(families.get(family,0),count)
         # Reusable objective-to-role rules.  None selects a complete named project.
-        if any(word in text for word in ("warm","temperature","thermal")): include("temperature-sensor")
+        if any(word in text for word in ("warm","temperature","thermal")) or threshold_c is not None: include("temperature-sensor")
         if any(word in text for word in ("bright","illumination","light sensor","ldr","bh1750")):
             include("light-sensor",4 if directional_light else 1)
         if any(word in text for word in ("humidity","pressure","weather","environment")): include("environmental-sensor")
@@ -212,6 +213,19 @@ class PlannerService:
           "tube":("Fluid tube","tube","mechanical",{"resolution_quality":"CONCEPTUAL"},(10,150,10)),
           "pump":("Low-voltage pump","small_dc_pump","actuator",{"voltage_v":5.0,"current_a":0.8,"inductive_load":True,"functional_roles":["fluid_drive"],"resolution_quality":"COMPATIBLE_GENERIC"},(40,60,40)),
         }
+        # Explicit requested values replace family defaults. Driver-switched loads share
+        # the switched supply rail, so a stated supply or a single stated load voltage sets the other.
+        supply_v=self._explicit_voltage(objective_text,"supply|power|battery|adapter")
+        load_voltages={family:self._explicit_voltage(objective_text,family) for family in ("fan","pump","motor")}
+        stated_loads={value for value in load_voltages.values() if value is not None}
+        if supply_v is None and len(stated_loads)==1: supply_v=next(iter(stated_loads))
+        if supply_v is not None:
+            specs["power"][3]["voltage_v"]=supply_v
+            for family in ("driver","motor-driver","relay-module"): specs[family][3]["load_voltage_v"]=supply_v
+        for family,load_v in load_voltages.items():
+            if load_v is None: load_v=supply_v
+            if load_v is not None: specs[family][3]["voltage_v"]=load_v
+        if threshold_c is not None: specs["temperature-sensor"][3]["threshold_c"]=threshold_c
         curated={"controller":"esp32-devkit-v1","temperature-sensor":"bme280-i2c-module","environmental-sensor":"bme280-breakout","distance-sensor":"vl53l0x-module","soil-sensor":"capacitive-soil-v1","fan":"dc-fan-5v","servo":"sg90-servo","driver":"logic-mosfet-module","motor-driver":"drv8833-module","relay-module":"relay-module-5v","bare-relay":"bare-relay-5v","flyback-diode":"1n4007-diode","resistor":"resistor-10k"}
         identity_overrides:dict[str,list[dict[str,Any]]]={}
         def identity(family:str,name:str,definition:str,visual:str,dimensions:tuple[float,float,float],quality:str="EXACT",parameters:dict[str,Any]|None=None):
@@ -463,6 +477,18 @@ class PlannerService:
         for match in re.finditer(rf"\b(?P<count>{number})\s*[- ]?dof\b",text.lower()): counts.append(value(match.group("count")))
         for match in re.finditer(rf"\b(?P<count>{number})\s+(?:independent\s+)?(?:(?:servo|motor|actuator)\s+)?(?:control\s+)?(?:channels|joints)\b",text.lower()): counts.append(value(match.group("count")))
         return max(counts,default=0)
+
+    @staticmethod
+    def _explicit_voltage(text: str, nouns: str) -> float | None:
+        """Return a voltage written directly before a noun, e.g. "a 12 V supply" or "12v dc fan"."""
+        match=re.search(rf"(?<![\w.])(\d+(?:\.\d+)?)\s*v(?:olts?)?\b(?:\s+dc)?\s+(?:{nouns})s?\b",text.lower())
+        return float(match.group(1)) if match else None
+
+    @staticmethod
+    def _temperature_threshold(text: str) -> float | None:
+        """Return a Celsius switching threshold such as "above 30 C" or "over 28 °C"."""
+        match=re.search(r"\b(?:above|over|exceeds?|exceeding|reaches|below|under)\s+(-?\d+(?:\.\d+)?)\s*(?:°\s*|deg(?:rees)?\s*)?c(?:elsius)?\b",text.lower())
+        return float(match.group(1)) if match else None
 
     @staticmethod
     def _named_component_count(text: str, family: str) -> int:

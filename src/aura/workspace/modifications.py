@@ -8,7 +8,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field
 
 from aura.engineering_graph.interfaces import component_interfaces
-from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind, Relationship
+from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind, Relationship, dimension_mm
 from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation, apply_patch
 from aura.verification.catalogue import CATALOGUE, CATALOGUE_VERSION
 
@@ -286,7 +286,7 @@ def _family(entity: EngineeringEntity) -> str:
 
 def _dimensions(entity: EngineeringEntity) -> tuple[float, float, float]:
     values = entity.metadata.get("dimensions", {})
-    return tuple(float(values.get(key, {}).get("value", fallback)) for key, fallback in (("width", 45), ("length", 30), ("height", 18)))
+    return tuple(dimension_mm(values[key]) if key in values else float(fallback) for key, fallback in (("width", 45), ("length", 30), ("height", 18)))
 
 
 # This legacy function is used only by deterministic tests and bounded verification repair.

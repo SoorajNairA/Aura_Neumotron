@@ -111,11 +111,9 @@ class EngineeringGraph:
             if dimensions is not None:
                 if not isinstance(dimensions,dict) or not dimensions:
                     raise ValueError(f"Entity {entity.id} dimensions must be a non-empty mapping")
-                scale={"mm":1.0,"cm":10.0,"m":1000.0,"in":25.4,"inch":25.4,"inches":25.4}
-                for dimension in dimensions.values():
-                    if not isinstance(dimension,dict) or dimension.get("unit") not in scale:
-                        raise ValueError(f"Entity {entity.id} has unsupported dimension units")
-                    millimetres=float(dimension.get("value",0))*scale[dimension["unit"]]
+                for key,dimension in dimensions.items():
+                    try: millimetres=dimension_mm(dimension)
+                    except ValueError as exc: raise ValueError(f"Entity {entity.id} dimension {key}: {exc}") from None
                     if not math.isfinite(millimetres) or not 0<millimetres<=10_000:
                         raise ValueError(f"Entity {entity.id} dimensions must be finite, positive, and at most 10000 mm")
         parents={entity.id:entity.parent_id for entity in self.entities.values()}
@@ -130,6 +128,19 @@ class EngineeringGraph:
                 raise ValueError(f"Relationship {relationship.id} has a missing endpoint")
             if not _finite_values(relationship.metadata):
                 raise ValueError(f"Relationship {relationship.id} metadata contains NaN or Infinity")
+
+
+MM_PER_UNIT={"mm":1.0,"cm":10.0,"m":1000.0,"in":25.4,"inch":25.4,"inches":25.4}
+
+
+def dimension_mm(record: Any) -> float:
+    """Convert one {"value","unit"} dimension record to millimetres."""
+    if not isinstance(record,dict) or record.get("unit") not in MM_PER_UNIT:
+        raise ValueError("unsupported or missing dimension unit")
+    value=record.get("value")
+    if isinstance(value,bool) or not isinstance(value,(int,float)):
+        raise ValueError("dimension value must be a number")
+    return float(value)*MM_PER_UNIT[record["unit"]]
 
 
 def _finite_values(value: Any) -> bool:

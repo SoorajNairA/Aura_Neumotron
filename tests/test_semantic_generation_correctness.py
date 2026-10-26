@@ -169,3 +169,45 @@ def test_unsupported_mechanisms_are_explicit_instead_of_substituted(objective: s
     assert mechanisms <= unresolved
     warnings = [finding for finding in VerificationService().verify(plan).findings if finding.check == "FAMILY_104"]
     assert mechanisms <= {finding.expected["plannerIntent"] for finding in warnings}
+
+
+def _parameters(objective: str):
+    plan = PlannerService().plan(ProjectRequest("Explicit values", objective, ("Use low voltage",)))
+    return plan, {component.id: component.parameters for component in plan.components}
+
+
+def test_explicit_supply_and_load_voltage_replace_5v_defaults():
+    objective = "Build an Arduino Nano controlled DC fan that turns on above 30 C, using a 12 V fan and a 12 V supply."
+    plan, parameters = _parameters(objective)
+    assert parameters["component-power"]["voltage_v"] == 12.0
+    assert parameters["component-fan"]["voltage_v"] == 12.0
+    assert parameters["component-driver"]["load_voltage_v"] == 12.0
+    assert parameters["component-temperature-sensor"]["threshold_c"] == 30.0
+    result = VerificationService().verify(plan)
+    assert result.accepted, result.reasons
+    from aura.workspace.assessment import assess_request, collect_request_obligations
+    graph = WorkspaceBridge().commit(EngineeringGraph(plan.entities[0].id), result)
+    voltages = [item for item in assess_request(collect_request_obligations(objective), graph).obligations if item.obligation.kind == "property" and item.obligation.property_name == "voltage_v"]
+    assert voltages and all(item.disposition.value == "SATISFIED" for item in voltages)
+
+
+@pytest.mark.parametrize("objective,supply", [("Build an ESP32 fan controller with a 12 V supply.", 12.0), ("Build a 12 V pump controller for soil moisture.", 12.0)])
+def test_one_stated_rail_voltage_sets_the_switched_supply_and_load(objective: str, supply: float):
+    plan, parameters = _parameters(objective)
+    load = parameters.get("component-fan") or parameters["component-pump"]
+    assert parameters["component-power"]["voltage_v"] == load["voltage_v"] == supply
+    assert VerificationService().verify(plan).accepted
+
+
+def test_contradictory_explicit_voltages_are_rejected_not_defaulted():
+    plan, parameters = _parameters("Build an ESP32 fan with a 12 V supply and a 5 V fan.")
+    assert (parameters["component-power"]["voltage_v"], parameters["component-fan"]["voltage_v"]) == (12.0, 5.0)
+    result = VerificationService().verify(plan)
+    assert not result.accepted
+    assert any(finding.check == "ELEC_VOLTAGE_INCOMPATIBLE" for finding in result.findings)
+
+
+def test_unstated_values_keep_family_defaults():
+    _, parameters = _parameters("Build a temperature controlled fan.")
+    assert parameters["component-power"]["voltage_v"] == 5.0
+    assert parameters["component-temperature-sensor"]["threshold_c"] == 26

@@ -9,7 +9,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from aura.engineering_graph.model import EngineeringGraph, EntityKind
+from aura.engineering_graph.model import EngineeringGraph, EntityKind, dimension_mm
 from aura.engineering_graph.electrical import electrical_nets, materialize_electrical_nets
 from aura.infrastructure.persistence.project_repository import ProjectRepository
 from .representations import (GenerationResult, RepresentationRecord, RepresentationSpec,
@@ -25,7 +25,7 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
     components=graph.find(kind=EntityKind.COMPONENT);mechanical=[]
     for entity in components:
         family=entity.metadata.get("family",entity.metadata.get("role",""));dims=entity.metadata.get("dimensions",{})
-        value=lambda key,default:float(dims.get(key,{}).get("value",default))
+        value=lambda key,default:dimension_mm(dims[key]) if key in dims else float(default)
         # Every physical semantic component receives a bounded, non-zero proxy.
         # A record alone is not considered physical coverage; its geometry is
         # validated below and the renderer receives the same semantic id.

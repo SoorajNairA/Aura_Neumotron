@@ -5,7 +5,7 @@ from dataclasses import replace
 from hashlib import sha256
 
 from aura.engineering_graph.electrical import electrical_nets, materialize_electrical_nets
-from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
+from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind, dimension_mm
 from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation, apply_patch
 from aura.engineering_graph.interfaces import component_interfaces
 from aura.planner.schemas import ProjectPlan
@@ -127,8 +127,8 @@ class VerificationService:
             adjacency[connection.source_id].add(connection.target_id)
             adjacency[connection.target_id].add(connection.source_id)
             connection_source=components[connection.source_id].role;connection_target=components[connection.target_id].role
-            source_interfaces={item.name:item for item in component_interfaces(connection_source,tuple(float(value.get("value",1)) for value in components[connection.source_id].dimensions.values()),components[connection.source_id].parameters)}
-            target_interfaces={item.name:item for item in component_interfaces(connection_target,tuple(float(value.get("value",1)) for value in components[connection.target_id].dimensions.values()),components[connection.target_id].parameters)}
+            source_interfaces={item.name:item for item in component_interfaces(connection_source,tuple(dimension_mm(value) for value in components[connection.source_id].dimensions.values()),components[connection.source_id].parameters)}
+            target_interfaces={item.name:item for item in component_interfaces(connection_target,tuple(dimension_mm(value) for value in components[connection.target_id].dimensions.values()),components[connection.target_id].parameters)}
             source=source_interfaces.get(connection.source_interface);target=target_interfaces.get(connection.target_interface)
             if source is None or target is None or target.kind not in source.compatible:
                 add("MECH_320",VerificationState.FAILED,"critical",f"Mechanical connection {connection.id} does not join compatible physical interfaces.",(connection.source_id,connection.target_id),expected={"sourceInterface":connection.source_interface,"targetInterface":connection.target_interface},actual={"sourceFamily":connection_source,"targetFamily":connection_target})

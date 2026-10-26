@@ -84,3 +84,33 @@ def test_requested_motor_turntable_does_not_inherit_a_phantom_default_servo():
     assert VerificationService().verify(plan).accepted
     mechanical=[connection for connection in plan.connections if connection.connection_type=="mechanical"]
     assert any(connection.source_id=="component-motor" and connection.target_id=="component-camera-platform" for connection in mechanical)
+
+
+def _with_dimensions_in_cm(graph: EngineeringGraph) -> EngineeringGraph:
+    entities = dict(graph.entities)
+    for entity in graph.find(kind=EntityKind.COMPONENT):
+        dims = {key: {"value": value["value"] / 10, "unit": "cm"} for key, value in entity.metadata["dimensions"].items()}
+        entities[entity.id] = replace(entity, metadata=entity.metadata | {"dimensions": dims})
+    converted = replace(graph, entities=entities)
+    converted.validate()
+    return converted
+
+
+def test_centimetre_dimensions_render_like_equivalent_millimetres():
+    from aura.workspace.assembly import engineering_assembly
+    from aura.workspace.representation_service import representation_specs
+    graph = build("Build a temperature controlled fan with a servo lid.")
+    in_cm = _with_dimensions_in_cm(graph)
+    mechanical = lambda value: {spec.semantic_ids: spec.payload for spec in representation_specs(value) if spec.kind.value == "mechanical_3d"}
+    assert mechanical(in_cm) == mechanical(graph)
+    assert engineering_assembly(in_cm)["parts"] == engineering_assembly(graph)["parts"]
+    assert check_engineering_invariants(in_cm) == check_engineering_invariants(graph)
+
+
+@pytest.mark.parametrize("dimension", [{"value": None, "unit": "mm"}, {"value": "80", "unit": "mm"}, {"value": 80}, {"value": 80, "unit": "V"}])
+def test_invalid_dimension_is_a_clear_validation_error(dimension):
+    graph = build("Build a temperature controlled fan.")
+    fan = graph.get("component-fan")
+    graph.entities[fan.id] = replace(fan, metadata=fan.metadata | {"dimensions": {"width": dimension}})
+    with pytest.raises(ValueError, match="component-fan dimension width"):
+        graph.validate()

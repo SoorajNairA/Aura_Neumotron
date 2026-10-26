@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from math import acos, cos, degrees, radians, sin, sqrt
 from typing import Any
 
-from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
+from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind, dimension_mm
 from aura.engineering_graph.interfaces import component_interfaces, interface_dict
 from aura.engineering_graph.electrical import electrical_nets
 
@@ -49,7 +49,7 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
         hierarchy[parent]=[item.id for item in items]
         for index,entity in enumerate(items):
             meta=entity.metadata;family=meta.get("family",meta.get("role","generic_mechanical_part"));dims=meta.get("dimensions",{})
-            dimensions=tuple(float(dims.get(key,{}).get("value",fallback)) for key,fallback in (("width",45),("length",30),("height",18)))
+            dimensions=tuple(dimension_mm(dims[key]) if key in dims else float(fallback) for key,fallback in (("width",45),("length",30),("height",18)))
             role=str(meta.get("subsystem",parent.removeprefix("subsystem-")))
             # This grid is reserved for non-mechanical secondary components.
             # Mechanism members are replaced below by topology-derived roots and

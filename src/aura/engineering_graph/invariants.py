@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from .electrical import electrical_nets
 from .interfaces import component_interfaces
-from .model import EngineeringGraph, EntityKind
+from .model import EngineeringGraph, EntityKind, dimension_mm
 
 
 @dataclass(frozen=True)
@@ -26,7 +26,7 @@ def check_engineering_invariants(graph: EngineeringGraph) -> tuple[InvariantFind
     interfaces: dict[str, set[str]] = {}
     for entity in components.values():
         dims = entity.metadata.get("dimensions", {})
-        values = tuple(float(dims.get(key, {}).get("value", 0)) for key in ("width", "length", "height"))
+        values = tuple(dimension_mm(dims[key]) if key in dims else 0.0 for key in ("width", "length", "height"))
         if any(value <= 0 for value in values):
             findings.append(InvariantFinding("MECH_001", "Physical dimensions must be positive millimetres.", (entity.id,)))
         family = entity.metadata.get("family", entity.metadata.get("role", ""))
