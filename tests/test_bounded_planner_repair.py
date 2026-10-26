@@ -142,3 +142,38 @@ def test_live_repair_reuses_the_provider_with_the_structured_context():
         repair=client.get(f"/api/projects/{response.json()['projectId']}/provenance").json()["planner"]["repair"]
         assert repair["repairProvider"] == "live_model" and repair["repairSucceeded"]
     app.state.workspace.repository.close()
+
+
+def test_structured_planner_text_fields_are_bounded_against_context_echo():
+    # Nemotron sometimes copies the repair context graph into a text field until it hits max_tokens.
+    import pytest
+    from pydantic import ValidationError
+    from aura.planner.live import StructuredPlannerResponse
+    echoed = json.dumps({"components": [{"family": "articulated_link", "id": f"component-{index}"} for index in range(40)]})
+    with pytest.raises(ValidationError):
+        StructuredPlannerResponse(projectName="Arm", objective="Make a robotic arm", requirements=[echoed], assumptions=[], components=["servo", "controller", "power"])
+    schema = StructuredPlannerResponse.model_json_schema()["properties"]
+    assert all(schema[field]["items"].get("maxLength") for field in ("requirements", "assumptions", "components"))
+
+
+def test_live_planner_gives_structured_output_enough_token_headroom():
+    from aura.infrastructure.llm.provider import ModelGenerationResult
+    from aura.planner.live import LivePlanner
+    seen = []
+
+    class Recorder:
+        def generate_structured(self, messages, *, system_prompt=None, max_tokens=0, response_schema=None):
+            seen.append(max_tokens)
+            return ModelGenerationResult(json.dumps({"projectName": "Arm", "objective": "Make a robotic arm", "requirements": ["Move"], "assumptions": [], "components": ["microcontroller board", "servo", "low-voltage power supply"]}), 1, 1, 2, "test", {})
+
+    LivePlanner(Recorder()).plan(ProjectRequest("Arm", "Make a robotic arm", ("Move",)))
+    # Valid replies were observed up to ~1050 tokens; 1200 truncated them.
+    assert seen and min(seen) >= 2400
+
+
+def test_live_prompts_ask_for_only_needed_component_families():
+    # Without this, Nemotron copied the whole capability manifest (a robotic arm got a reservoir, tube and lid).
+    from aura.planner.live import LivePlanner
+    request = ProjectRequest("Arm", "Make a robotic arm", ("Move",))
+    for prompt in (LivePlanner._prompt(request, ""), LivePlanner._repair_prompt(request, {})):
+        assert "only the component families this objective physically needs" in prompt

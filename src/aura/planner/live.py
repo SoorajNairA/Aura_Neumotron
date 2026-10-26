@@ -5,7 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from dataclasses import dataclass
 from threading import BoundedSemaphore, Event
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -18,15 +18,18 @@ from .service import PlannerRepairAttempt, PlannerService
 _PLANNER_WORKERS = 4
 _PLANNER_CAPACITY = BoundedSemaphore(8)
 _PLANNER_EXECUTOR = ThreadPoolExecutor(max_workers=_PLANNER_WORKERS, thread_name_prefix="aura-planner")
+# Valid structured replies reach ~1050 tokens; 1200 truncated them.
+_PLANNER_MAX_TOKENS = 2400
 
 
 class StructuredPlannerResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     projectName: str = Field(min_length=1,max_length=200)
     objective: str = Field(min_length=1,max_length=2000)
-    requirements: list[str] = Field(min_length=1,max_length=64)
-    assumptions: list[str] = Field(max_length=64)
-    components: list[str] = Field(min_length=3,max_length=64)
+    # Bounded items stop the model echoing the repair context graph into a text field.
+    requirements: list[Annotated[str,Field(max_length=300)]] = Field(min_length=1,max_length=64)
+    assumptions: list[Annotated[str,Field(max_length=300)]] = Field(max_length=64)
+    components: list[Annotated[str,Field(max_length=120)]] = Field(min_length=3,max_length=64)
 
 
 @dataclass(frozen=True)
@@ -37,6 +40,11 @@ class PlanningOutcome:
     repair_attempts:int=0
     first_pass_valid:bool=False
     provider_metadata:dict[str,Any]|None=None
+
+
+_COMPONENT_SELECTION = (" Choose only the component families this objective physically needs and omit every other family. "
+    "List one components entry per physical part using the bare family name; repeat an entry for identical parts. "
+    "Representations are not components.")
 
 
 class LivePlanner:
@@ -111,9 +119,9 @@ class LivePlanner:
             raise FutureTimeout("planner worker pool is saturated")
         try:
             if hasattr(self.provider,"generate_structured"):
-                future=_PLANNER_EXECUTOR.submit(self.provider.generate_structured,[{"role":"user","content":prompt}],system_prompt="You are AURA's bounded engineering Planner. Return one schema-valid object.",max_tokens=1200,response_schema=StructuredPlannerResponse.model_json_schema())
+                future=_PLANNER_EXECUTOR.submit(self.provider.generate_structured,[{"role":"user","content":prompt}],system_prompt="You are AURA's bounded engineering Planner. Return one schema-valid object.",max_tokens=_PLANNER_MAX_TOKENS,response_schema=StructuredPlannerResponse.model_json_schema())
             else:
-                future = _PLANNER_EXECUTOR.submit(self.provider.generate,[{"role": "user", "content": prompt}],system_prompt="Return exactly one JSON object and no prose.", max_tokens=1200)
+                future = _PLANNER_EXECUTOR.submit(self.provider.generate,[{"role": "user", "content": prompt}],system_prompt="Return exactly one JSON object and no prose.", max_tokens=_PLANNER_MAX_TOKENS)
         except Exception:
             _PLANNER_CAPACITY.release()
             raise
@@ -131,6 +139,7 @@ class LivePlanner:
     def _prompt(request: ProjectRequest, errors: str) -> str:
         repair = f" Previous validation errors: {errors}. Correct every error." if errors else ""
         return ("Plan only a bounded project within this capability manifest. " + compact_capability_context() +
+                _COMPONENT_SELECTION +
                 " Return JSON with exactly projectName, objective, requirements, assumptions, components. "
                 "Use semantic component roles, record necessary assumptions, and do not claim unsupported verification. "
                 f"Objective: {request.objective}.{repair}")
@@ -138,6 +147,7 @@ class LivePlanner:
     @staticmethod
     def _repair_prompt(request: ProjectRequest, context: dict[str,Any]) -> str:
         return ("Repair this rejected engineering-plan candidate exactly once. " + compact_capability_context() +
+                _COMPONENT_SELECTION +
                 " Return JSON with exactly projectName, objective, requirements, assumptions, components. "
                 "Preserve the objective; use only compatible component families and interface-level connections. "
                 "Do not invent unsupported components or claim verification. "
