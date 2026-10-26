@@ -8,6 +8,7 @@ import {WorkspaceSession} from "./workspaceSession";
 import {loadWorkspaceData} from "./workspaceHydration";
 import {FirmwareInfo,SimulationPanel} from "./SimulationPanel";
 import {modelBadge} from "./studio";
+import {StudioRail} from "./StudioRail";
 import {
  EvidencePresentation,ScenarioImpactPresentation,VerificationFindingPresentation,WorkItemPresentation,
  assessmentPresentation,evidencePresentation,findingPresentation,projectStatus,providerErrorPresentation,requiresReason,sanitizeDisplayText,scenarioPresentation,statusLabel,statusTone,
@@ -244,8 +245,7 @@ export function WorkspaceApp(){
 
   <aside className="systems-rail">
    <button className="panel-collapse left" aria-label={railCollapsed?"Expand systems":"Collapse systems"} onClick={()=>setRailCollapsed(!railCollapsed)}>{railCollapsed?"›":"‹"}</button>
-   <div className="rail-content"><div className="panel-heading"><span>SYSTEMS</span><small>{assembly?.parts.length||0} COMPONENTS</small></div><button className="system-root active" onClick={()=>scene.current?.isolate("all")}>COMPLETE SYSTEM <small>SHOW ALL</small></button>
-   <div className="semantic-parts">{systems.map(system=>{const collapsed=collapsedSystems.has(system);return <section className="tree-group" key={system}><div className="tree-heading-row"><button className="tree-heading" aria-expanded={!collapsed} onClick={()=>setCollapsedSystems(previous=>{const next=new Set(previous);next.has(system)?next.delete(system):next.add(system);return next})}>{collapsed?"+":"−"} {system}</button><button className="tree-isolate" onClick={()=>scene.current?.isolate(system)}>ISOLATE</button></div>{!collapsed&&assembly?.parts.filter(part=>part.subsystem===system).map(part=><button className={selected===part.semanticId?"selected":""} key={part.semanticId} aria-label={`${part.label} ${part.semanticId}`} onClick={()=>choose(part.semanticId,"hierarchy")}><span className={`part-icon kind-${part.family||part.subsystem}`}/><span>{part.label||part.semanticId}</span><small className={`tone-${statusTone(part.verificationState)}`}>{statusLabel(part.verificationState)}</small></button>)}</section>})}</div></div>
+   <div className="rail-content"><StudioRail projectName={projectName} objective={project?.objective} parts={assembly?.parts||[]} entities={graph?.entities||[]} findings={verification?.findings||[]} selected={selectedKind==="component"?selected:null} onSelect={id=>choose(id,"hierarchy")} onIsolate={subsystem=>scene.current?.isolate(subsystem)} onOpenChecks={()=>setOverlay(true)}/></div>
    </aside>
 
   <section className={`engineering-space mode-${mode}`} data-testid="engineering-space">

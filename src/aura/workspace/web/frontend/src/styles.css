@@ -169,3 +169,41 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .code-canvas{position:absolute;inset:0;overflow:auto;padding:20px;background:var(--bg)}
 .code-source{margin:0;padding:16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);color:var(--text);font:12px/1.55 "Cascadia Mono",Consolas,monospace;white-space:pre}
 .view-switch{bottom:64px}
+
+/* Studio component rail. */
+:root{--rail-width:280px}
+.workspace{--rail-width:280px}
+.rail-content{padding:18px 14px 14px;gap:0}
+.studio-rail{display:flex;flex-direction:column;height:100%;min-height:0}
+.rail-project{padding:0 4px 16px;border-bottom:1px solid var(--line)}
+.rail-project small{color:var(--text-dim);font-size:11px;font-weight:600;letter-spacing:.14em}
+.rail-project h1{margin:6px 0 6px;font:500 28px/1.1 var(--serif);color:var(--text);overflow-wrap:anywhere}
+.rail-project p{margin:0;color:var(--text-soft);font-size:13px;line-height:1.4}
+.rail-components-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 4px 8px}
+.rail-components-heading span{color:var(--text-dim);font-size:11px;font-weight:600;letter-spacing:.12em}
+.rail-components-heading b{display:inline-grid;place-items:center;min-width:20px;height:20px;margin-left:4px;border-radius:999px;background:var(--surface-muted);color:var(--text-soft);font-size:11px}
+.rail-components-heading input{width:110px;padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:12px}
+.studio-rail .semantic-parts{flex:1;min-height:0;overflow:auto}
+.rail-empty{margin:12px 4px;color:var(--text-dim);font-size:13px;line-height:1.5}
+.rail-group{margin-bottom:6px}
+.rail-group-heading{display:flex;width:100%;justify-content:space-between;align-items:center;border:0;padding:8px 4px;background:transparent;color:var(--text);font-size:14px;font-weight:600;text-transform:none;letter-spacing:0}
+.rail-group-heading b{display:inline-grid;place-items:center;min-width:22px;height:22px;border-radius:6px;background:var(--surface-muted);color:var(--text-soft);font-size:11px}
+.rail-part{display:flex;align-items:center;margin:2px 0;border-radius:var(--radius-sm)}
+.rail-part.selected{background:var(--accent-soft)}
+.rail-part:hover{background:var(--surface-muted)}
+.rail-part-main{display:flex;flex:1;min-width:0;align-items:center;gap:10px;border:0;padding:8px;background:transparent;text-align:left}
+.rail-part-main img,.rail-icon{flex:0 0 44px;width:44px;height:36px;border-radius:6px;object-fit:contain;background:var(--surface-muted)}
+.rail-icon{position:relative}
+.rail-icon:after{position:absolute;inset:10px 12px;border:2px solid var(--text-dim);border-radius:4px;content:""}
+.icon-controller:after{border-color:var(--accent)}
+.icon-sensors:after{inset:8px 18px;border-radius:999px}
+.icon-actuators:after{border-radius:50%}
+.icon-power:after{border-color:var(--warn)}
+.rail-part-text{display:flex;min-width:0;flex-direction:column}
+.rail-part-text b{overflow:hidden;color:var(--text);font-size:13px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.rail-part-text small{overflow:hidden;color:var(--text-dim);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.rail-part-more{border:0;background:transparent;color:var(--text-dim);font-size:16px;padding:4px 8px}
+.rail-add{margin:10px 0 8px;padding:10px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);font-weight:600}
+.checks-card{display:flex;flex-direction:column;gap:2px;padding:12px;border:1px solid #f0cfb2;border-radius:var(--radius-sm);background:#fdf3ea;text-align:left}
+.checks-card b{color:#8a4b1d;font-size:13px}
+.checks-card span{color:#a5602a;font-size:12px}
