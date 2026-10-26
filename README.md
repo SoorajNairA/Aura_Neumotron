@@ -73,6 +73,22 @@ AURA_DETERMINISTIC_FALLBACK=true
 still run with its bounded deterministic fallback; live free-form engineering
 edits require the configured AI provider.
 
+## Firmware toolchain (optional)
+
+The fan workflow generates an ESP32 sketch and can compile it with
+`arduino-cli`. Without it, compile reports `toolchain_missing`; nothing is
+treated as a pass. To enable real compiles:
+
+```powershell
+winget install ArduinoSA.CLI
+$url = "https://espressif.github.io/arduino-esp32/package_esp32_index.json"
+arduino-cli core update-index --additional-urls $url
+arduino-cli core install esp32:esp32 --additional-urls $url
+arduino-cli lib install OneWire DallasTemperature
+```
+
+Set `AURA_ARDUINO_CLI` to the executable path if it is not on `PATH`.
+
 ## Product capabilities
 
 - Versioned projects, revisions, undo, replayable events, and persistence.

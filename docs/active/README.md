@@ -18,6 +18,16 @@
 
 **Source of truth:** This is the current implementation plan. Supporting records: [progress checklist](../superpowers/plans/2026-10-05-nebius-nvidia-progress.md), [Stage 1 contract and tasks](../superpowers/plans/2026-10-05-stage-1-honest-statuses.md), [original capability audit](../audits/2026-10-05/REPORT.md). This document consolidates the remaining work and the newly reported repository handoff; it does not replace historical evidence or mark unfinished tasks complete.
 
+## 0. Status update — 2026-10-27
+
+Working folder is now `D:/Aura/Aura_Neumotron`, branch `AURA-nemotron_test1` (pushed through `1da669f`; later commits are local). This section supersedes older "next task" statements below.
+
+- Done since 2026-10-24: 2.1, 2.2, 3.1 (Nebius key + Nemotron with thinking disabled), 3.2 (Nebius adapter); repair truncation and catalogue-dump fixes (`fae5825`); fan redundant-motor fix (`e57a75c`).
+- ESP32 fan slice (spec `docs/superpowers/specs/2026-10-27-esp32-fan-firmware-simulation-design.md`, plan `docs/superpowers/plans/2026-10-27-esp32-fan-firmware-simulation.md`): DS18B20 on the controller 3V3 rail with a 4.7 kΩ pull-up, ESP32 `gpio_map` (GPIO4 sensor, GPIO16 gate) with `ELEC_GPIO` checks, generated sketch, `/firmware` and `/firmware/compile` endpoints, and a behavioral Simulation tab.
+- Evidence (2026-10-27): Python 419 passed / 1 pre-existing failure (`test_startup_boundaries`) / 3 skipped (real compile: arduino-cli absent; two opt-in live cloud tests); frontend unit 50 passed; browser 41 passed / 6 failed / 1 skipped, the same 6 failing at the pre-slice baseline `0c7ea3e`; C++ fan rule executed under g++ against the shared truth table.
+- Live: "Build a temperature-controlled desk fan" planned by Nemotron via Nebius → `ready_with_limitations`, 8 components, firmware supported, compile `toolchain_missing`.
+- Not done: real ESP32 compile (toolchain not installed), upload, serial telemetry, digital twin, hardware validation (no hardware). Known: a stale `build_incomplete` project blocks re-planning the identical objective "Design a temperature-controlled desk fan".
+
 ## 1. Current position
 
 | Area | Verified position | What it does not establish |
