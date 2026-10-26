@@ -51,6 +51,8 @@ from .modifications import LiveModificationPlanner,ModificationError,Modificatio
 from .narration import NarrationService
 from .work_items import EngineeringWorkService, WorkDomainError
 from .scenarios import EngineeringScenario,LiveScenarioAnalyzer,ScenarioError,analyze as analyze_scenario
+from aura.firmware import FirmwareUnsupported, generate_fan_sketch
+from aura.firmware.compile import CompileResult, compile_sketch
 
 LOGGER = logging.getLogger("aura.workspace")
 MAX_PENDING_ENTRIES = 256
@@ -971,6 +973,28 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         return result
 
     def work_error(exc:WorkDomainError): raise HTTPException(exc.status,detail=exc.to_dict()) from exc
+
+    # Firmware is generated on demand from the current revision; only the latest compile result is kept.
+    firmware_compiles:dict[str,CompileResult]={}
+
+    @app.get("/api/projects/{project_id}/firmware")
+    def get_firmware(project_id:str)->dict[str,Any]:
+        graph=_record(application,project_id).graph;last=firmware_compiles.get(project_id)
+        common={"revisionId":graph.current_revision_id,"lastCompile":last.to_dict() if last else None,
+                "lastCompileCurrent":bool(last and last.revision_id==graph.current_revision_id)}
+        try: artifact=generate_fan_sketch(graph)
+        except FirmwareUnsupported as exc: return {"supported":False,"reasons":list(exc.reasons),**common}
+        return {"supported":True,"reasons":[],"source":artifact.source,"pins":artifact.pins,"fqbn":artifact.fqbn,
+                "libraries":list(artifact.libraries),"tOnC":artifact.t_on_c,"tOffC":artifact.t_off_c,**common}
+
+    @app.post("/api/projects/{project_id}/firmware/compile")
+    async def compile_firmware(project_id:str)->dict[str,Any]:
+        graph=_record(application,project_id).graph
+        try: artifact=generate_fan_sketch(graph)
+        except FirmwareUnsupported as exc: raise HTTPException(422,detail={"code":"FIRMWARE_UNSUPPORTED","reasons":list(exc.reasons)}) from exc
+        result=await run_in_threadpool(compile_sketch,artifact)
+        firmware_compiles[project_id]=result
+        return result.to_dict()
 
     @app.get("/api/projects/{project_id}/work")
     def list_work(project_id:str)->dict[str,Any]:

@@ -139,3 +139,98 @@ def test_cpp_rule_matches_truth_table(tmp_path):
     subprocess.run([compiler, "-std=c++11", str(harness), "-o", str(exe)], check=True, capture_output=True)
     result = subprocess.run([str(exe)], capture_output=True, text=True)
     assert result.returncode == 0, result.stdout
+
+
+from fastapi.testclient import TestClient
+
+from aura.workspace.server import create_app
+
+
+def _artifact():
+    from aura.firmware import generate_fan_sketch
+    return generate_fan_sketch(_graph(_fan_plan()))
+
+
+def _completed(code, stdout="", stderr=""):
+    return subprocess.CompletedProcess(["arduino-cli"], code, stdout, stderr)
+
+
+def test_compile_reports_toolchain_missing_without_cli(monkeypatch):
+    from aura.firmware import compile as firmware_compile
+    monkeypatch.delenv("AURA_ARDUINO_CLI", raising=False)
+    monkeypatch.setattr(firmware_compile.shutil, "which", lambda _name: None)
+    result = firmware_compile.compile_sketch(_artifact())
+    assert result.status == "toolchain_missing" and result.missing == "arduino-cli"
+
+
+def test_compile_parses_errors_from_stub_runner():
+    from aura.firmware.compile import compile_sketch
+    result = compile_sketch(_artifact(), cli="arduino-cli", run=lambda *a, **k: _completed(1, stderr="aura_fan.ino:12:5: error: 'x' was not declared in this scope\n"))
+    assert result.status == "failed"
+    assert result.errors[0] == {"file": "aura_fan.ino", "line": 12, "message": "'x' was not declared in this scope"}
+
+
+def test_compile_passes_and_reports_size():
+    from aura.firmware.compile import compile_sketch
+    artifact = _artifact()
+    result = compile_sketch(artifact, cli="arduino-cli", run=lambda *a, **k: _completed(0, stdout="Sketch uses 276413 bytes (21%) of program storage space."))
+    assert result.status == "passed" and result.size_bytes == 276413 and result.revision_id == artifact.revision_id
+
+
+def test_compile_timeout_is_failed_not_hang():
+    from aura.firmware.compile import compile_sketch
+    def hang(*_args, **_kwargs): raise subprocess.TimeoutExpired("arduino-cli", 180)
+    result = compile_sketch(_artifact(), cli="arduino-cli", run=hang)
+    assert result.status == "failed" and "timed out" in result.errors[0]["message"]
+
+
+def test_missing_core_is_toolchain_missing():
+    from aura.firmware.compile import compile_sketch
+    result = compile_sketch(_artifact(), cli="arduino-cli", run=lambda *a, **k: _completed(1, stderr="Error during build: Platform 'esp32:esp32' not found: platform not installed"))
+    assert result.status == "toolchain_missing" and result.missing == "esp32:esp32 core"
+
+
+def _create(client, objective):
+    response = client.post("/api/projects", json={"objective": objective, "planningMode": "deterministic_test"})
+    assert response.status_code == 201, response.text
+    return response.json()["projectId"]
+
+
+def test_firmware_api_lifecycle(monkeypatch):
+    from aura.firmware import compile as firmware_compile
+    monkeypatch.setattr(firmware_compile.subprocess, "run", lambda *a, **k: _completed(0, stdout="Sketch uses 1000 bytes (1%) of program storage space."))
+    monkeypatch.setenv("AURA_ARDUINO_CLI", "arduino-cli")
+    app = create_app(storage_mode="memory")
+    with TestClient(app) as client:
+        project_id = _create(client, FAN_OBJECTIVE)
+        firmware = client.get(f"/api/projects/{project_id}/firmware").json()
+        assert firmware["supported"] and firmware["pins"] == {"temperature_data": 4, "fan_gate": 16}
+        assert (firmware["tOnC"], firmware["tOffC"]) == (26.0, 24.0) and firmware["lastCompile"] is None
+        compiled = client.post(f"/api/projects/{project_id}/firmware/compile").json()
+        assert compiled["status"] == "passed" and compiled["sizeBytes"] == 1000
+        assert client.get(f"/api/projects/{project_id}/firmware").json()["lastCompileCurrent"] is True
+        edit = client.post(f"/api/projects/{project_id}/modifications", json={"selectedComponentId": "component-driver",
+            "request": "Replace the relay with a logic-level MOSFET driver."})
+        assert edit.status_code == 200, edit.text
+        after = client.get(f"/api/projects/{project_id}/firmware").json()
+        assert after["revisionId"] != compiled["revisionId"] and after["lastCompileCurrent"] is False
+
+
+def test_firmware_api_unsupported_for_arm():
+    app = create_app(storage_mode="memory")
+    with TestClient(app) as client:
+        project_id = _create(client, "Make a robotic arm")
+        assert client.get(f"/api/projects/{project_id}/firmware").json()["supported"] is False
+        response = client.post(f"/api/projects/{project_id}/firmware/compile")
+        assert response.status_code == 422 and response.json()["detail"]["code"] == "FIRMWARE_UNSUPPORTED"
+
+
+def test_real_compile_when_toolchain_present():
+    from aura.firmware.compile import compile_sketch, find_cli
+    cli = find_cli()
+    if cli is None:
+        pytest.skip("arduino-cli is not installed; real ESP32 compile not run")
+    result = compile_sketch(_artifact(), cli=cli)
+    if result.status == "toolchain_missing":
+        pytest.skip(f"toolchain incomplete: {result.missing}")
+    assert result.status == "passed", result.raw_output[-2000:]
