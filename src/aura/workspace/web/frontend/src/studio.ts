@@ -34,6 +34,8 @@ export function connectionRows(componentId:string,graph:{entities:Entity[]}|unde
  const rows:ConnectionRow[]=[];const seen=new Set<string>();
  const add=(row:ConnectionRow)=>{if(!seen.has(row.port)){seen.add(row.port);rows.push(row)}};
  const self=byId.get(componentId)!;
+ // Edges without a specific label still appear, so wired passives and supplies never read as unconnected.
+ const generic=new Map<string,{others:string[];tone:ConnectionRow["tone"]}>();
  for(const edge of entities.filter(entity=>entity.kind==="connection").map(entity=>entity.metadata||{})){
   const mine=edge.source_id===componentId?"source":edge.target_id===componentId?"target":null;if(!mine)continue;
   const port:string=mine==="source"?edge.source_interface:edge.target_interface;
@@ -48,13 +50,23 @@ export function connectionRows(componentId:string,graph:{entities:Entity[]}|unde
   if(type==="regulated-power"&&CONTROLLERS.has(family(other)||"")&&port==="power"){
    const volts=params(other).logic_voltage_v;add({port,label:"Supply (VDD)",value:volts?`${volts} V`:"Controller rail",tone:"supply"});continue}
   if(type==="switched-power"&&mine==="target"&&port==="power"){add({port,label:"Supply (+)",value:`Switched by ${family(other)==="mosfet_driver"?"MOSFET":humanize(family(other)||"driver")}`,tone:"supply"});continue}
-  if(type==="power"&&mine==="target"&&port==="power"){const volts=params(other).voltage_v;add({port,label:"Supply (VCC)",value:volts?`${volts} V`:"Supply",tone:"supply"})}
+  if(type==="power"&&mine==="target"&&port==="power"){const volts=params(other).voltage_v;add({port,label:"Supply (VCC)",value:volts?`${volts} V`:"Supply",tone:"supply"});continue}
+  const entry=generic.get(port)||{others:[],tone:(type.includes("power")?"supply":type==="control"?"control":"data") as ConnectionRow["tone"]};
+  entry.others.push(`${other?.name||humanize(family(other)||"part")} · ${otherPort}`);generic.set(port,entry);
  }
+ for(const [port,{others,tone}] of generic)add({port,label:humanize(port),value:others.length>1?`${others.length} connections`:others[0],tone});
  const order={data:0,control:0,supply:1,ground:2};
  return rows.sort((a,b)=>order[a.tone]-order[b.tone]);
 }
 
 const PASS=new Set(["passed","source_verified","tool_verified","cross_checked"]);
+// The realistic studio models apply only to the curated ESP32 fan workflow; every other design keeps proxies.
+export function markStudioParts<T extends {parts:any[]}>(assembly:T,graph:{entities:Entity[]}|undefined):T{
+ const ids=new Set((graph?.entities||[]).map(entity=>params(entity).component_definition_id));
+ const studio=ids.has("dc-fan-5v")&&ids.has("ds18b20-module")&&ids.has("esp32-devkit-v1");
+ return {...assembly,parts:assembly.parts.map(part=>({...part,studio}))};
+}
+
 export function checksForComponent(componentId:string,findings:any[]|undefined):CheckRow[]{
  const order={fail:0,warn:1,pass:2};
  return (findings||[]).filter(finding=>[...(finding.semanticIds||[]),...(finding.entity_ids||[])].includes(componentId))

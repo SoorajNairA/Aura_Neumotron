@@ -2,7 +2,7 @@ import * as THREE from "three";
 import {describe,expect,it} from "vitest";
 import {buildStudioModel} from "./studioModels";
 
-const part=(semanticId:string,family:string,dimensions:number[],visualKind?:string)=>({semanticId,label:semanticId,family,visualKind,subsystem:"s",parentAssembly:"a",representationSource:"x",dimensions,assembledTransform:{position:[0,0,0]},explodedTransform:{position:[0,0,0]},verificationState:"conceptual"});
+const part=(semanticId:string,family:string,dimensions:number[],visualKind?:string,studio=true)=>({semanticId,label:semanticId,family,visualKind,studio,subsystem:"s",parentAssembly:"a",representationSource:"x",dimensions,assembledTransform:{position:[0,0,0]},explodedTransform:{position:[0,0,0]},verificationState:"conceptual"});
 const size=(object:THREE.Object3D)=>new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3());
 
 describe("studio models",()=>{
@@ -39,5 +39,12 @@ describe("studio models",()=>{
  it("leaves other families to the existing proxies",()=>{
   expect(buildStudioModel(part("component-servo","servo",[23,12,29]))).toBeNull();
   expect(buildStudioModel(part("component-controller","microcontroller_board",[45,18,8],"arduino_nano"))).toBeNull();
+ });
+});
+
+describe("studio model gating",()=>{
+ it("only builds realistic models for parts marked as the studio fan workflow",()=>{
+  expect(buildStudioModel(part("component-power","low_voltage_power_source",[48,30,18],undefined,false))).toBeNull();
+  expect(buildStudioModel(part("component-sensor","temperature_sensor",[22,16,6],undefined,false))).toBeNull();
  });
 });

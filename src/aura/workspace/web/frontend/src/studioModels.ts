@@ -3,7 +3,7 @@ import {RoundedBoxGeometry} from "three/examples/jsm/geometries/RoundedBoxGeomet
 
 // Realistic procedural models for the qualified ESP32 fan workflow. Coordinates: z up, part centred on the
 // origin, footprint matching the planner's dimensions so assembly layout and wiring endpoints are preserved.
-type StudioPart={semanticId:string;family?:string;visualKind?:string;dimensions:number[]};
+type StudioPart={semanticId:string;family?:string;visualKind?:string;dimensions:number[];studio?:boolean};
 type Vec=[number,number,number];
 
 const FINISH:Record<string,THREE.MeshPhysicalMaterialParameters>={
@@ -141,6 +141,7 @@ function deskFan(part:StudioPart){
 }
 
 export function buildStudioModel(part:StudioPart):THREE.Group|null{
+ if(!part.studio)return null;
  const family=part.family||"",kind=part.visualKind||"";
  if(family==="microcontroller_board"&&(!kind||kind.includes("esp32")))return esp32(part);
  if(family==="temperature_sensor")return ds18b20(part);

@@ -60,3 +60,36 @@ describe("studio helpers",()=>{
   expect(modelBadge(undefined)).toBe("");
  });
 });
+
+import {readFileSync} from "node:fs";
+import {resolve} from "node:path";
+import {markStudioParts} from "./studio";
+
+describe("review fixes",()=>{
+ it("lists real connections for passives and the supply instead of claiming none",()=>{
+  const g={entities:[...graph.entities,
+   comp("component-flyback-diode","flyback_diode"),
+   conn("component-temperature-sensor","signal","component-pull-up","terminal-a","signal"),
+   conn("component-pull-up","terminal-b","component-controller","vcc-out","regulated-power"),
+   conn("component-driver","load-output","component-flyback-diode","cathode","switched-power"),
+   conn("component-flyback-diode","anode","component-power","ground","ground"),
+   conn("component-power","power","component-driver","power","power")]};
+  expect(connectionRows("component-pull-up",g).map(row=>row.port)).toEqual(["terminal-a","terminal-b"]);
+  expect(connectionRows("component-flyback-diode",g).map(row=>row.port)).toContain("cathode");
+  expect(connectionRows("component-power",g).map(row=>row.port)).toContain("power");
+ });
+ it("marks studio parts only for the curated ESP32 fan workflow",()=>{
+  const assembly={parts:[{semanticId:"component-fan",family:"fan"},{semanticId:"component-power",family:"low_voltage_power_source"}]};
+  const fanGraph={entities:[...graph.entities,comp("component-fan","fan",{component_definition_id:"dc-fan-5v"})]};
+  expect(markStudioParts(assembly as any,fanGraph).parts.every((part:any)=>part.studio)).toBe(true);
+  const solar={entities:[comp("component-controller","microcontroller_board",{component_definition_id:"esp32-devkit-v1"}),comp("component-power","low_voltage_power_source")]};
+  expect(markStudioParts(assembly as any,solar).parts.some((part:any)=>part.studio)).toBe(false);
+ });
+ it("keeps text colours at 4.5:1 or better on white",()=>{
+  const css=readFileSync(resolve(__dirname,"styles.css"),"utf8");
+  const tokens=Object.fromEntries([...css.matchAll(/--([a-z-]+):(#[0-9a-f]{6})/gi)].map(m=>[m[1],m[2]]));
+  const lum=(hex:string)=>{const c=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4);return .2126*c[0]+.7152*c[1]+.0722*c[2]};
+  const ratio=(a:string,b:string)=>{const [x,y]=[lum(a),lum(b)].sort((p,q)=>q-p);return (x+.05)/(y+.05)};
+  for(const token of ["text","text-soft","text-dim","accent","warn-text","pass-text","fail"])expect(ratio(tokens[token],"#ffffff"),token).toBeGreaterThanOrEqual(4.5);
+ });
+});

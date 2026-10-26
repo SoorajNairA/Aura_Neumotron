@@ -19,6 +19,8 @@ export function useFanSimulation(firmware:FirmwareInfo|undefined){
  const [temperature,setTemperature]=useState(tOff-1),[fault,setFault]=useState(false),[on,setOn]=useState(false),[reason,setReason]=useState<FanReason>("below_off");
  const [log,setLog]=useState<{time:string;text:string}[]>([]);
  const previous=useRef(false);
+ // Each project revision starts fresh, just below its own off threshold.
+ useEffect(()=>{previous.current=false;setTemperature(tOff-1);setFault(false);setLog([]);setOn(false);setReason("below_off")},[firmware?.revisionId,tOff]);
  useEffect(()=>{
   if(!firmware?.supported){previous.current=false;setOn(false);return}
   const result=fanControl(previous.current,fault?null:temperature,tOn,tOff);

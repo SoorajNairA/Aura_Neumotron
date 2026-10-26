@@ -12,7 +12,7 @@ import {ComponentCard} from "./ComponentCard";
 import {CodeView} from "./CodeView";
 import {buildStudioModel} from "./studioModels";
 import {renderThumbnails} from "./thumbnails";
-import {modelBadge,neighbours} from "./studio";
+import {markStudioParts,modelBadge,neighbours} from "./studio";
 import {StudioRail} from "./StudioRail";
 import {
  EvidencePresentation,ScenarioImpactPresentation,VerificationFindingPresentation,WorkItemPresentation,
@@ -20,7 +20,7 @@ import {
  workItemPresentation,workSummary,
 } from "./presentation";
 
-type Part={semanticId:string;label:string;family?:string;functionalRoles?:string[];generatorFamily?:string;representationClass?:string;representationParameters?:Record<string,number>;visualKind?:string;outputAxis?:number[]|null;subsystem:string;parentAssembly:string;representationSource:string;dimensions:number[];assembledTransform:{position:number[];rotation?:number[]};explodedTransform:{position:number[];rotation?:number[]};verificationState:string;transformSource?:string;mountSource?:string;placementClass?:string;mechanicalParents?:string[];mechanicalChildren?:string[];mateInterfaces?:{from:string;to:string;type:string}[]};
+type Part={studio?:boolean;semanticId:string;label:string;family?:string;functionalRoles?:string[];generatorFamily?:string;representationClass?:string;representationParameters?:Record<string,number>;visualKind?:string;outputAxis?:number[]|null;subsystem:string;parentAssembly:string;representationSource:string;dimensions:number[];assembledTransform:{position:number[];rotation?:number[]};explodedTransform:{position:number[];rotation?:number[]};verificationState:string;transformSource?:string;mountSource?:string;placementClass?:string;mechanicalParents?:string[];mechanicalChildren?:string[];mateInterfaces?:{from:string;to:string;type:string}[]};
 type Wire={wireId:string;netId:string;role:string;color:string;thicknessMm:number;terminalInterfaceIds:string[];points:number[][];source:string};
 type Assembly={parts:Part[];relationships:{from:string;to:string;type:string}[];connectors:any[];wires?:Wire[]};
 type Project={projectId:string;objective:string;revision:number;status:string;planningMode:string;representations:any[];assessment?:any;generationMessage?:string;userIssues?:string[];capability?:{status:string;reasons:string[]}};
@@ -166,8 +166,15 @@ export function WorkspaceApp(){
  const [commandState,setCommandState]=useState<"idle"|"loading"|"error">("idle"),[commandError,setCommandError]=useState("");
  const [overlay,setOverlay]=useState(false),[developer,setDeveloper]=useState(false),[proposal,setProposal]=useState<Proposal>(),[circuit,setCircuit]=useState<any[]>([]),[mapping,setMapping]=useState<Record<string,string>>({});
  const [exploded,setExploded]=useState(false),[xray,setXray]=useState(true),[connection,setConnection]=useState(query.get("connection")||"connecting"),[hovered,setHovered]=useState<string|null>(null);
- const [firmware,setFirmware]=useState<FirmwareInfo>(),[settingsOpen,setSettingsOpen]=useState(false),[designView,setDesignView]=useState<ViewMode>("assembly");
+ const settingsTrigger=useRef<HTMLButtonElement>(null),settingsMenu=useRef<HTMLDivElement>(null),[isolated,setIsolated]=useState("all");
+  const [firmware,setFirmware]=useState<FirmwareInfo>(),[settingsOpen,setSettingsOpen]=useState(false),[designView,setDesignView]=useState<ViewMode>("assembly");
   const space=spaceOf(mode);
+  // Settings menu: focus the first item on open; Escape or an outside click closes and returns focus.
+  useEffect(()=>{if(!settingsOpen)return;settingsMenu.current?.querySelector<HTMLButtonElement>("[role=menuitem]")?.focus();
+   const close=(refocus:boolean)=>{setSettingsOpen(false);if(refocus)settingsTrigger.current?.focus()};
+   const key=(event:KeyboardEvent)=>{if(event.key==="Escape")close(true)};
+   const pointer=(event:PointerEvent)=>{const target=event.target as Node;if(!settingsMenu.current?.contains(target)&&!settingsTrigger.current?.contains(target))close(false)};
+   document.addEventListener("keydown",key);document.addEventListener("pointerdown",pointer);return()=>{document.removeEventListener("keydown",key);document.removeEventListener("pointerdown",pointer)}},[settingsOpen]);
   useEffect(()=>{if(mode==="assembly"||mode==="schematic"||mode==="split")setDesignView(mode)},[mode]);
   useEffect(()=>{setFirmware(undefined);if(!project?.projectId)return;let live=true;optionalJson(`/api/projects/${project.projectId}/firmware`).then(info=>{if(live)setFirmware(info)}).catch(()=>{if(live)setFirmware(undefined)});return()=>{live=false}},[project?.projectId,project?.revision]);
   useEffect(()=>{if(mode==="simulation"&&firmware&&!firmware.supported)setMode("assembly")},[mode,firmware]);
@@ -197,7 +204,7 @@ export function WorkspaceApp(){
   const token=session.current.begin(id),loadedScene=scene.current;store.reset();setSelected(null);setHovered(null);setProject(undefined);setAssembly(undefined);setGraph(undefined);setVerification(undefined);setNarrations([]);setCircuit([]);setMapping({});setProposal(undefined);setExploded(false);setXray(true);setWorkItems([]);setWorkStatus("loading");setSelectedWorkId(undefined);setSelectedFinding(undefined);setEvidence(undefined);setScenario(undefined);setScenarioOpen(false);loadedScene?.clearProject();setStatus("Loading engineering system");
   const {project:p,assembly:a,graph:g,verification:v,narrations:n,optionalErrors}=await loadWorkspaceData(id,path=>api(path).then(r=>r.json()));
   const active=()=>session.current.accept(token,p.revision)&&scene.current===loadedScene;if(!active())return;
-  setProject(p);setAssembly(a);setGraph(g);setVerification(v);setNarrations(n);(window as any).__auraRelationships=a.relationships||[];loadedScene?.load(id,a);if(optionalErrors.length)setStatus(`Project loaded — ${optionalErrors.join(", ")} temporarily unavailable`);
+  const marked=markStudioParts(a,g);setProject(p);setAssembly(marked);setGraph(g);setVerification(v);setNarrations(n);(window as any).__auraRelationships=a.relationships||[];loadedScene?.load(id,marked);if(optionalErrors.length)setStatus(`Project loaded — ${optionalErrors.join(", ")} temporarily unavailable`);
   optionalJson(`/api/projects/${id}/work`).then(payload=>Array.isArray(payload)||payload?.items||payload?.workItems?payload:optionalJson(`/api/projects/${id}/work-items`)).then(payload=>{if(!active())return;if(!payload){setWorkStatus("unavailable");return}const values=Array.isArray(payload)?payload:payload.items||payload.workItems||[];setWorkItems(values.map(workItemPresentation));setWorkStatus("ready")}).catch(()=>{if(active())setWorkStatus("error")});
   if(p.status==="build_incomplete")setStatus(sanitizeDisplayText(p.generationMessage)||"AURA couldn't resolve this engineering architecture reliably.");
   const graphIds=new Set<string>(g.entities.filter((x:any)=>x.kind==="component").map((x:any)=>x.id)),integrity=loadedScene?.invariants(graphIds);if(!integrity?.valid){setStatus("Physical representation incomplete — semantic roots or bounds invalid");return}
@@ -257,8 +264,8 @@ export function WorkspaceApp(){
    <button className="top-summary verify-status" aria-label="VERIFICATION AND ASSESSMENT" onClick={()=>setOverlay(true)}><span>ENGINEERING ASSESSMENT</span><b className={`tone-${assessment.request.tone==="pass"?"neutral":assessment.request.tone}`}>{assessment.request.label}</b></button>
    <span className="model-badge" data-testid="model-badge" title="Model that planned this project. Model switching comes later.">{modelBadge(project)}</span>
    <span className={`backend-state ${connection}`} title="Backend connection">{connection==="connected"?"● LIVE":connection==="reconnecting"?"◌ RECONNECTING":"○ OFFLINE"}</span>
-   <div className="settings-menu"><button className="icon-button" aria-label="Settings" aria-haspopup="menu" aria-expanded={settingsOpen} onClick={()=>setSettingsOpen(!settingsOpen)}>⚙</button>
-    {settingsOpen&&<div role="menu" className="menu-popover"><button role="menuitem" onClick={()=>{setSettingsOpen(false);setMode("work");setSelectedFinding(undefined);setEvidence(undefined)}}>Work items<small>{workStatus==="ready"?`${counts.in_progress||0} active · ${counts.paused||0} paused`:"unavailable"}</small></button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setOverlay(true)}}>Verification details</button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setDeveloper(!developer)}}>Developer panel</button></div>}
+   <div className="settings-menu"><button ref={settingsTrigger} className="icon-button" aria-label="Settings" aria-haspopup="menu" aria-expanded={settingsOpen} onClick={()=>setSettingsOpen(!settingsOpen)}>⚙</button>
+    {settingsOpen&&<div ref={settingsMenu} role="menu" className="menu-popover"><button role="menuitem" onClick={()=>{setSettingsOpen(false);setMode("work");setSelectedFinding(undefined);setEvidence(undefined)}}>Work items<small>{workStatus==="ready"?`${counts.in_progress||0} active · ${counts.paused||0} paused`:"unavailable"}</small></button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setOverlay(true)}}>Verification details</button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setDeveloper(!developer)}}>Developer panel</button></div>}
    </div>
    <button className="connect-device" disabled title="Coming next: USB serial upload and telemetry">Connect device</button>
   </header>
@@ -278,7 +285,7 @@ export function WorkspaceApp(){
    {mode==="work"&&workStatus==="ready"&&workItems.length>0&&<div className="work-terminal-counts"><b>{(counts.completed||0)+(counts.skipped||0)+(counts.abandoned||0)} DONE</b><span>{counts.skipped||0} SKIPPED · {counts.abandoned||0} ABANDONED</span></div>}
    {space==="design"&&<div className="view-switch" role="group" aria-label="Design view">{DESIGN_VIEWS.map(([view,label])=><button key={view} className={mode===view?"active":""} onClick={()=>setMode(view)}>{label}</button>)}</div>}
     {mode==="code"&&(firmware?<CodeView key={firmware.revisionId||"none"} firmware={firmware} compile={()=>fetch(`${API}/api/projects/${project?.projectId}/firmware/compile`,{method:"POST"}).then(async response=>{const body=await response.json().catch(()=>undefined);if(!response.ok)throw new Error(body?.detail?.code||`HTTP ${response.status}`);return body})}/>:<div className="code-canvas" data-testid="code-view"><p>Loading firmware…</p></div>)}
-    {(space==="design"&&mode!=="work"||mode==="simulation")&&<div className="canvas-toolbar"><button onClick={()=>scene.current?.frameAll()}>FIT</button><button onClick={()=>{setExploded(!exploded);scene.current?.setExploded(!exploded)}}>{exploded?"ASSEMBLE":"EXPLODE"}</button><button onClick={()=>{setXray(!xray);scene.current?.setXray(!xray)}}>{xray?"SOLID":"X-RAY"}</button><button onClick={()=>scene.current?.isolate("all")}>SHOW ALL</button></div>}
+    {(space==="design"&&mode!=="work"||mode==="simulation")&&<div className="canvas-toolbar"><select aria-label="Assembly" value={isolated} onChange={event=>{setIsolated(event.target.value);scene.current?.isolate(event.target.value)}}><option value="all">Complete system</option>{systems.map(system=><option key={system} value={system}>{system}</option>)}</select>{!!assembly?.parts.length&&<span className="concept-badge" data-testid="concept-badge" title="Procedural concept representation. A realistic render is not geometric or electrical verification.">Concept model</span>}<button onClick={()=>scene.current?.frameAll()}>FIT</button><button onClick={()=>{setExploded(!exploded);scene.current?.setExploded(!exploded)}}>{exploded?"ASSEMBLE":"EXPLODE"}</button><button onClick={()=>{setXray(!xray);scene.current?.setXray(!xray)}}>{xray?"SOLID":"X-RAY"}</button><button onClick={()=>{setIsolated("all");scene.current?.isolate("all")}}>SHOW ALL</button></div>}
    {hoveredPart&&(space==="design"&&mode!=="work"||mode==="simulation")&&<div className="hover-label"><b>{hoveredPart.label}</b><span>{statusLabel(hoveredPart.verificationState)}</span></div>}
    {!project&&<div className="loading-curtain"><div className="loading-mark"/><b>AURA // LOADING PROJECT</b><span>Clearing the previous workspace and reading authoritative state.</span></div>}
   </section>

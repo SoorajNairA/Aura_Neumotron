@@ -284,3 +284,14 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .view-switch{bottom:16px}
 .narration-card{top:calc(var(--top-height) + 62px);bottom:auto}
 .view-switch{top:12px;bottom:auto}
+
+/* Text-strength variants keep body text at 4.5:1 or better; the softer tones stay for dots and borders. */
+:root{--text-dim:#636b66;--warn-text:#a8521c;--pass-text:#24704a}
+.tone-pass{color:var(--pass-text)!important}.tone-warn{color:var(--warn-text)!important}
+.check-warn b{color:var(--warn-text)}.check-pass b,.fan-on{color:var(--pass-text)}
+.checks-card span{color:#8a4b1d}
+.canvas-toolbar select{border:1px solid var(--line);border-radius:var(--radius-sm);padding:4px 8px;background:var(--surface);color:var(--text);font-size:12px}
+.concept-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--surface-muted);color:var(--text-soft);font-size:12px}
+.concept-badge:before{width:7px;height:7px;border-radius:50%;background:var(--pass);content:""}
+.view-switch{left:auto;right:16px;transform:none}
+.view-switch{right:44px}

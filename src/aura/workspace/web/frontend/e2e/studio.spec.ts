@@ -71,7 +71,7 @@ const pinGraph={project_id:"project-fan",entities:[{id:"project-fan",kind:"proje
  {id:"component-controller",kind:"component",name:"ESP32 DevKit",metadata:{family:"microcontroller_board",parameters:{logic_voltage_v:3.3,component_definition_id:"esp32-devkit-v1",gpio_map:{"signal-1":4,"signal-2":16}}}},
  {id:"component-temperature-sensor",kind:"component",name:"DS18B20",metadata:{family:"temperature_sensor",parameters:{component_definition_id:"ds18b20-module"}}},
  {id:"component-driver",kind:"component",name:"MOSFET",metadata:{family:"mosfet_driver",parameters:{}}},
- {id:"component-fan",kind:"component",name:"Desk fan",metadata:{family:"fan",parameters:{}}},
+ {id:"component-fan",kind:"component",name:"Desk fan",metadata:{family:"fan",parameters:{component_definition_id:"dc-fan-5v"}}},
  conn("component-temperature-sensor","signal","component-controller","signal-1","signal"),
  conn("component-controller","vcc-out","component-temperature-sensor","power","regulated-power"),
  conn("component-controller","ground","component-temperature-sensor","ground","ground"),
@@ -125,7 +125,7 @@ test("code space explains unsupported designs",async({page})=>{
 });
 
 test("rail and inspector use thumbnails rendered from the 3D models",async({page})=>{
- await mock(page);await page.goto("/?projectId=project-fan");
+ await mock(page);await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:pinGraph}));await page.goto("/?projectId=project-fan");
  const rows=page.locator(".rail-part-main img");
  await expect(rows.first()).toHaveAttribute("src",/^data:image\/png/);
  expect(await rows.count()).toBeGreaterThanOrEqual(3);
@@ -140,4 +140,26 @@ test("thumbnail failure falls back to icons and keeps the 3D scene",async({page}
  await expect(page.locator(".rail-part-main img")).toHaveCount(0);
  await page.waitForTimeout(700);
  expect((await page.evaluate(()=>(window as any).__auraSceneMetrics())).triangles).toBeGreaterThan(0);
+});
+
+test("simulation starts below the design's own thresholds and resets per revision",async({page})=>{
+ await mock(page,{...supported,tOnC:20,tOffC:18,revisionId:"revision-low"});await page.goto("/?projectId=project-fan");
+ await expect(page.getByTestId("sim-preview")).toContainText("Fan off");
+ await expect(page.getByTestId("sim-preview")).toContainText("17.0 °C");
+});
+
+test("settings menu closes with Escape and returns focus",async({page})=>{
+ await mock(page);await page.goto("/?projectId=project-fan");
+ const trigger=page.getByRole("button",{name:"Settings"});await trigger.click();
+ await expect(page.getByRole("menuitem",{name:"Work items"})).toBeFocused();
+ await page.keyboard.press("Escape");
+ await expect(page.getByRole("menu")).toHaveCount(0);await expect(trigger).toBeFocused();
+ await trigger.click();await page.mouse.click(800,600);await expect(page.getByRole("menu")).toHaveCount(0);
+});
+
+test("stage shows the concept status badge and an assembly selector",async({page})=>{
+ await mock(page);await page.goto("/?projectId=project-fan");
+ await expect(page.getByTestId("concept-badge")).toHaveText("Concept model");
+ const assembly=page.getByLabel("Assembly");await expect(assembly).toHaveValue("all");
+ await assembly.selectOption({label:"actuator"});await expect(assembly).toHaveValue("actuator");
 });

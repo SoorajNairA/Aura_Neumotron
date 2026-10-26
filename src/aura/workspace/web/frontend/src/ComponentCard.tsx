@@ -14,7 +14,7 @@ export function ComponentCard({componentId,label,family,graph,findings,thumbnail
    {thumbnail?<img src={thumbnail} alt=""/>:<span className={`card-icon icon-${componentGroup(kind).toLowerCase()}`} aria-hidden="true"/>}</header>
   {partDescription(entity)&&<p className="part-description">{partDescription(entity)}</p>}
   <h3 className="card-heading">Connection</h3>
-  {rows.length?<ul className="connection-rows" data-testid="connection-rows">{rows.map(row=><li key={row.port}><span className={`pin-dot tone-${row.tone}`} aria-hidden="true"/><span>{row.label}</span><b>{row.value}</b></li>)}</ul>
+  {!graph?<p className="empty-copy" data-testid="connection-rows">Loading connections…</p>:rows.length?<ul className="connection-rows" data-testid="connection-rows">{rows.map(row=><li key={row.port}><span className={`pin-dot tone-${row.tone}`} aria-hidden="true"/><span>{row.label}</span><b>{row.value}</b></li>)}</ul>
    :<p className="empty-copy" data-testid="connection-rows">No electrical connections in the graph.</p>}
   <h3 className="card-heading">Design checks</h3>
   {checks.length?<ul className="component-checks" data-testid="component-checks">{checks.slice(0,6).map(check=><li key={check.id} className={`check-${check.tone}`}><span className="check-mark" aria-hidden="true">{check.tone==="pass"?"✓":check.tone==="fail"?"✕":"!"}</span><div><b>{check.title}</b><small>{check.detail}</small></div></li>)}</ul>
