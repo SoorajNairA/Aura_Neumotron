@@ -59,6 +59,9 @@ _SOURCES = {
         "VL53L0X time-of-flight ranging sensor", "https://www.st.com/en/imaging-and-photonics-solutions/vl53l0x.html", "STMicroelectronics", ("supply_voltage", "current", "dimensions"), "VL53L0X"),
     "arduino": EvidenceRecord.curated("evidence-arduino-uno", EvidenceKind.MANUFACTURER_PRODUCT_PAGE,
         "Arduino UNO R4 Minima technical specifications", "https://docs.arduino.cc/hardware/uno-r4-minima/", "Arduino", ("supply_voltage", "logic_voltage", "dimensions"), "UNO R4 Minima"),
+    "analog-ds18b20": EvidenceRecord.curated("evidence-analog-ds18b20", EvidenceKind.MANUFACTURER_DATASHEET,
+        "DS18B20 Programmable Resolution 1-Wire Digital Thermometer", "https://cdn.sparkfun.com/datasheets/Sensors/Temp/DS18B20.pdf", "Maxim Integrated (Analog Devices)",
+        ("supply_voltage", "current", "accuracy"), "DS18B20 datasheet; retrieved 2026-10-27"),
 }
 
 
@@ -88,6 +91,7 @@ _SPECS = (
  ("arduino-uno-r4","microcontroller_board","Arduino","UNO R4 Minima","arduino",(6,24),200,(68.85,53.34,15)),
  ("bme280-breakout","environmental_sensor","Bosch","BME280","bosch",(1.71,3.6),1.0,(10,10,3)),
  ("bme280-i2c-module","temperature_sensor","Bosch","BME280 module","bosch",(3.0,5.0),1.0,(15,12,3)),
+ ("ds18b20-module","temperature_sensor","Analog Devices","DS18B20","analog-ds18b20",(3.0,5.5),1.5,(5.2,4.2,4.8)),
  ("dht11-module","temperature_sensor","Curated","DHT11 module","assumption",(3.0,5.5),2.5,(28,15,8)),
  ("dht22-module","temperature_sensor","Curated","DHT22 module","assumption",(3.0,5.5),2.5,(28,15,10)),
  ("lm35-module","temperature_sensor","Curated","LM35 module","assumption",(4.0,30),1.0,(20,15,6)),
@@ -119,6 +123,7 @@ _SPECS = (
  ("resistor-220r","resistor","IEC family","220 ohm resistor","st",(0,250),0.25,(6.5,2.5,2.5)),
  ("resistor-1k","resistor","IEC family","1 kohm resistor","st",(0,250),0.25,(6.5,2.5,2.5)),
  ("resistor-10k","resistor","IEC family","10 kohm resistor","st",(0,250),0.25,(6.5,2.5,2.5)),
+ ("resistor-4k7","resistor","IEC family","4.7 kohm resistor","st",(0,250),0.25,(6.5,2.5,2.5)),
  ("capacitor-generic","capacitor","IEC family","Generic capacitor","assumption",(0,50),1,(6,6,10)),
  ("led-generic","indicator","IEC family","Low-current LED","assumption",(1.8,3.3),20,(5,5,8)),
  ("push-button","switch","IEC family","Momentary push button","assumption",(0,24),100,(12,12,8)),
