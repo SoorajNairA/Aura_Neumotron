@@ -268,3 +268,19 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .code-side ul,.code-unsupported ul{margin:0;padding-left:18px;font-size:13px;color:var(--text-soft)}
 .mono{font-family:"Cascadia Mono",Consolas,monospace;font-size:12px}
 .code-unsupported{grid-column:1/-1;max-width:560px}
+
+/* "Build it together" composer. */
+:root{--dock-height:132px}
+.command.dock{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 48px;gap:8px 10px;height:auto;margin:0 12px 12px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow);bottom:0}
+.composer-head{grid-column:1/-1;display:flex;align-items:center;gap:12px}
+.composer-spark{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--surface-muted);color:var(--accent);font-size:16px}
+.composer-head b{display:block;color:var(--text);font-size:15px}
+.composer-head small{color:var(--text-soft);font-size:13px}
+.command.dock input{height:48px;padding:0 14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);font-size:14px}
+.command.dock input:focus{border-color:var(--accent);outline:0;box-shadow:0 0 0 3px var(--accent-soft)}
+.command.dock button{height:48px;margin:0;padding:0 18px;border-radius:var(--radius-sm);font:600 14px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+.command.dock .command-feedback{grid-column:1/-1}
+.narration-card{bottom:calc(var(--dock-height) + 8px)}
+.view-switch{bottom:16px}
+.narration-card{top:calc(var(--top-height) + 62px);bottom:auto}
+.view-switch{top:12px;bottom:auto}
