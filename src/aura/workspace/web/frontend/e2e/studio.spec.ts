@@ -104,3 +104,22 @@ test("simulation preview is absent for unsupported designs",async({page})=>{
  await expect(page.getByTestId("part-info").or(page.getByTestId("pipeline-panel"))).toBeVisible();
  await expect(page.getByTestId("sim-preview")).toHaveCount(0);
 });
+
+test("code space shows numbered sketch, pins, libraries and board",async({page})=>{
+ await mock(page,{...supported,source:"#include <OneWire.h>\n#define ONE_WIRE_PIN 4\n#define FAN_PIN 16",libraries:["OneWire@2.3.8","DallasTemperature@4.0.5"]});
+ await page.goto("/?projectId=project-fan");await page.getByRole("button",{name:"Code",exact:true}).click();
+ const code=page.getByTestId("code-source");
+ await expect(code).toContainText("#define FAN_PIN 16");
+ await expect(page.getByTestId("code-gutter")).toContainText("3");
+ await expect(page.getByTestId("code-view")).toContainText("DS18B20 data");
+ await expect(page.getByTestId("code-view")).toContainText("GPIO16");
+ await expect(page.getByTestId("code-view")).toContainText("DallasTemperature@4.0.5");
+ await expect(page.getByTestId("code-view")).toContainText("esp32:esp32:esp32");
+});
+
+test("code space explains unsupported designs",async({page})=>{
+ await mock(page,{supported:false,reasons:["Firmware generation supports only an ESP32 DevKit V1 controller"],revisionId:"r",lastCompile:null,lastCompileCurrent:false});
+ await page.goto("/?projectId=project-fan");await page.getByRole("button",{name:"Code",exact:true}).click();
+ await expect(page.getByTestId("code-view")).toContainText("ESP32 DevKit V1");
+ await expect(page.getByTestId("code-source")).toHaveCount(0);
+});

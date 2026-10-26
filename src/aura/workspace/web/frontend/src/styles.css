@@ -248,3 +248,23 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .fan-on{color:var(--pass)}.fan-off{color:var(--text)}
 .sim-reason{color:var(--text-dim);font-size:12px}
 .what-if-guidance{display:none}
+
+/* Code space: generated sketch with line numbers beside build facts. */
+.code-canvas{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;padding:20px 20px 120px}
+.code-editor{display:flex;min-height:0;flex-direction:column;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow);overflow:hidden}
+.code-editor header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-size:13px}
+.code-editor header span{color:var(--text-dim);font-size:12px}
+.code-body{display:flex;overflow:auto;max-height:calc(100vh - 300px)}
+.code-gutter,.code-body .code-source{margin:0;padding:12px 10px;font:12px/1.6 "Cascadia Mono",Consolas,monospace}
+.code-gutter{min-width:44px;border-right:1px solid var(--line);background:var(--surface-muted);color:var(--text-dim);text-align:right;user-select:none}
+.code-body .code-source{flex:1;border:0;border-radius:0;background:var(--surface);color:var(--text);box-shadow:none}
+.code-side{display:flex;flex-direction:column;gap:12px}
+.code-side section,.code-unsupported{padding:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
+.code-side h3,.code-unsupported h2{margin:0 0 8px;color:var(--text);font:600 14px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+.code-side p{margin:8px 0 0;font-size:13px;color:var(--text-soft);line-height:1.4}
+.code-side dl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:0;font-size:13px}
+.code-side dt{color:var(--text-dim)}
+.code-side dd{margin:0;font-family:"Cascadia Mono",Consolas,monospace}
+.code-side ul,.code-unsupported ul{margin:0;padding-left:18px;font-size:13px;color:var(--text-soft)}
+.mono{font-family:"Cascadia Mono",Consolas,monospace;font-size:12px}
+.code-unsupported{grid-column:1/-1;max-width:560px}

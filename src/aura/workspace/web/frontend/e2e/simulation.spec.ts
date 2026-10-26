@@ -56,14 +56,14 @@ test("slider range follows thresholds outside 10-40 °C",async({page})=>{
  await expect(page.getByTestId("sim-fan-state")).toHaveText("ON");
 });
 
-test("firmware can be compiled from the panel with honest status and source view",async({page})=>{
+test("firmware can be compiled from the Code space with honest status",async({page})=>{
  await mock(page,{...supported,source:"#define FAN_PIN 16",lastCompile:{status:"passed",revisionId:"revision-0",sizeBytes:1,errors:[],missing:null},lastCompileCurrent:false});
  await page.route("**/api/projects/project-fan/firmware/compile",r=>r.fulfill({json:{status:"toolchain_missing",missing:"arduino-cli",errors:[],sizeBytes:null,revisionId:"revision-1"}}));
- await page.goto("/?projectId=project-fan");await page.getByRole("button",{name:"Simulation",exact:true}).click();
+ await page.goto("/?projectId=project-fan");await page.getByRole("button",{name:"Code",exact:true}).click();
  const status=page.getByTestId("fw-status");
  await expect(status).toContainText("not the current design revision");
  await page.getByRole("button",{name:"COMPILE"}).click();
  await expect(status).toContainText("Toolchain missing: arduino-cli");
- await page.getByText("View generated sketch").click();
- await expect(page.getByTestId("fw-source")).toContainText("#define FAN_PIN 16");
+ 
+ await expect(page.getByTestId("code-source")).toContainText("#define FAN_PIN 16");
 });

@@ -4,9 +4,6 @@ import {fanControl,FanReason} from "./fanControl";
 export type CompileInfo={status:"passed"|"failed"|"toolchain_missing";revisionId:string;sizeBytes?:number|null;missing?:string|null;errors?:{file?:string|null;line?:number|null;message:string}[]};
 export type FirmwareInfo={supported:boolean;reasons:string[];tOnC?:number;tOffC?:number;pins?:Record<string,number>;revisionId?:string|null;source?:string;lastCompile?:CompileInfo|null;lastCompileCurrent?:boolean};
 
-const compileText=(result:CompileInfo)=>result.status==="passed"?`Compiled for ESP32${result.sizeBytes?` (${result.sizeBytes.toLocaleString()} bytes)`:""}`
- :result.status==="toolchain_missing"?`Toolchain missing: ${result.missing||"unknown"}`
- :`Compile failed: ${result.errors?.[0]?.message||"see compiler output"}${result.errors?.[0]?.line?` (line ${result.errors[0].line})`:""}`;
 
 export const SIMULATION_LABEL="Behavioral simulation — control logic only. Not electrical verification, not firmware execution.";
 const REASON_TEXT:Record<FanReason,string>={above_on:"at or above on threshold",below_off:"at or below off threshold",in_band:"inside hysteresis band, state held",sensor_fault:"sensor fault, fail-safe on"};
@@ -41,13 +38,8 @@ export function SimulationPreview({sim}:{sim:FanSimulation}){
  </section>;
 }
 
-export function SimulationPanel({firmware,sim,compile}:{firmware:FirmwareInfo;sim:FanSimulation;compile:()=>Promise<CompileInfo>}){
+export function SimulationPanel({firmware,sim}:{firmware:FirmwareInfo;sim:FanSimulation}){
  const {tOn,tOff,minC,maxC,temperature,setTemperature,fault,setFault,on,log}=sim,reason=sim.reason;
- const [compileResult,setCompileResult]=useState<CompileInfo|null>(firmware.lastCompile??null),[compileCurrent,setCompileCurrent]=useState(!!firmware.lastCompileCurrent);
- const [compiling,setCompiling]=useState(false),[compileError,setCompileError]=useState("");
- const runCompile=async()=>{setCompiling(true);setCompileError("");try{const result=await compile();setCompileResult(result);setCompileCurrent(result.revisionId===firmware.revisionId)}catch(error){setCompileError((error as Error).message)}finally{setCompiling(false)}};
- const firmwareStatus=compiling?"Compiling…":compileError?`Compile request failed: ${compileError}`:!compileResult?"Not compiled yet":
-  `${compileText(compileResult)}${compileCurrent?"":" — compiled for an earlier revision, not the current design revision"}`;
  return <aside className="simulation-panel" data-testid="simulation-panel">
   <small>SIMULATION</small>
   <p className="sim-label" data-testid="sim-label">{SIMULATION_LABEL}</p>
@@ -58,10 +50,7 @@ export function SimulationPanel({firmware,sim,compile}:{firmware:FirmwareInfo;si
   <div className={`sim-state ${on?"on":"off"}`}>Fan <b data-testid="sim-fan-state">{on?"ON":"OFF"}</b><span>{REASON_TEXT[reason]}</span></div>
   <dl className="sim-facts"><dt>On at</dt><dd>≥ {tOn.toFixed(1)} °C</dd><dt>Off at</dt><dd>≤ {tOff.toFixed(1)} °C</dd>
    {Object.entries(firmware.pins||{}).flatMap(([name,pin])=>[<dt key={`${name}-t`}>{PIN_LABEL[name]||name}</dt>,<dd key={`${name}-d`}>GPIO{pin}</dd>])}</dl>
-  <section className="sim-firmware"><div><b>Firmware</b><button onClick={runCompile} disabled={compiling}>COMPILE</button></div>
-   <p data-testid="fw-status" className={compileResult?.status==="passed"&&compileCurrent?"tone-pass":compileResult?"tone-warn":""}>{firmwareStatus}</p>
-   {firmware.source&&<details><summary>View generated sketch</summary><pre data-testid="fw-source">{firmware.source}</pre></details>}
-  </section>
+  <p className="sim-note">Firmware for these thresholds is in the Code space.</p>
   <p className="sim-note">3D fan spin is an animation of the simulated output, not a measured movement.</p>
   <ol className="sim-log" data-testid="sim-log">{log.map((entry,index)=><li key={`${entry.time}-${log.length-index}`}><time>{entry.time}</time>{entry.text}</li>)}</ol>
  </aside>;
