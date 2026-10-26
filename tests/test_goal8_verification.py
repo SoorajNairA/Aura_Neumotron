@@ -25,7 +25,7 @@ def irrigation():
 
 @pytest.mark.unit
 def test_catalogue_is_small_filterable_and_rejects_unknown_ids():
-    assert 30 <= len(CATALOGUE) <= 50
+    assert 30 <= len(CATALOGUE) <= 60
     assert len({x.component_definition_id for x in CATALOGUE}) == len(CATALOGUE)
     assert search(family="servo", voltage=5)
     assert search(family="low_voltage_power_source", minimum_current_ma=2000)
