@@ -20,7 +20,8 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
     width, length, height = dimensions
     electrical = {
         "controller": (("power", "electrical_power_in"), ("ground", "electrical_ground"), *((f"signal-{index}", "control_output") for index in range(1, 9))),
-        "microcontroller_board": (("power", "electrical_power_in"), ("ground", "electrical_ground"), *((f"signal-{index}", "control_output") for index in range(1, 9))),
+        # vcc-out (3V3 on ESP32) is appended last so existing port positions do not move.
+        "microcontroller_board": (("power", "electrical_power_in"), ("ground", "electrical_ground"), *((f"signal-{index}", "control_output") for index in range(1, 9)), ("vcc-out", "electrical_power_out")),
         "servo": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "control_input")),
         "low_voltage_power_source": (("power", "electrical_power_out"), ("ground", "electrical_ground")),
         "system power": (("power", "electrical_power_out"), ("ground", "electrical_ground")),

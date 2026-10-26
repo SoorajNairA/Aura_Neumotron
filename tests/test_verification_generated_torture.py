@@ -65,7 +65,7 @@ def test_generated_fan_supports_two_step_incremental_repair():
     original=generate("repair_fan","Build a variable-speed DC fan with temperature sensing")
     direct=mutate(original,"direct_load")
     sensor=next(item for item in direct.components if item.role=="temperature_sensor")
-    twice_broken=replace(direct,connections=tuple(item for item in direct.connections if not (item.target_id==sensor.id and item.connection_type=="power")))
+    twice_broken=replace(direct,connections=tuple(item for item in direct.connections if not (item.target_id==sensor.id and item.connection_type in {"power","regulated-power"})))
     first_result=VerificationService().verify(twice_broken)
 
     # Restore only the driver/load architecture; sensor power remains absent.

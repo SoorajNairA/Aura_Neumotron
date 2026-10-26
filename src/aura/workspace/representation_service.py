@@ -40,7 +40,7 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
             "semanticCoverage":{"componentId":entity.id,"family":family,"proxy":True,"renderStrategy":"family_proxy",
                 "representationClass":"exact" if resolution=="EXACT" else "generic" if resolution=="COMPATIBLE_GENERIC" else "conceptual"}}))
     categories={
-        "microcontroller_board":("U","controller",["VCC","GND",*[f"IO{i}" for i in range(1,9)]]),"controller":("U","controller",["VCC","GND",*[f"IO{i}" for i in range(1,9)]]),
+        "microcontroller_board":("U","controller",["VCC","GND",*[f"IO{i}" for i in range(1,9)],"VOUT"]),"controller":("U","controller",["VCC","GND",*[f"IO{i}" for i in range(1,9)],"VOUT"]),
         "temperature_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"light_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"environmental_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"distance_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"soil_moisture_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"motion_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"orientation_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"conceptual_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"moisture_sensor":("S","generic_sensor",["VCC","GND","SIGNAL"]),"soil sensing":("S","generic_sensor",["VCC","GND","SIGNAL"]),
         "mosfet_driver":("Q","mosfet",["VCC","GND","SIGNAL","OUT"]),"motor_driver":("DRV","generic_module",["VCC","GND","SIGNAL","OUT"]),"relay_module":("K","generic_module",["VCC","GND","SIGNAL","OUT"]),"bare_relay":("K","generic_module",["VCC","GND","OUT"]),"pump switching":("Q","generic_module",["VCC","GND","SIGNAL","OUT"]),"wireless_module":("W","generic_module",["VCC","GND","SIGNAL"]),
         "flyback_diode":("D","diode",["ANODE","CATHODE"]),"resistor":("R","resistor",["A","B"]),
@@ -61,7 +61,7 @@ def representation_specs(graph: EngineeringGraph) -> list[RepresentationSpec]:
         materialize_electrical_nets(graph)  # migration path for persisted pre-net graphs
     connections=[];unconnected=[];signal_counts={}
     pin_alias={
-        "controller":{"power":"VCC","5v":"VCC","3v3":"VCC","ground":"GND","gnd":"GND","signal":"IO1","gpio-pump":"IO1","gpio-sensor":"IO2"},
+        "controller":{"power":"VCC","vcc-out":"VOUT","5v":"VCC","3v3":"VCC","ground":"GND","gnd":"GND","signal":"IO1","gpio-pump":"IO1","gpio-sensor":"IO2"},
         "servo":{"power":"V+","ground":"GND","signal":"PWM"},
         "power_source":{"power":"V+","5v":"V+","ground":"GND"},
         "generic_sensor":{"power":"VCC","vcc":"VCC","ground":"GND","gnd":"GND","signal":"SIGNAL"},
