@@ -123,3 +123,21 @@ test("code space explains unsupported designs",async({page})=>{
  await expect(page.getByTestId("code-view")).toContainText("ESP32 DevKit V1");
  await expect(page.getByTestId("code-source")).toHaveCount(0);
 });
+
+test("rail and inspector use thumbnails rendered from the 3D models",async({page})=>{
+ await mock(page);await page.goto("/?projectId=project-fan");
+ const rows=page.locator(".rail-part-main img");
+ await expect(rows.first()).toHaveAttribute("src",/^data:image\/png/);
+ expect(await rows.count()).toBeGreaterThanOrEqual(3);
+ await page.getByRole("button",{name:/Desk fan component-fan/}).click();
+ await expect(page.locator(".component-card header img")).toHaveAttribute("src",/^data:image\/png/);
+});
+
+test("thumbnail failure falls back to icons and keeps the 3D scene",async({page})=>{
+ await page.addInitScript(()=>{(window as any).__auraDisableThumbnails=true});
+ await mock(page);await page.goto("/?projectId=project-fan");
+ await expect(page.locator(".rail-icon").first()).toBeVisible();
+ await expect(page.locator(".rail-part-main img")).toHaveCount(0);
+ await page.waitForTimeout(700);
+ expect((await page.evaluate(()=>(window as any).__auraSceneMetrics())).triangles).toBeGreaterThan(0);
+});
