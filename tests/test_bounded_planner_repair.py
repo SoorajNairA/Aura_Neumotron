@@ -177,3 +177,18 @@ def test_live_prompts_ask_for_only_needed_component_families():
     request = ProjectRequest("Arm", "Make a robotic arm", ("Move",))
     for prompt in (LivePlanner._prompt(request, ""), LivePlanner._repair_prompt(request, {})):
         assert "only the component families this objective physically needs" in prompt
+
+
+def test_fan_objective_drops_redundant_planner_motor_and_motor_driver():
+    # Live Nemotron listed a bare DC motor and an H-bridge beside the fan; the fan family already includes its motor.
+    plan = _plan("Design a temperature-controlled desk fan",
+                 ("microcontroller_board", "temperature_sensor", "fan", "small_dc_motor", "motor_driver", "mosfet_driver", "low_voltage_power_source", "enclosure"))
+    families = [component.role for component in plan.components]
+    assert "fan" in families and "mosfet_driver" in families
+    assert "small_dc_motor" not in families and "motor_driver" not in families
+    assert VerificationService().verify(plan).accepted
+
+
+def test_fan_objective_keeps_an_explicitly_requested_motor():
+    plan = _plan("Design a desk fan driven by a separate dc motor through a belt", ("fan", "small_dc_motor", "motor_driver"))
+    assert "small_dc_motor" in [component.role for component in plan.components]

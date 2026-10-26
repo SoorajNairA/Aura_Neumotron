@@ -62,7 +62,9 @@ class PlannerService:
         aerial_vehicle=any(has_term(objective_text,word) for word in ("quadcopter","quadrotor","drone"))
         non_indicator_motion=(has_term(text,"turn") and "turn on" not in text and "turns on" not in text)
         explicit_motion=bool(re.search(r"\b(?:move|moves|moving|rotate|rotates|rotating|lift|lifts|lifting|tilt|tilts|tilting|pan|pans|panning|balance|balances|balancing|conveyor|dispens\w*|arm|arms|drive|drives|driving|slid\w*)\b",text))
-        needs_motion=aerial_vehicle or explicit_motion or non_indicator_motion or any(has_term(planner_labels,word) for word in ("motor","servo","actuator")) or (any(has_term(text,word) for word in ("lid","flap","shade")) and any(has_term(text,word) for word in ("open","close")))
+        # The fan family already includes its motor; a Planner-added bare motor beside it is redundant.
+        fan_supplies_motor=bool(re.search(r"\bfans?\b",objective_text)) and not has_term(objective_text,"motor") and not aerial_vehicle
+        needs_motion=aerial_vehicle or explicit_motion or non_indicator_motion or any(has_term(planner_labels,word) for word in (("servo","actuator") if fan_supplies_motor else ("motor","servo","actuator"))) or (any(has_term(text,word) for word in ("lid","flap","shade")) and any(has_term(text,word) for word in ("open","close")))
         # Whole words only: "carriage" is not a car, and "servo-driven" is not locomotion.
         mobile_drive=(any(re.search(rf"\b{word}s?\b",value) for word in ("wheel","vehicle","car","chassis") for value in (text,planner_labels))
                       or bool(re.search(r"\bdrive(?:s|ing)?\b",text))
@@ -262,6 +264,8 @@ class PlannerService:
                 resolved={"normalizedFamily":"chassis","resolutionQuality":"CONCEPTUAL","reason":"the vehicle chassis already provides the requested structural mounting plate"}
             elif mobile_drive and resolved.get("normalizedFamily")=="enclosure" and not explicit_enclosure:
                 resolved={"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"the Planner-added enclosure is not required by the vehicle objective"}
+            elif fan_supplies_motor and not mobile_drive and resolved.get("normalizedFamily") in {"motor","motor-driver"}:
+                resolved={"normalizedFamily":None,"resolutionQuality":"UNRESOLVED","reason":"the fan family already includes its motor and is switched by the fan driver"}
             family=resolved.get("normalizedFamily")
             if family:
                 occurrence=raw_seen.get(family,0)+1;raw_seen[family]=occurrence
