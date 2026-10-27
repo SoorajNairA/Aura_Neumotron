@@ -475,3 +475,18 @@ def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: l
     patch = GraphPatch(f"patch-{uuid4().hex}", tuple(patch_ops), summary, graph.current_revision_id)
     return ModificationProposal(f"proposal-{uuid4().hex}", base, affected, summary, "add_component", tuple(operations), affected,
                                 ("existing components",), ("firmware",), {"outcome": "pending_graph_verification", "checks": checks}, patch)
+
+
+def _decision(action: str, target_id: str, summary: str, **fields: Any) -> ModificationDecision:
+    base = {"referenceSemanticId": None, "referenceInterface": None, "targetInterface": None, "scalePercent": None,
+            "preserveDimensions": [], "parameterKey": None, "parameterValueJson": None, "componentDefinitionId": None}
+    return ModificationDecision(action=action, targetSemanticId=target_id, summary=summary, rationale="Requested from the component card.", **(base | fields))
+
+
+def propose_parameter_change(graph: EngineeringGraph, base: int, component_id: str, key: str, value: str | int | float | bool) -> ModificationProposal:
+    """Deterministic edit of one scalar parameter; verification still decides on commit."""
+    if base != len(graph.revisions): raise ValueError("stale_revision")
+    if component_id not in graph.entities: raise ModificationError("UNKNOWN_COMPONENT", "That part is not in the current design.", 404)
+    target = graph.get(component_id)
+    decision = _decision("SET_PARAMETER", component_id, f"Set {target.name} {key} to {value}"[:240], parameterKey=key, parameterValueJson=json.dumps(value))
+    return _set_parameter(graph, base, target, decision, "parameter_change")

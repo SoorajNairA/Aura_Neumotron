@@ -1,5 +1,5 @@
 import {expect,test,Page} from "@playwright/test";
-import {mock,supported} from "./fanFixture";
+import {graph,mock,supported} from "./fanFixture";
 
 const fact=(value:any,unit:string|null)=>({value,unit,evidenceId:"e",qualifier:"rated"});
 const part=(componentDefinitionId:string,family:string,partNumber:string,price:any=null)=>({componentDefinitionId,family,manufacturer:"Generic",partNumber,
@@ -72,4 +72,20 @@ test("code view says added parts have no generated driver",async({page})=>{
  await expect(page.getByTestId("added-without-driver")).toContainText("DS18B20 module");
  await expect(page.getByTestId("added-without-driver")).toContainText("GPIO13");
  await expect(page.getByTestId("added-without-driver")).toContainText("Pin assigned — no generated driver yet");
+});
+
+test("part settings propose a parameter change through the proposal card",async({page})=>{
+ await mock(page);
+ await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:{...graph,entities:graph.entities.map((e:any)=>e.id==="component-temperature-sensor"?{...e,metadata:{family:"temperature_sensor",parameters:{threshold_c:26,component_definition_id:"ds18b20-module",gpio_map:{}}}}:e)}}));
+ await page.route("**/api/projects/project-fan/parameter-proposals",r=>r.fulfill({json:{proposalId:"proposal-param",summary:"Set DS18B20 threshold_c to 30",mode:"parameter_change",affectedSemanticIds:["component-temperature-sensor"],unaffectedAreas:[],artifactsToRegenerate:[],
+  operations:[{operation:"replace_parameter",path:"parameters.threshold_c",oldValue:26,newValue:30}],verification:{checks:[]}}}));
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:/component-temperature-sensor/}).click();
+ const settings=page.getByTestId("part-settings");
+ await expect(settings.getByLabel("component_definition_id")).toHaveCount(0);
+ const posted=page.waitForRequest("**/api/projects/project-fan/parameter-proposals");
+ await settings.getByLabel("threshold_c").fill("30");
+ await settings.getByLabel("threshold_c").press("Enter");
+ expect((await posted).postDataJSON()).toEqual({baseRevision:1,componentId:"component-temperature-sensor",key:"threshold_c",value:30});
+ await expect(page.getByTestId("proposal-preview")).toContainText("26 → 30");
 });

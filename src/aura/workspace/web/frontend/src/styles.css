@@ -359,3 +359,4 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .library-rows label{display:flex;gap:6px;align-items:center;cursor:pointer}.library-add{margin-top:4px}
 .proposal-warning{margin:6px 0 0;font-size:12px;color:#8a5a00}
 .added-without-driver{padding:10px;border:1px dashed #c9b98a;border-radius:10px;background:#fffaf0;font-size:12px}.added-without-driver h3{margin:0 0 4px;font-size:13px}.added-without-driver ul{margin:0;padding-left:16px}
+.part-settings{list-style:none;margin:0;padding:0;display:grid;gap:6px}.part-settings label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px}.part-settings input:not([type=checkbox]){width:110px;padding:4px 6px;border-radius:6px;border:1px solid var(--line,#d9d6cc);font:inherit}
