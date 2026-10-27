@@ -89,6 +89,11 @@ button:disabled{opacity:.55}
 .sim-state{display:flex;align-items:baseline;gap:8px;padding:10px;border:1px solid var(--line);border-radius:var(--radius-sm);color:var(--text-soft);font-size:12px}
 .sim-state b{font:700 18px "Cascadia Mono","JetBrains Mono",ui-monospace,Consolas,monospace}
 .sim-state.on b{color:var(--pass)}
+.sim-io{display:flex;flex-direction:column;gap:6px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.sim-io select,.sim-outputs select{font-size:12px}
+.sim-outputs{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.sim-outputs .sim-state{flex-wrap:wrap}
+.sim-warnings{margin:0;padding:8px 10px 8px 26px;border-left:2px solid var(--fail,#b4442c);border-radius:var(--radius-sm);background:#fbeceb;color:#7a2a1d;font-size:12px}
 .sim-state.off b{color:var(--text-dim)}
 .sim-state span{margin-left:auto;color:var(--text-dim);font-size:11px;text-align:right}
 .sim-facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:12px}

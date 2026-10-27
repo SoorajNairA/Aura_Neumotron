@@ -1,8 +1,10 @@
 import {useEffect,useRef,useState} from "react";
 import {fanControl,FanReason} from "./fanControl";
+import {Io,Rule} from "./rules";
 
 export type CompileInfo={status:"passed"|"failed"|"toolchain_missing";revisionId:string;sizeBytes?:number|null;missing?:string|null;errors?:{file?:string|null;line?:number|null;message:string}[]};
-export type FirmwareInfo={supported:boolean;reasons:string[];tOnC?:number;tOffC?:number;pins?:Record<string,number>;revisionId?:string|null;source?:string;lastCompile?:CompileInfo|null;lastCompileCurrent?:boolean;addedWithoutDriver?:{semanticId:string;name:string;port:string;gpio:number}[]};
+export type FirmwareInfo={supported:boolean;reasons:string[];tOnC?:number;tOffC?:number;pins?:Record<string,number>;revisionId?:string|null;source?:string;lastCompile?:CompileInfo|null;lastCompileCurrent?:boolean;addedWithoutDriver?:{semanticId:string;name:string;port:string;gpio:number}[];
+ kind?:"fan"|"generic";ios?:Io[];rules?:Rule[];rulesSource?:"live_model"|"default";explanation?:string;droppedRules?:Rule[]};
 
 
 export const SIMULATION_LABEL="Behavioral simulation — control logic only. Not electrical verification, not firmware execution.";
