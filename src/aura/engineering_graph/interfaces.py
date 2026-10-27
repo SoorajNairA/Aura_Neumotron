@@ -19,6 +19,24 @@ class InterfaceDefinition:
 # 34-39 are input-only.
 ESP32_OUTPUT_GPIOS = (4, 5, 13, 14, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33)
 ESP32_INPUT_ONLY_GPIOS = (34, 35, 36, 37, 38, 39)
+# ADC2 is unusable while Wi-Fi runs, so analog inputs only get ADC1 pins (Espressif ESP32 datasheet, ADC section).
+ESP32_ADC1_GPIOS = (32, 33, 34, 35, 36, 39)
+ESP32_STRAPPING_GPIOS = (0, 2, 5, 12, 15)
+ANALOG_FAMILIES = frozenset({"soil_moisture_sensor", "light_sensor"})
+ANALOG_DEFINITIONS = frozenset({"capacitive-soil-v1", "photoresistor-module"})
+INPUT_FAMILIES = frozenset({"temperature_sensor", "environmental_sensor", "distance_sensor", "light_sensor", "motion_sensor",
+                            "orientation_sensor", "soil_moisture_sensor", "switch"})
+
+
+def is_analog(family: str, definition_id: str | None) -> bool:
+    return definition_id in ANALOG_DEFINITIONS if definition_id else family in ANALOG_FAMILIES
+
+
+def allocate_gpio(family: str, definition_id: str | None, used: set[int]) -> int | None:
+    """Lowest free pin for this part: ADC1 for analog inputs, never input-only pins for outputs, never strapping pins."""
+    safe = [pin for pin in ESP32_OUTPUT_GPIOS if pin not in ESP32_STRAPPING_GPIOS]
+    pool = ESP32_ADC1_GPIOS if is_analog(family, definition_id) else (*safe, *ESP32_INPUT_ONLY_GPIOS) if family in INPUT_FAMILIES else safe
+    return next((pin for pin in pool if pin not in used), None)
 
 
 def component_interfaces(family: str, dimensions: tuple[float, float, float], parameters: dict[str, Any] | None = None) -> tuple[InterfaceDefinition, ...]:

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from aura.engineering_graph.electrical import electrical_nets
-from aura.engineering_graph.interfaces import ESP32_INPUT_ONLY_GPIOS, ESP32_OUTPUT_GPIOS
+from aura.engineering_graph.interfaces import ESP32_ADC1_GPIOS, ESP32_INPUT_ONLY_GPIOS, ESP32_OUTPUT_GPIOS, is_analog
 from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
 
 from .results import VerificationState
@@ -86,6 +86,14 @@ def _gpio_assignments(graph: EngineeringGraph, components: dict[str, Engineering
         if invalid:
             add("ELEC_GPIO",VerificationState.FAILED,"critical",f"{controller.name} has unsafe or conflicting GPIO assignments: {', '.join(f'{port}=GPIO{pin}' for port,pin in sorted(invalid.items()))}.",(controller.id,),
                 category="electrical",interface_ids=tuple(sorted(invalid)),expected={"allowedOutputGpios":list(ESP32_OUTPUT_GPIOS)},actual={"gpioMap":gpio},blocking=True)
+        # Analog parts read through the ADC; only ADC1 works alongside Wi-Fi.
+        for edge in graph.find(kind=EntityKind.CONNECTION):
+            meta=dict(edge.metadata);ends={meta.get("source_id"):meta.get("source_interface"),meta.get("target_id"):meta.get("target_interface")}
+            if controller.id not in ends or ends[controller.id] not in gpio: continue
+            other=components.get(next((key for key in ends if key!=controller.id),""))
+            if other and is_analog(_family(other),_data(other).get("component_definition_id")) and gpio[ends[controller.id]] not in ESP32_ADC1_GPIOS:
+                add("ELEC_ADC",VerificationState.FAILED,"critical",f"{other.name} is analog but sits on GPIO{gpio[ends[controller.id]]}, which is not an ADC1 pin.",(controller.id,other.id),
+                    category="electrical",interface_ids=(ends[controller.id],),expected={"adc1Gpios":list(ESP32_ADC1_GPIOS)},actual={"gpio":gpio[ends[controller.id]]},blocking=True)
 
 
 def evaluate_graph(graph: EngineeringGraph, add: AddFinding) -> None:

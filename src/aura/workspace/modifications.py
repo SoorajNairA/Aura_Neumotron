@@ -395,7 +395,7 @@ def inverse_proposal(graph: EngineeringGraph, revision: dict[str, Any]) -> Modif
 
 
 # Strapping pins (0, 2, 5, 12, 15) set the ESP32 boot mode; the picker keeps them out of user-chosen assignments.
-ESP32_STRAPPING_GPIOS = (0, 2, 5, 12, 15)
+from aura.engineering_graph.interfaces import ESP32_STRAPPING_GPIOS, INPUT_FAMILIES, allocate_gpio
 
 
 def propose_pin_change(graph: EngineeringGraph, base: int, controller_id: str, port: str, gpio: int) -> ModificationProposal:
@@ -423,7 +423,6 @@ SIGNAL_FAMILIES = frozenset({"temperature_sensor", "environmental_sensor", "dist
 
 def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: list[str]) -> ModificationProposal:
     """Add catalogue parts; signal parts get the lowest free safe GPIO. Verification still decides on commit."""
-    from aura.engineering_graph.interfaces import ESP32_OUTPUT_GPIOS
     from aura.verification.catalogue import BY_ID
     if base != len(graph.revisions): raise ValueError("stale_revision")
     if not definition_ids: raise ModificationError("EMPTY_SELECTION", "Select at least one part to add.", 422)
@@ -435,12 +434,15 @@ def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: l
         raise ModificationError("NO_CONTROLLER", "These parts need a controller pin, but the design has no controller.", 409)
     params = dict(controller.metadata.get("parameters", {})) if controller else {}
     old_map = dict(params.get("gpio_map") or {}); gpio_map = dict(old_map)
-    free = [g for g in ESP32_OUTPUT_GPIOS if g not in ESP32_STRAPPING_GPIOS and g not in gpio_map.values()]
     # Only ports the controller declares can carry a net terminal.
     ports = [i.name for i in component_interfaces(_family(controller), _dimensions(controller), params)
              if i.kind == "control_output" and i.name not in gpio_map] if controller else []
-    if sum(d.family in SIGNAL_FAMILIES for d in definitions) > min(len(free), len(ports)):
-        raise ModificationError("NO_FREE_PIN", "Not enough free safe ESP32 pins for these parts.", 409)
+    used = set(gpio_map.values()); picks = []
+    for d in definitions:
+        pin = allocate_gpio(d.family, d.component_definition_id, used) if d.family in SIGNAL_FAMILIES else None
+        if d.family in SIGNAL_FAMILIES and (pin is None or len(picks) >= len(ports)):
+            raise ModificationError("NO_FREE_PIN", "Not enough free safe ESP32 pins for these parts.", 409)
+        if pin is not None: used.add(pin); picks.append(pin)
     patch_ops, operations, ids = [], [], []
     for definition in definitions:
         suffix = uuid4().hex[:8]; entity_id = f"component-user-{definition.family.replace('_', '-')}-{suffix}"
@@ -454,8 +456,8 @@ def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: l
         operation = {"operation": "add_component", "targetId": entity_id, "componentDefinitionId": definition.component_definition_id,
                      "path": "components", "oldValue": None, "newValue": definition.part_number, "gpio": None}
         if definition.family in SIGNAL_FAMILIES:
-            gpio, port = free.pop(0), ports.pop(0); gpio_map[port] = gpio
-            sensor = definition.family.endswith("_sensor") or definition.family == "switch"
+            gpio, port = picks.pop(0), ports.pop(0); gpio_map[port] = gpio
+            sensor = definition.family in INPUT_FAMILIES
             source, target = (entity_id, controller.id) if sensor else (controller.id, entity_id)
             kind = "signal" if sensor else "control"
             connection_id = f"connection-user-wire-{suffix}"
