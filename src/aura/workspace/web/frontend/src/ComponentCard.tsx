@@ -1,6 +1,7 @@
 import {useEffect,useState} from "react";
 import {TestBench} from "./TestBench";
 import {hasStudioModel} from "./studioModels";
+import {resolveWires} from "./wiring3d";
 import {CheckRow,GROUP_ROLE,PICKABLE_GPIOS,PinRef,checksForComponent,componentGroup,connectionRows,partDescription,partNumber} from "./studio";
 
 type Props={componentId:string;label:string;family?:string;graph:{entities:any[]}|undefined;findings:any[];thumbnail?:string;onShowConnections:()=>void;onChangePin?:(pin:PinRef,gpio:number)=>Promise<string|undefined>;onChangeParameter?:(componentId:string,key:string,value:string|number|boolean)=>Promise<string|undefined>;connectTools?:ConnectTools;benchApi?:string;settingsToken?:string};
@@ -21,6 +22,9 @@ export function ComponentCard({componentId,label,family,graph,findings,thumbnail
  const dims=entity?.metadata?.dimensions,sizeText=dims?.width&&dims?.length&&dims?.height
   ?`${[dims.width,dims.length,dims.height].map((d:any)=>d.value).join(" × ")} mm${entity?.metadata?.dimensions_qualifier?` (${entity.metadata.dimensions_qualifier})`:""}`:null;
  const [wire,setWire]=useState<string>(),wireRow=rows.find(row=>row.port===wire);
+ // Same numbers as the tags on the 3D wires.
+ const wireNumbers=new Map<string,number[]>();
+ for(const item of resolveWires(graph))for(const endpoint of [item.from,item.to])if(endpoint.part===componentId)wireNumbers.set(endpoint.iface,[...(wireNumbers.get(endpoint.iface)||[]),item.number]);
  const settings=Object.entries(entity?.metadata?.parameters||{}).filter(([key,value])=>CONFIGURABLE_PARAMETERS.has(key)&&typeof value==="number") as [string,number][];
  const changeParameter=async(key:string,old:number,raw:string)=>{
   const value=Number(raw);if(!onChangeParameter||raw.trim()===""||!Number.isFinite(value)||value===old)return;
@@ -35,7 +39,7 @@ export function ComponentCard({componentId,label,family,graph,findings,thumbnail
   {sizeText&&<p className="part-size" data-testid="part-size">Size {sizeText}</p>}
   {!modelled&&<p className="proxy-label" data-testid="proxy-label">Generic proxy — no detailed 3D model for this part yet</p>}
   <h3 className="card-heading">Connection</h3>
-  {!graph?<p className="empty-copy" data-testid="connection-rows">Loading connections…</p>:rows.length?<ul className="connection-rows" data-testid="connection-rows">{rows.map(row=><li key={row.port}><span className={`pin-dot tone-${row.tone}`} aria-hidden="true"/><button className="wire-row" aria-pressed={wire===row.port} onClick={()=>setWire(wire===row.port?undefined:row.port)}>{row.label}{row.polarity&&row.polarity!=="signal"?` (${row.polarity})`:""}{row.header&&<small> {row.header}</small>}</button>{row.pin&&onChangePin?<select aria-label={`Change pin for ${row.label}`} value={String(row.pin.gpio)} disabled={pinBusy} onChange={event=>changePin(row.pin!,Number(event.target.value))}>{[...new Set([row.pin.gpio,...PICKABLE_GPIOS])].map(pin=><option key={pin} value={pin}>GPIO {pin}</option>)}</select>:<b>{row.value}</b>}</li>)}</ul>
+  {!graph?<p className="empty-copy" data-testid="connection-rows">Loading connections…</p>:rows.length?<ul className="connection-rows" data-testid="connection-rows">{rows.map(row=><li key={row.port}><span className={`pin-dot tone-${row.tone}`} aria-hidden="true"/><button className="wire-row" aria-pressed={wire===row.port} onClick={()=>setWire(wire===row.port?undefined:row.port)}>{row.label}{row.polarity&&row.polarity!=="signal"?` (${row.polarity})`:""}{row.header&&<small> {row.header}</small>}{wireNumbers.get(row.port)?.map(n=><span className="wire-number" key={n} data-testid={`wire-number-${n}`}>{n}</span>)}</button>{row.pin&&onChangePin?<select aria-label={`Change pin for ${row.label}`} value={String(row.pin.gpio)} disabled={pinBusy} onChange={event=>changePin(row.pin!,Number(event.target.value))}>{[...new Set([row.pin.gpio,...PICKABLE_GPIOS])].map(pin=><option key={pin} value={pin}>GPIO {pin}</option>)}</select>:<b>{row.value}</b>}</li>)}</ul>
    :<p className="empty-copy" data-testid="connection-rows">No electrical connections in the graph.</p>}
   {wireRow?.endpoints&&<p className="wire-endpoints" data-testid="wire-endpoints"><span>{wireRow.endpoints[0]}</span><span aria-hidden="true">↔</span><span>{wireRow.endpoints[1]}</span></p>}
   {pinError&&<p className="pin-error" role="alert" data-testid="pin-error">{pinError}</p>}

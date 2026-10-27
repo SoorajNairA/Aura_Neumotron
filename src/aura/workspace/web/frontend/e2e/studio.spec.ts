@@ -238,3 +238,21 @@ test("a part without a detailed model is labelled a generic proxy",async({page})
  await page.getByRole("button",{name:/component-temperature-sensor/}).click();
  await expect(page.getByTestId("proxy-label")).toHaveCount(0);
 });
+
+test("cables run pin to pin, stay on their pins when exploded, and share numbers with the part card",async({page})=>{
+ await mock(page);await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:pinGraph}));
+ await page.goto("/?projectId=project-fan");
+ await expect.poll(()=>page.evaluate(()=>(window as any).__auraWires?.().length??0)).toBeGreaterThan(0);
+ const wires=async()=>page.evaluate(()=>(window as any).__auraWires());
+ let list=await wires();
+ expect(list.map((w:any)=>`${w.from}>${w.to}`)).toContain("component-temperature-sensor.DAT>component-controller.IO4");
+ expect(list.map((w:any)=>`${w.from}>${w.to}`)).toContain("component-controller.IO16>component-driver.IN");
+ for(const w of list){expect(w.startError,w.label).toBeLessThan(.5);expect(w.endError,w.label).toBeLessThan(.5)}
+ await expect(page.getByTestId("wire-note")).toContainText("Illustrative routing — not a measured cable layout");
+ await page.getByRole("button",{name:"EXPLODE"}).click();
+ list=await wires();for(const w of list){expect(w.startError).toBeLessThan(.5);expect(w.endError).toBeLessThan(.5)}
+ const dat=list.find((w:any)=>w.from==="component-temperature-sensor.DAT");
+ expect(dat.label).toBe(`${dat.number} · DS18B20 · DAT ↔ ESP32 DevKit · IO4 (GPIO4, J3 pin 13)`);
+ await page.getByRole("button",{name:/component-temperature-sensor/}).click();
+ await expect(page.getByTestId("connection-rows").getByTestId(`wire-number-${dat.number}`)).toBeVisible();
+});

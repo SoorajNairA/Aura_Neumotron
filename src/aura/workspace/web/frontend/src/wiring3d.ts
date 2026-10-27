@@ -20,7 +20,7 @@ export const INTERFACE_PINS:Record<string,Record<string,string>>={
 };
 
 type Entity={id:string;kind:string;name?:string;metadata?:any};
-export type PinEnd={part:string;pin:string;name:string;detail:string};
+export type PinEnd={part:string;pin:string;name:string;detail:string;iface:string};
 export type Wire={number:number;connectionId:string;role:WireRole;color:number;from:PinEnd;to:PinEnd;label:string};
 
 const where=(pin:string)=>{const gpio=Object.entries(ESP32_DEVKITC).find(([,p])=>p.label===pin);if(gpio)return ` (GPIO${gpio[0]}, ${gpio[1].header} pin ${gpio[1].position})`;
@@ -49,7 +49,9 @@ export function resolveWires(graph:{entities:Entity[]}|undefined):Wire[]{
  for(const {entity,m,source,target,fromPin,toPin} of ends(graph)){
   if(!fromPin||!toPin)continue;
   const role=ROLE[m.connection_type],number=wires.length+1;
-  const from={part:m.source_id,pin:fromPin,name:source?.name||m.source_id,detail:where(fromPin)},to={part:m.target_id,pin:toPin,name:target?.name||m.target_id,detail:where(toPin)};
+    // DevKitC header positions belong only to controller pins; a sensor's own GND is just GND.
+  const detail=(entity:Entity|undefined,pin:string)=>entity?.metadata?.family==="microcontroller_board"?where(pin):"";
+  const from={part:m.source_id,pin:fromPin,name:source?.name||m.source_id,detail:detail(source,fromPin),iface:m.source_interface},to={part:m.target_id,pin:toPin,name:target?.name||m.target_id,detail:detail(target,toPin),iface:m.target_interface};
   wires.push({number,connectionId:entity.id,role,color:WIRE_COLORS[role],from,to,label:`${number} · ${from.name} · ${from.pin}${from.detail} ↔ ${to.name} · ${to.pin}${to.detail}`});
  }
  return wires;
@@ -60,7 +62,7 @@ resolveWires.unresolved=(graph:{entities:Entity[]}|undefined)=>graph?ends(graph)
 
 // A jumper: straight up from each pin, then a smooth arc over the parts whose height grows with distance.
 export function jumperCurve(a:THREE.Vector3,b:THREE.Vector3):THREE.CatmullRomCurve3{
- const rise=6,arc=THREE.MathUtils.clamp(a.distanceTo(b)*.35,12,60),top=Math.max(a.z,b.z)+arc;
+ const rise=5,arc=THREE.MathUtils.clamp(a.distanceTo(b)*.22,8,32),top=Math.max(a.z,b.z)+arc;
  const lift=(p:THREE.Vector3)=>new THREE.Vector3(p.x,p.y,p.z+rise);
  const mid=new THREE.Vector3((a.x+b.x)/2,(a.y+b.y)/2,top);
  return new THREE.CatmullRomCurve3([a.clone(),lift(a),mid,lift(b),b.clone()],false,"centripetal");

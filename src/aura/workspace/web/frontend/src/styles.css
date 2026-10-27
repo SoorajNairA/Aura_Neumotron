@@ -93,6 +93,9 @@ button:disabled{opacity:.55}
 .sim-column>.simulation-panel{position:static;width:auto;flex:1;min-height:0}
 .sim-source{display:flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface)}
 .sim-source button{flex:1}.sim-source button[aria-pressed="true"]{background:var(--accent-soft);font-weight:600}
+.wire-tooltip{position:absolute;z-index:9;max-width:360px;padding:6px 9px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:12px "Cascadia Mono","JetBrains Mono",ui-monospace,Consolas,monospace;pointer-events:none;box-shadow:0 8px 24px rgba(30,39,34,.12)}
+.wire-note{position:absolute;z-index:7;left:12px;bottom:12px;margin:0;padding:4px 8px;border-radius:var(--radius-sm);background:rgba(255,255,255,.85);color:var(--text-soft);font-size:11px}
+.wire-number{display:inline-grid;place-items:center;min-width:16px;height:16px;margin-left:4px;padding:0 3px;border:1.5px solid var(--text-soft);border-radius:999px;font-size:10px;font-weight:700}
 .build-main{flex:1;min-width:0;padding:16px;overflow:auto}.build-evidence{font-weight:600}
 .serial-log{max-height:60vh;overflow:auto;margin:0;padding:8px 10px;list-style:none;border:1px solid var(--line);border-radius:var(--radius-sm);background:#14181a;color:#d9e2dc;font:12px "Cascadia Mono","JetBrains Mono",ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
 .serial-log time{color:#7d8a83;margin-right:8px}.serial-log li.telemetry{color:#9fe3b8}

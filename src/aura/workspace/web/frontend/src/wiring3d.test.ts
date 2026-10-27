@@ -33,3 +33,14 @@ describe("pin-to-pin wires",()=>{
   expect(Math.max(...curve.getPoints(40).map(p=>p.z))).toBeGreaterThan(10+10);
  });
 });
+
+describe("wire label review",()=>{
+ it("only controller pins carry DevKitC header positions",()=>{
+  const graph={entities:[comp("c","ESP32 DevKit","microcontroller_board",{gpio_map:{}}),comp("t","DS18B20","temperature_sensor"),conn("w","c","ground","t","ground","ground")]};
+  expect(resolveWires(graph)[0].label).toBe("1 · ESP32 DevKit · GND (J2 pin 14) ↔ DS18B20 · GND");
+ });
+ it("keeps short jumpers low",()=>{
+  const curve=jumperCurve(new THREE.Vector3(0,0,0),new THREE.Vector3(150,0,0));
+  expect(Math.max(...curve.getPoints(40).map(p=>p.z))).toBeLessThan(40);
+ });
+});
