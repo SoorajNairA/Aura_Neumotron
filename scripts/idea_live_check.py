@@ -51,8 +51,17 @@ def main() -> None:
         print(f"  part: {part['name']} [{part['partNumber'] or 'generic proxy'}] {price} · {len(part['alternatives'])} options")
     print("cost:", card["cost"]["totalUsd"], "estimate; unpriced:", card["cost"]["excluded"])
     print("limitations:", len(card["limitations"]))
+    rules = card.get("controlRules") or {}
+    print("rules:", rules.get("source"), rules.get("reason") or "", json.dumps(rules.get("rules")), "|", rules.get("explanation"))
+    print("breadboard:", card.get("breadboard"))
     project = call("POST", f"{args.api}/api/ideas/{session['sessionId']}/approve", json={"proposalId": card["proposalId"]})
     print("project:", project["projectId"], project["status"], project["planningMode"])
+    firmware = call("GET", f"{args.api}/api/projects/{project['projectId']}/firmware")
+    print("firmware:", firmware.get("kind"), "supported" if firmware["supported"] else firmware["reasons"], "pins:", firmware.get("pins"),
+          "rulesSource:", firmware.get("rulesSource"), "dropped:", firmware.get("droppedRules"))
+    if firmware["supported"]:
+        result = call("POST", f"{args.api}/api/projects/{project['projectId']}/firmware/compile")
+        print("compile:", result["status"], result.get("sizeBytes"), [e["message"] for e in result.get("errors", [])][:3])
 
 
 if __name__ == "__main__":

@@ -84,7 +84,7 @@ profile is reported, never silently replaced.
 
 ## Firmware toolchain (optional)
 
-The fan workflow generates an ESP32 sketch and can compile it with
+Any ESP32 DevKit design gets a generated sketch (the fan workflow keeps its own), and AURA can compile it with
 `arduino-cli`. Without it, compile reports `toolchain_missing`; nothing is
 treated as a pass. To enable real compiles:
 
@@ -93,7 +93,7 @@ winget install ArduinoSA.CLI
 $url = "https://espressif.github.io/arduino-esp32/package_esp32_index.json"
 arduino-cli core update-index --additional-urls $url
 arduino-cli core install esp32:esp32 --additional-urls $url
-arduino-cli lib install OneWire DallasTemperature
+arduino-cli lib install OneWire@2.3.8 DallasTemperature@4.0.5 ESP32Servo@3.2.1
 ```
 
 Set `AURA_ARDUINO_CLI` to the executable path if it is not on `PATH`.
@@ -109,6 +109,19 @@ the firmware follows them.
   connectivity, size, environment, experience) that proposes parts, compatible
   alternatives, a dated-price cost estimate and limitations for approval before
   a project is created. `scripts/idea_live_check.py` drives one live run.
+- **Firmware for new projects**: Nemotron fills a short rule list (input,
+  threshold, output) for the parts in the design; AURA validates it and writes
+  the C++ from fixed drivers (DS18B20, soil, light, PIR, button, relay/MOSFET,
+  LED, SG90). The proposal card shows the rules in plain words; without the
+  live model a labelled default rule is used. Analog sensors get ADC1 pins.
+- **Simulation with faults**: the same rule list drives sliders/toggles per
+  input and shows each output; inject sensor disconnected/stuck, actuator
+  stalled, driver shorted. Behavioral only, not hardware.
+- **Exact pins and breadboard**: wire rows show ESP32-DevKitC header pins
+  (e.g. `GPIO4 (IO4, J3 pin 13)`), both wire ends and polarity; selecting a
+  part highlights what it is wired to. Prototypes get an 830-point breadboard
+  (nominal standard size) that can be left out. Common modules have detailed
+  3D models; others are labelled "Generic proxy".
 - **Component library** (☰ in Design): search the catalogue, add several parts
   as one verified proposal (safe GPIOs, undoable), edit part settings, mount
   parts, and try DS18B20/fan behavioral test benches (not hardware).
