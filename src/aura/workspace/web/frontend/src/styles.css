@@ -89,6 +89,10 @@ button:disabled{opacity:.55}
 .sim-state{display:flex;align-items:baseline;gap:8px;padding:10px;border:1px solid var(--line);border-radius:var(--radius-sm);color:var(--text-soft);font-size:12px}
 .sim-state b{font:700 18px "Cascadia Mono","JetBrains Mono",ui-monospace,Consolas,monospace}
 .sim-state.on b{color:var(--pass)}
+.sim-column{position:absolute;z-index:8;right:12px;top:12px;bottom:12px;width:min(320px,42%);display:flex;flex-direction:column;gap:8px}
+.sim-column>.simulation-panel{position:static;width:auto;flex:1;min-height:0}
+.sim-source{display:flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface)}
+.sim-source button{flex:1}.sim-source button[aria-pressed="true"]{background:var(--accent-soft);font-weight:600}
 .build-main{flex:1;min-width:0;padding:16px;overflow:auto}.build-evidence{font-weight:600}
 .serial-log{max-height:60vh;overflow:auto;margin:0;padding:8px 10px;list-style:none;border:1px solid var(--line);border-radius:var(--radius-sm);background:#14181a;color:#d9e2dc;font:12px "Cascadia Mono","JetBrains Mono",ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
 .serial-log time{color:#7d8a83;margin-right:8px}.serial-log li.telemetry{color:#9fe3b8}

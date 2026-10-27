@@ -55,3 +55,23 @@ test("a fake board run is never shown as hardware evidence",async({page})=>{
  await page.goto("/?projectId=project-fan");await page.getByRole("button",{name:"Build",exact:true}).click();
  await expect(page.getByTestId("hardware-evidence")).toHaveText("Fake board (test) — not hardware evidence");
 });
+
+test("Live board drives the simulation and 3D from telemetry and flags disagreement",async({page})=>{
+ let state:any=idle;
+ await hardware(page,()=>state);
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:"Simulation",exact:true}).click();
+ await expect(page.getByRole("button",{name:"Live board"})).toBeDisabled();
+ await page.getByRole("button",{name:"Build",exact:true}).click();
+ state={...idle,running:true,port:"COM5",lines:[line(1,"revision-1",20,0),line(2,"revision-1",27,1)]};
+ await page.getByRole("button",{name:"Start monitor"}).click();
+ await expect(page.getByTestId("serial-log")).toContainText("\"fan\":1");
+ await page.getByRole("button",{name:"Simulation",exact:true}).click();
+ await page.getByRole("button",{name:"Live board"}).click();
+ await expect(page.getByTestId("live-label")).toHaveText("Live board — values reported by the firmware over USB serial");
+ await expect(page.getByTestId("live-fan")).toHaveText("Fan ON");
+ await expect.poll(()=>page.evaluate(()=>(window as any).__auraFanSpinning())).toBe(true);
+ await expect(page.getByTestId("live-disagree")).toHaveCount(0);
+ state={...state,lines:[line(3,"revision-1",20,1),line(4,"revision-1",19,1),line(5,"revision-1",18,1)]};
+ await expect(page.getByTestId("live-disagree")).toHaveText("Board output disagrees with the rule for fan");
+});

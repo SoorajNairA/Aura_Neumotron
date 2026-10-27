@@ -11,6 +11,8 @@ import {FirmwareInfo,SimulationPanel,SimulationPreview,useFanSimulation} from ".
 import {GenericSimulation} from "./GenericSimulation";
 import {BuildView} from "./BuildView";
 import {useSerial} from "./hardware";
+import {LiveBoard} from "./LiveBoard";
+import {telemetryOutputs} from "./live";
 import {connectedParts,pinLabel,polarity} from "./pinout";
 import {ComponentCard} from "./ComponentCard";
 import {CodeView} from "./CodeView";
@@ -204,7 +206,15 @@ export function WorkspaceApp(){
    return `${polarity(iface)} · ${iface}${gpio!==undefined?` (${pinLabel(gpio)})`:""}`};
   const fanPartId=assembly?.parts.find(part=>part.family==="fan"||part.semanticId.includes("fan"))?.semanticId??null;
   // The 3D rotor follows the shared simulated output in every space; it is an animation, not a measurement.
-  const spinOn=generic?Object.entries(genericMoving).some(([id,on])=>on&&id.startsWith("fan_")):sim.on;
+  // Live board: the 3D follows the latest reported outputs instead of the simulation.
+  const [simSource,setSimSource]=useState<"sim"|"live">("sim"),live=simSource==="live"&&serial.state.running;
+  useEffect(()=>{if(!serial.state.running)setSimSource("sim")},[serial.state.running]);
+  const latestTelemetry=[...serial.state.lines].reverse().find(line=>line.telemetry)?.telemetry;
+  const liveOutputs=live&&latestTelemetry&&generic?telemetryOutputs(latestTelemetry,firmware?.ios||[]):{};
+  const liveKey=JSON.stringify(liveOutputs);
+  useEffect(()=>{if(live&&generic)scene.current?.setOutputs(Object.fromEntries((firmware?.ios||[]).filter(io=>io.role==="output").map(io=>[io.component_id,Number(liveOutputs[io.id]??0)])))},[live,generic,liveKey]);
+  const spinOn=live?(generic?Object.entries(liveOutputs).some(([id,value])=>id.startsWith("fan_")&&Number(value)>0):Number(latestTelemetry?.fan)>0)
+   :generic?Object.entries(genericMoving).some(([id,on])=>on&&id.startsWith("fan_")):sim.on;
   useEffect(()=>{scene.current?.setSpinning(fanPartId,!!firmware?.supported&&spinOn)},[fanPartId,firmware?.supported,spinOn]);
   const compact=()=>window.matchMedia("(max-width:900px)").matches;
  const [railCollapsed,setRailCollapsed]=useState(compact),[inspectorCollapsed,setInspectorCollapsed]=useState(compact),[collapsedSystems,setCollapsedSystems]=useState<Set<string>>(new Set());
@@ -324,7 +334,10 @@ export function WorkspaceApp(){
    {(mode==="schematic"||mode==="split")&&<div className="schematic" data-testid="schematic">{circuit.length?<SchematicViewport circuit={circuit} mapping={mapping} nets={nets} selectedNet={selectedKind==="net"?selected:null} onSelect={id=>choose(id,"schematic")} onSelectNet={id=>choose(id,"schematic","net")}/>:<div className="panel-empty"><b>Schematic unavailable</b><span>{project?.representations?.some(item=>item.type==="circuit_schematic")?"Schematic generation failed or produced no records.":"This project has no schematic representation yet."}</span></div>}</div>}
    {mode==="work"&&<div className="work-canvas" data-testid="work-view"><header><div><small>ENGINEERING WORK</small><h1>Project work state</h1></div><div className="work-counts"><span>{counts.completed||0} COMPLETED</span><span>{counts.in_progress||0} IN PROGRESS</span><span>{counts.paused||0} PAUSED</span><span>{counts.planned||0} PLANNED</span></div></header><nav>{["all","active","paused","done"].map(filter=><button className={workFilter===filter?"active":""} key={filter} onClick={()=>setWorkFilter(filter)}>{filter.toUpperCase()}</button>)}</nav>{workStatus==="loading"?<div className="panel-empty"><b>Loading engineering work</b><span>Reading authoritative project state.</span></div>:workStatus==="unavailable"?<div className="panel-empty"><b>Work state unavailable</b><span>This build does not expose the Round 2 work-state contract.</span></div>:workStatus==="error"?<div className="panel-empty"><b>Work state unavailable</b><span>AURA could not read engineering work from the backend.</span></div>:filteredWork.length?<div className="work-list">{filteredWork.map(item=><button data-testid={`work-item-${item.workItemId}`} className={selectedWorkId===item.workItemId?"selected":""} key={item.workItemId} onClick={()=>openWork(item)}><span className={`work-glyph tone-${statusTone(item.state)}`}>{item.state==="completed"?"✓":item.state==="in_progress"?"▶":item.state==="paused"?"Ⅱ":"○"}</span><span><b>{item.title}</b><small>{item.description||item.reason||"No additional detail supplied."}</small></span><em className={`tone-${statusTone(item.state)}`}>{statusLabel(item.state)}</em></button>)}</div>:<div className="panel-empty"><b>No work items in this view</b><span>Engineering work is created and persisted by the project backend.</span></div>}</div>}
    {mode==="work"&&workStatus==="ready"&&workItems.length===0&&<section className="work-zero" data-testid="work-empty"><small>ENGINEERING WORK</small><h2>No engineering work has been created for this project yet.</h2><p>Create work items to track unresolved engineering decisions, verification tasks, skipped work, or paused investigation.</p><button className="primary" onClick={openWorkCreate}>CREATE WORK ITEM</button></section>}
-   {mode==="simulation"&&firmware?.supported&&(generic?<GenericSimulation key={firmware.revisionId||"none"} ios={firmware.ios||[]} rules={firmware.rules||[]} revisionId={firmware.revisionId} onMoving={setGenericMoving} onOutputs={values=>scene.current?.setOutputs(Object.fromEntries((firmware.ios||[]).filter(io=>io.role==="output").map(io=>[io.component_id,values[io.id]??0])))}/>:<SimulationPanel firmware={firmware} sim={sim}/>)}
+   {mode==="simulation"&&firmware?.supported&&<div className="sim-column">
+    <div className="sim-source" role="group" aria-label="Simulation source"><button aria-pressed={!live} onClick={()=>setSimSource("sim")}>Simulated</button>
+     <button aria-pressed={live} disabled={!serial.state.running} title={serial.state.running?undefined:"Start the serial monitor in Build first"} onClick={()=>setSimSource("live")}>Live board</button></div>
+    {live?<LiveBoard firmware={firmware} serial={serial}/>:generic?<GenericSimulation key={firmware.revisionId||"none"} ios={firmware.ios||[]} rules={firmware.rules||[]} revisionId={firmware.revisionId} onMoving={setGenericMoving} onOutputs={values=>scene.current?.setOutputs(Object.fromEntries((firmware.ios||[]).filter(io=>io.role==="output").map(io=>[io.component_id,values[io.id]??0])))}/>:<SimulationPanel firmware={firmware} sim={sim}/>}</div>}
     {mode==="work"&&workStatus==="ready"&&workItems.length>0&&<button className="work-create primary" onClick={openWorkCreate}>CREATE WORK ITEM</button>}
    {mode==="work"&&workStatus==="ready"&&workItems.length>0&&<div className="work-terminal-counts"><b>{(counts.completed||0)+(counts.skipped||0)+(counts.abandoned||0)} DONE</b><span>{counts.skipped||0} SKIPPED · {counts.abandoned||0} ABANDONED</span></div>}
    {space==="design"&&<button ref={libraryButton} className="library-toggle" aria-label="Open component library" aria-expanded={libraryOpen} onClick={()=>setLibraryOpen(v=>!v)}>☰</button>}
