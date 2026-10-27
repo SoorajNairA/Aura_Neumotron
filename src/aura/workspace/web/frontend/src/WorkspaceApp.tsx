@@ -15,6 +15,7 @@ import {renderThumbnails} from "./thumbnails";
 import {markStudioParts,modelBadge,neighbours} from "./studio";
 import {StudioRail} from "./StudioRail";
 import {IdeaChat} from "./IdeaChat";
+import {ComponentLibrary} from "./ComponentLibrary";
 import {ModelBadge,ModelSettings} from "./ModelSettings";
 import {
  EvidencePresentation,ScenarioImpactPresentation,VerificationFindingPresentation,WorkItemPresentation,
@@ -158,6 +159,7 @@ class HolographicScene{
 }
 
 export function WorkspaceApp(){
+ const [libraryOpen,setLibraryOpen]=useState(false),libraryButton=useRef<HTMLButtonElement>(null);
  const host=useRef<HTMLDivElement>(null),scene=useRef<HolographicScene>(),session=useRef(new WorkspaceSession()),creatingLock=useRef(false),mutationLock=useRef(false),store=useMemo(()=>new SelectionStore(),[]);
  const [projectId,setProjectId]=useState<string|null>(initialProject);
  const [project,setProject]=useState<Project>(),[projects,setProjects]=useState<Project[]>([]),[revisions,setRevisions]=useState<any[]>([]);
@@ -296,6 +298,8 @@ export function WorkspaceApp(){
    {mode==="simulation"&&firmware?.supported&&<SimulationPanel firmware={firmware} sim={sim}/>}
     {mode==="work"&&workStatus==="ready"&&workItems.length>0&&<button className="work-create primary" onClick={openWorkCreate}>CREATE WORK ITEM</button>}
    {mode==="work"&&workStatus==="ready"&&workItems.length>0&&<div className="work-terminal-counts"><b>{(counts.completed||0)+(counts.skipped||0)+(counts.abandoned||0)} DONE</b><span>{counts.skipped||0} SKIPPED · {counts.abandoned||0} ABANDONED</span></div>}
+   {space==="design"&&<button ref={libraryButton} className="library-toggle" aria-label="Open component library" aria-expanded={libraryOpen} onClick={()=>setLibraryOpen(v=>!v)}>☰</button>}
+   {space==="design"&&libraryOpen&&<ComponentLibrary api={API} onClose={()=>{setLibraryOpen(false);libraryButton.current?.focus()}}/>}
    {space==="design"&&<div className="view-switch" role="group" aria-label="Design view">{DESIGN_VIEWS.map(([view,label])=><button key={view} className={mode===view?"active":""} onClick={()=>setMode(view)}>{label}</button>)}</div>}
     {mode==="code"&&(firmware?<CodeView key={firmware.revisionId||"none"} firmware={firmware} saveEdit={block=>firmwareEdit("PUT",block)} resetEdit={()=>firmwareEdit("DELETE")} compile={()=>fetch(`${API}/api/projects/${project?.projectId}/firmware/compile`,{method:"POST"}).then(async response=>{const body=await response.json().catch(()=>undefined);if(!response.ok)throw new Error(body?.detail?.code||`HTTP ${response.status}`);return body})}/>:firmwareError?<div className="code-canvas" data-testid="code-view"><section className="code-unsupported" role="alert" data-testid="firmware-error"><h2>Firmware could not be loaded</h2><p>{firmwareError}</p><button onClick={()=>setFirmwareReload(value=>value+1)}>Retry</button></section></div>:<div className="code-canvas" data-testid="code-view"><p>Loading firmware…</p></div>)}
     {(space==="design"&&mode!=="work"||mode==="simulation")&&<div className="canvas-toolbar"><select aria-label="Assembly" value={isolated} onChange={event=>{setIsolated(event.target.value);scene.current?.isolate(event.target.value)}}><option value="all">Complete system</option>{systems.map(system=><option key={system} value={system}>{system}</option>)}</select>{!!assembly?.parts.length&&<span className="concept-badge" data-testid="concept-badge" title="Procedural concept representation. A realistic render is not geometric or electrical verification.">Concept model</span>}<button onClick={()=>scene.current?.frameAll()}>FIT</button><button onClick={()=>{setExploded(!exploded);scene.current?.setExploded(!exploded)}}>{exploded?"ASSEMBLE":"EXPLODE"}</button><button onClick={()=>{setXray(!xray);scene.current?.setXray(!xray)}}>{xray?"SOLID":"X-RAY"}</button><button onClick={()=>{setIsolated("all");scene.current?.isolate("all")}}>SHOW ALL</button></div>}

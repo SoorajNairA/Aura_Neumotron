@@ -344,3 +344,15 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .pin-error{margin:8px 0 0;color:var(--fail);font-size:12px;line-height:1.4;overflow-wrap:anywhere}.connection-rows select{justify-self:end;padding:2px 4px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-weight:650}
 .code-edit textarea{width:100%;min-height:150px;padding:8px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:12px/1.5 "Cascadia Mono","JetBrains Mono",ui-monospace,Consolas,monospace;resize:vertical}.code-edit small{display:block;margin:6px 0;color:var(--text-dim);font-size:11px}.code-edit-actions{display:flex;gap:8px}.edit-badge{display:inline-block;margin:0 0 6px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:650}
 .planning-mode{margin:0 0 10px;padding:8px 10px;border:1px solid var(--warn);border-radius:var(--radius-sm);background:var(--surface-raised);color:var(--warn-text);font-size:12px;line-height:1.4}
+
+/* Component library */
+.library-toggle{position:absolute;top:12px;left:12px;z-index:6;width:40px;height:40px;border-radius:10px;border:1px solid var(--line,#d9d6cc);background:var(--panel,#fffdf7);font-size:18px;cursor:pointer}
+.component-library{position:absolute;top:60px;left:12px;bottom:12px;z-index:7;width:min(360px,calc(100% - 24px));display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;border:1px solid var(--line,#d9d6cc);background:var(--panel,#fffdf7);box-shadow:0 12px 32px rgba(40,40,30,.14);overflow:hidden}
+.component-library header{display:flex;justify-content:space-between;align-items:center}.component-library h2{margin:0;font-size:15px}
+.component-library header button{border:0;background:none;font-size:20px;cursor:pointer;min-width:32px;min-height:32px}
+.component-library input[aria-label="Search parts"]{padding:8px 10px;border-radius:8px;border:1px solid var(--line,#d9d6cc);font:inherit}
+.family-chips{display:flex;flex-wrap:wrap;gap:4px;max-height:84px;overflow:auto}.family-chips button{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--line,#d9d6cc);background:transparent;cursor:pointer}
+.family-chips button.active{background:#5f7d62;color:#fff;border-color:#5f7d62}
+.library-rows{list-style:none;margin:0;padding:0;overflow:auto;flex:1}.library-rows li{display:grid;gap:2px;padding:8px 4px;border-bottom:1px solid var(--line,#ece9df)}
+.library-rows li span,.library-rows li small{font-size:12px;color:#5d5a50}.library-rows .price{color:#3f5b42}
+.library-error{color:#9b2c1f;font-size:12px}
