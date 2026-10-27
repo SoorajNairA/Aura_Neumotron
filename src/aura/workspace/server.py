@@ -721,6 +721,18 @@ class WorkspaceApplication:
                 "assessment": assessment.to_dict()}
 
 
+def _added_without_driver(graph:Any)->list[dict[str,Any]]:
+    """Library-added parts wired to a controller pin; firmware has no generated driver for them."""
+    pins={c.id:c.metadata.get("parameters",{}).get("gpio_map") or {} for c in graph.find(kind=EntityKind.COMPONENT)}
+    result=[]
+    for wire in graph.find(kind=EntityKind.CONNECTION):
+        m=wire.metadata;ends=((m.get("source_id"),m.get("source_interface"),m.get("target_id")),(m.get("target_id"),m.get("target_interface"),m.get("source_id")))
+        for controller,port,part in ends:
+            if str(part).startswith("component-user-") and port in pins.get(controller,{}) and part in graph.entities:
+                result.append({"semanticId":part,"name":graph.get(part).name,"port":port,"gpio":pins[controller][port]})
+    return result
+
+
 def create_app(provider: Any | None = None, planner_timeout: float | None = None,
                repository: ProjectRepository | None = None, storage_mode: str | None = None,
                db_path: str | Path | None = None, artifact_dir: Path | None = None) -> FastAPI:
@@ -1130,7 +1142,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     def get_firmware(project_id:str)->dict[str,Any]:
         graph=_record(application,project_id).graph;last=firmware_compiles.get(project_id)
         common={"revisionId":graph.current_revision_id,"lastCompile":last.to_dict() if last else None,
-                "lastCompileCurrent":bool(last and last.revision_id==graph.current_revision_id)}
+                "lastCompileCurrent":bool(last and last.revision_id==graph.current_revision_id),"addedWithoutDriver":_added_without_driver(graph)}
         try: artifact=_effective_firmware(project_id,graph)
         except FirmwareUnsupported as exc: return {"supported":False,"reasons":list(exc.reasons),"edit":None,**common}
         edit=application.repository.get_firmware_edit(project_id)

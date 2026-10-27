@@ -1,5 +1,5 @@
 import {expect,test,Page} from "@playwright/test";
-import {mock} from "./fanFixture";
+import {mock,supported} from "./fanFixture";
 
 const fact=(value:any,unit:string|null)=>({value,unit,evidenceId:"e",qualifier:"rated"});
 const part=(componentDefinitionId:string,family:string,partNumber:string,price:any=null)=>({componentDefinitionId,family,manufacturer:"Generic",partNumber,
@@ -28,4 +28,48 @@ test("library opens, searches, filters and labels unpriced parts",async({page})=
  await page.getByLabel("Search parts").press("Escape");
  await expect(page.getByRole("dialog",{name:"Component library"})).toHaveCount(0);
  await expect(page.getByRole("button",{name:"Open component library"})).toBeFocused();
+});
+
+const addProposal={proposalId:"proposal-add",summary:"Add DS18B20 module, 4.7 kΩ resistor",mode:"add_component",affectedSemanticIds:["component-user-a","component-user-b","component-controller"],
+ unaffectedAreas:["existing components"],artifactsToRegenerate:["firmware"],
+ operations:[{operation:"add_component",targetId:"component-user-a",path:"components",oldValue:null,newValue:"DS18B20 module",gpio:13,port:"signal-3"},
+  {operation:"add_component",targetId:"component-user-b",path:"components",oldValue:null,newValue:"4.7 kΩ resistor",gpio:null}],
+ verification:{checks:[{state:"WARNING",message:"Single signal pin assigned; bus parts (I2C/SPI) need wiring review."}]}};
+
+test("multi-select add shows one proposal with pins and commits through the shared route",async({page})=>{
+ await openLibrary(page);
+ const add=page.getByRole("button",{name:/^Add \d+ to design$/});
+ await expect(add).toHaveCount(0);
+ await page.getByLabel("Select DS18B20 module").check();
+ await page.getByLabel("Select 4.7 kΩ resistor").check();
+ await expect(page.getByRole("button",{name:"Add 2 to design"})).toBeEnabled();
+ await page.route("**/api/projects/project-fan/component-proposals",r=>r.fulfill({json:addProposal}));
+ const posted=page.waitForRequest("**/api/projects/project-fan/component-proposals");
+ await page.getByRole("button",{name:"Add 2 to design"}).click();
+ expect((await posted).postDataJSON()).toEqual({baseRevision:1,componentDefinitionIds:["ds18b20-module","resistor-4k7"]});
+ const preview=page.getByTestId("proposal-preview");
+ await expect(preview).toContainText("DS18B20 module");
+ await expect(preview).toContainText("GPIO13");
+ await expect(preview).toContainText("need wiring review");
+ await page.route("**/api/projects/project-fan/modification-proposals/proposal-add/commit",r=>r.fulfill({json:{projectId:"project-fan",revision:2}}));
+ const committed=page.waitForRequest("**/modification-proposals/proposal-add/commit");
+ await page.getByTestId("apply-change").click();
+ await committed;
+});
+
+test("add errors are shown in the library",async({page})=>{
+ await openLibrary(page);
+ await page.route("**/api/projects/project-fan/component-proposals",r=>r.fulfill({status:409,json:{detail:{code:"NO_FREE_PIN",message:"Not enough free safe ESP32 pins for these parts."}}}));
+ await page.getByLabel("Select DS18B20 module").check();
+ await page.getByRole("button",{name:"Add 1 to design"}).click();
+ await expect(page.getByTestId("library-error")).toContainText("Not enough free safe ESP32 pins");
+});
+
+test("code view says added parts have no generated driver",async({page})=>{
+ await mock(page,{...supported,addedWithoutDriver:[{semanticId:"component-user-a",name:"DS18B20 module",port:"signal-3",gpio:13}]});
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:"Code",exact:true}).click();
+ await expect(page.getByTestId("added-without-driver")).toContainText("DS18B20 module");
+ await expect(page.getByTestId("added-without-driver")).toContainText("GPIO13");
+ await expect(page.getByTestId("added-without-driver")).toContainText("Pin assigned — no generated driver yet");
 });

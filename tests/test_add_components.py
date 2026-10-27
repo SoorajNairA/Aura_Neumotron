@@ -113,3 +113,13 @@ def test_fan_firmware_still_supported_after_add(fan):
     assert after["supported"] is True, after["reasons"]
     assert after["pins"] == before["pins"]
     assert after["source"].replace(after["revisionId"], "R") == before["source"].replace(before["revisionId"], "R")
+
+
+def test_firmware_lists_added_parts_without_driver(fan):
+    client, project_id = fan
+    assert client.get(f"/api/projects/{project_id}/firmware").json()["addedWithoutDriver"] == []
+    proposal = add(client, project_id, ["ds18b20-module", "resistor-4k7"]).json()
+    assert commit(client, project_id, proposal).status_code == 200
+    added = next(op for op in proposal["operations"] if op["operation"] == "add_component" and op["gpio"] is not None)
+    assert client.get(f"/api/projects/{project_id}/firmware").json()["addedWithoutDriver"] == [
+        {"semanticId": added["targetId"], "name": added["newValue"], "port": added["port"], "gpio": added["gpio"]}]

@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from "react";
 import {fanControl,FanReason} from "./fanControl";
 
 export type CompileInfo={status:"passed"|"failed"|"toolchain_missing";revisionId:string;sizeBytes?:number|null;missing?:string|null;errors?:{file?:string|null;line?:number|null;message:string}[]};
-export type FirmwareInfo={supported:boolean;reasons:string[];tOnC?:number;tOffC?:number;pins?:Record<string,number>;revisionId?:string|null;source?:string;lastCompile?:CompileInfo|null;lastCompileCurrent?:boolean};
+export type FirmwareInfo={supported:boolean;reasons:string[];tOnC?:number;tOffC?:number;pins?:Record<string,number>;revisionId?:string|null;source?:string;lastCompile?:CompileInfo|null;lastCompileCurrent?:boolean;addedWithoutDriver?:{semanticId:string;name:string;port:string;gpio:number}[]};
 
 
 export const SIMULATION_LABEL="Behavioral simulation — control logic only. Not electrical verification, not firmware execution.";

@@ -1,14 +1,15 @@
 import {useEffect,useMemo,useRef,useState} from "react";
 import {CatalogueItem,factLabel,filterParts,priceLabel} from "./libraryHelpers";
 
-type Props={api:string;onClose:()=>void};
+type Props={api:string;onClose:()=>void;onAdd:(ids:string[])=>Promise<string|undefined>};
 
-export function ComponentLibrary({api,onClose}:Props){
+export function ComponentLibrary({api,onClose,onAdd}:Props){
  const [items,setItems]=useState<CatalogueItem[]>([]),[error,setError]=useState<string>();
  const [query,setQuery]=useState(""),[family,setFamily]=useState<string|null>(null);
+ const [picked,setPicked]=useState<string[]>([]),[busy,setBusy]=useState(false);
  const search=useRef<HTMLInputElement>(null);
  useEffect(()=>{
-  fetch(`${api}/api/catalogue`).then(r=>r.ok?r.json():Promise.reject(new Error(`HTTP_${r.status}`))).then(setItems).catch(e=>setError(String(e.message||e)));
+  fetch(`${api}/api/catalogue`).then(r=>r.ok?r.json():Promise.reject(new Error(`HTTP_${r.status}`))).then(setItems).catch(e=>setError(`Catalogue could not load: ${e.message||e}`));
   search.current?.focus();
  },[api]);
  const families=useMemo(()=>[...new Set(items.map(i=>i.family))].sort(),[items]);
@@ -20,12 +21,13 @@ export function ComponentLibrary({api,onClose}:Props){
    <button className={family===null?"active":""} onClick={()=>setFamily(null)}>All</button>
    {families.map(f=><button key={f} className={family===f?"active":""} onClick={()=>setFamily(family===f?null:f)}>{f.replace(/_/g," ")}</button>)}
   </div>
-  {error&&<p className="library-error" role="alert">Catalogue could not load: {error}</p>}
+  {error&&<p className="library-error" role="alert" data-testid="library-error">{error}</p>}
   <ul className="library-rows">{shown.map(item=><li key={item.componentDefinitionId} data-testid="library-row">
-   <b>{item.partNumber}</b><span>{item.manufacturer} · {item.family.replace(/_/g," ")}</span>
+   <label><input type="checkbox" aria-label={`Select ${item.partNumber}`} checked={picked.includes(item.componentDefinitionId)} onChange={e=>setPicked(p=>e.target.checked?[...p,item.componentDefinitionId]:p.filter(id=>id!==item.componentDefinitionId))}/> <b>{item.partNumber}</b></label><span>{item.manufacturer} · {item.family.replace(/_/g," ")}</span>
    <small>{[factLabel(item.properties.supply_voltage_range),factLabel(item.properties.current),factLabel(item.properties.dimensions)].filter(Boolean).join(" · ")}</small>
    <small className="price">{priceLabel(item)}</small>
   </li>)}</ul>
   {!error&&items.length>0&&shown.length===0&&<p>No parts match.</p>}
+  {picked.length>0&&<button className="primary library-add" disabled={busy} onClick={async()=>{setBusy(true);setError(undefined);const problem=await onAdd(picked).finally(()=>setBusy(false));if(problem)setError(problem)}}>Add {picked.length} to design</button>}
  </aside>;
 }

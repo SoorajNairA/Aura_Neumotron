@@ -22,6 +22,7 @@ export function CodeView({firmware,compile,saveEdit,resetEdit}:{firmware:Firmwar
   <section className="code-editor"><header><b>aura_fan.ino</b><span>Generated from revision {firmware.revisionId}</span></header>
    <div className="code-body"><pre className="code-gutter" data-testid="code-gutter" aria-hidden="true">{lines.map((_,index)=>index+1).join("\n")}</pre><pre className="code-source" data-testid="code-source">{firmware.source}</pre></div></section>
   <aside className="code-side">
+   {!!firmware.addedWithoutDriver?.length&&<section className="added-without-driver" data-testid="added-without-driver"><h3>Added parts</h3><ul>{firmware.addedWithoutDriver.map(part=><li key={part.semanticId}><b>{part.name}</b> · GPIO{part.gpio} — Pin assigned — no generated driver yet</li>)}</ul></section>}
    {firmware.controlBlock!==undefined&&saveEdit&&<section className="code-edit"><h3>Control rule</h3>
     {firmware.edit&&<p className="edit-badge" data-testid="edit-badge">Edited fanControl</p>}
     {firmware.edit?.needsReview&&<p className="tone-warn" role="status">The design changed since this edit. Review it before compiling.</p>}
