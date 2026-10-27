@@ -16,6 +16,7 @@ export function ComponentCard({componentId,label,family,graph,findings,thumbnail
  const entity=graph?.entities?.find(item=>item.id===componentId);
  const kind=family||entity?.metadata?.family;
  const rows=connectionRows(componentId,graph);
+ const [wire,setWire]=useState<string>(),wireRow=rows.find(row=>row.port===wire);
  const settings=Object.entries(entity?.metadata?.parameters||{}).filter(([key,value])=>CONFIGURABLE_PARAMETERS.has(key)&&typeof value==="number") as [string,number][];
  const changeParameter=async(key:string,old:number,raw:string)=>{
   const value=Number(raw);if(!onChangeParameter||raw.trim()===""||!Number.isFinite(value)||value===old)return;
@@ -28,8 +29,9 @@ export function ComponentCard({componentId,label,family,graph,findings,thumbnail
    {thumbnail?<img src={thumbnail} alt=""/>:<span className={`card-icon icon-${componentGroup(kind).toLowerCase()}`} aria-hidden="true"/>}</header>
   {partDescription(entity)&&<p className="part-description">{partDescription(entity)}</p>}
   <h3 className="card-heading">Connection</h3>
-  {!graph?<p className="empty-copy" data-testid="connection-rows">Loading connections…</p>:rows.length?<ul className="connection-rows" data-testid="connection-rows">{rows.map(row=><li key={row.port}><span className={`pin-dot tone-${row.tone}`} aria-hidden="true"/><span>{row.label}</span>{row.pin&&onChangePin?<select aria-label={`Change pin for ${row.label}`} value={String(row.pin.gpio)} disabled={pinBusy} onChange={event=>changePin(row.pin!,Number(event.target.value))}>{[...new Set([row.pin.gpio,...PICKABLE_GPIOS])].map(pin=><option key={pin} value={pin}>GPIO {pin}</option>)}</select>:<b>{row.value}</b>}</li>)}</ul>
+  {!graph?<p className="empty-copy" data-testid="connection-rows">Loading connections…</p>:rows.length?<ul className="connection-rows" data-testid="connection-rows">{rows.map(row=><li key={row.port}><span className={`pin-dot tone-${row.tone}`} aria-hidden="true"/><button className="wire-row" aria-pressed={wire===row.port} onClick={()=>setWire(wire===row.port?undefined:row.port)}>{row.label}{row.polarity&&row.polarity!=="signal"?` (${row.polarity})`:""}{row.header&&<small> {row.header}</small>}</button>{row.pin&&onChangePin?<select aria-label={`Change pin for ${row.label}`} value={String(row.pin.gpio)} disabled={pinBusy} onChange={event=>changePin(row.pin!,Number(event.target.value))}>{[...new Set([row.pin.gpio,...PICKABLE_GPIOS])].map(pin=><option key={pin} value={pin}>GPIO {pin}</option>)}</select>:<b>{row.value}</b>}</li>)}</ul>
    :<p className="empty-copy" data-testid="connection-rows">No electrical connections in the graph.</p>}
+  {wireRow?.endpoints&&<p className="wire-endpoints" data-testid="wire-endpoints"><span>{wireRow.endpoints[0]}</span><span aria-hidden="true">↔</span><span>{wireRow.endpoints[1]}</span></p>}
   {pinError&&<p className="pin-error" role="alert" data-testid="pin-error">{pinError}</p>}
   {settings.length>0&&onChangeParameter&&<><h3 className="card-heading">Settings</h3><ul className="part-settings" data-testid="part-settings">{settings.map(([key,value])=><li key={key}><label>{key.replace(/_/g," ")}
    {/* Re-seeded from the graph whenever the value or the pending proposal changes; Enter is the only submit. */}

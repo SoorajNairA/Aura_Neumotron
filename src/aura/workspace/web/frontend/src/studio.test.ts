@@ -30,9 +30,9 @@ describe("studio helpers",()=>{
   expect(componentGroup(undefined)).toBe("Other");
  });
  it("derives DS18B20 pin rows from the graph",()=>{
-  expect(connectionRows("component-temperature-sensor",graph)).toEqual([
-   {port:"signal",label:"Data (DQ)",value:"GPIO 4",tone:"data",pin:{controllerId:"component-controller",port:"signal-1",gpio:4}},
-   {port:"power",label:"Supply (VDD)",value:"3.3 V",tone:"supply"},
+  expect(connectionRows("component-temperature-sensor",graph)).toMatchObject([
+   {port:"signal",label:"Data (DQ)",value:"GPIO 4",tone:"data",pin:{controllerId:"component-controller",port:"signal-1",gpio:4},header:"IO4, J3 pin 13",polarity:"signal"},
+   {port:"power",label:"Supply (VDD)",value:"3.3 V",tone:"supply",polarity:"+"},
    {port:"ground",label:"Ground (GND)",value:"GND",tone:"ground"}]);
  });
  it("never invents a GPIO for parts not wired to the controller",()=>{
@@ -40,7 +40,7 @@ describe("studio helpers",()=>{
   expect(rows.some(row=>row.value.startsWith("GPIO"))).toBe(false);
   expect(rows.map(row=>row.value)).toEqual(["Switched by MOSFET","GND"]);
   expect(connectionRows("missing",graph)).toEqual([]);
-  expect(connectionRows("component-driver",graph)[0]).toEqual({port:"signal",label:"Gate (IN)",value:"GPIO 16",tone:"control",pin:{controllerId:"component-controller",port:"signal-2",gpio:16}});
+  expect(connectionRows("component-driver",graph)[0]).toMatchObject({port:"signal",label:"Gate (IN)",value:"GPIO 16",tone:"control",pin:{controllerId:"component-controller",port:"signal-2",gpio:16}});
  });
  it("offers only output-capable, non-strapping pins for reassignment",()=>{
   expect(PICKABLE_GPIOS).toContain(16);expect(PICKABLE_GPIOS).toContain(17);

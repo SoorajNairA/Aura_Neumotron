@@ -213,3 +213,16 @@ test("fanControl block is editable, saved for the revision and flagged after a r
  await page.getByRole("button",{name:"Reset to generated"}).click();
  await expect(page.getByTestId("edit-badge")).toHaveCount(0);
 });
+
+test("wire rows show exact header pins, both endpoints, and selection highlights wired parts",async({page})=>{
+ await mock(page);await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:pinGraph}));
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:/component-temperature-sensor/}).click();
+ const rows=page.getByTestId("connection-rows");
+ await expect(rows).toContainText("IO4, J3 pin 13");await expect(rows).toContainText("(−)");
+ await rows.getByRole("button",{name:/Data \(DQ\)/}).click();
+ await expect(page.getByTestId("wire-endpoints")).toHaveText("DS18B20 · signal↔ESP32 DevKit · signal-1 (GPIO4 (IO4, J3 pin 13))");
+ await expect(page.locator('.rail-part[data-highlighted="true"]')).toHaveCount(1);
+ await expect(page.locator('.rail-part[data-highlighted="true"]')).toContainText("ESP32 DevKit");
+ await expect(page.getByTestId("three-host")).toHaveAttribute("data-highlighted","component-controller");
+});

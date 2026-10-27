@@ -1,7 +1,8 @@
 export type ComponentGroup="Controller"|"Sensors"|"Actuators"|"Power"|"Other";
+import {endpointLabel,headerLabel,polarity} from "./pinout";
 export const GROUP_ORDER:ComponentGroup[]=["Controller","Sensors","Actuators","Power","Other"];
 export type PinRef={controllerId:string;port:string;gpio:number};
-export type ConnectionRow={port:string;label:string;value:string;tone:"data"|"supply"|"ground"|"control";pin?:PinRef};
+export type ConnectionRow={port:string;label:string;value:string;tone:"data"|"supply"|"ground"|"control";pin?:PinRef;header?:string;polarity?:"+"|"−"|"signal";endpoints?:[string,string]};
 // ESP32 output-capable GPIOs minus strapping pins (0, 2, 5, 12, 15); the backend applies the same rule.
 export const PICKABLE_GPIOS=[4,13,14,16,17,18,19,21,22,23,25,26,27,32,33];
 export type CheckRow={id:string;title:string;detail:string;tone:"pass"|"warn"|"fail"};
@@ -35,29 +36,31 @@ export function connectionRows(componentId:string,graph:{entities:Entity[]}|unde
  const entities=graph?.entities||[];const byId=new Map(entities.map(entity=>[entity.id,entity]));
  if(!byId.has(componentId))return [];
  const rows:ConnectionRow[]=[];const seen=new Set<string>();
- const add=(row:ConnectionRow)=>{if(!seen.has(row.port)){seen.add(row.port);rows.push(row)}};
+ let extra:Partial<ConnectionRow>={};
+ const add=(row:ConnectionRow)=>{if(!seen.has(row.port)){seen.add(row.port);rows.push({...extra,...row})}};
  const self=byId.get(componentId)!;
  // Edges without a specific label still appear, so wired passives and supplies never read as unconnected.
- const generic=new Map<string,{others:string[];tone:ConnectionRow["tone"]}>();
+ const generic=new Map<string,{others:string[];tone:ConnectionRow["tone"];extra:Partial<ConnectionRow>}>();
  for(const edge of entities.filter(entity=>entity.kind==="connection").map(entity=>entity.metadata||{})){
   const mine=edge.source_id===componentId?"source":edge.target_id===componentId?"target":null;if(!mine)continue;
   const port:string=mine==="source"?edge.source_interface:edge.target_interface;
   const other=byId.get(mine==="source"?edge.target_id:edge.source_id);const otherPort:string=mine==="source"?edge.target_interface:edge.source_interface;
   const type:string=edge.connection_type;
+  extra={polarity:polarity(port),endpoints:[endpointLabel(self.name||componentId,port,params(self).gpio_map?.[port]),endpointLabel(other?.name||humanize(family(other)||"part"),otherPort,params(other).gpio_map?.[otherPort])]};
   if(type==="ground"){add({port,label:"Ground (GND)",value:"GND",tone:"ground"});continue}
   if((type==="signal"||type==="control")&&CONTROLLERS.has(family(other)||"")){
    const gpio=params(other).gpio_map?.[otherPort];
    const sensor=family(self)?.endsWith("_sensor");
    const label=params(self).component_definition_id==="ds18b20-module"?"Data (DQ)":sensor?"Signal":"Gate (IN)";
-   add({port,label,value:gpio!==undefined?`GPIO ${gpio}`:otherPort,tone:sensor?"data":"control",...(gpio!==undefined?{pin:{controllerId:other!.id,port:otherPort,gpio}}:{})});continue}
+   add({port,label,value:gpio!==undefined?`GPIO ${gpio}`:otherPort,tone:sensor?"data":"control",header:gpio!==undefined?headerLabel(gpio)??undefined:undefined,...(gpio!==undefined?{pin:{controllerId:other!.id,port:otherPort,gpio}}:{})});continue}
   if(type==="regulated-power"&&CONTROLLERS.has(family(other)||"")&&port==="power"){
    const volts=params(other).logic_voltage_v;add({port,label:"Supply (VDD)",value:volts?`${volts} V`:"Controller rail",tone:"supply"});continue}
   if(type==="switched-power"&&mine==="target"&&port==="power"){add({port,label:"Supply (+)",value:`Switched by ${family(other)==="mosfet_driver"?"MOSFET":humanize(family(other)||"driver")}`,tone:"supply"});continue}
   if(type==="power"&&mine==="target"&&port==="power"){const volts=params(other).voltage_v;add({port,label:"Supply (VCC)",value:volts?`${volts} V`:"Supply",tone:"supply"});continue}
-  const entry=generic.get(port)||{others:[],tone:(type.includes("power")?"supply":type==="control"?"control":"data") as ConnectionRow["tone"]};
+  const entry=generic.get(port)||{others:[],tone:(type.includes("power")?"supply":type==="control"?"control":"data") as ConnectionRow["tone"],extra};
   entry.others.push(`${other?.name||humanize(family(other)||"part")} · ${otherPort}`);generic.set(port,entry);
  }
- for(const [port,{others,tone}] of generic)add({port,label:humanize(port),value:others.length>1?`${others.length} connections`:others[0],tone});
+ for(const [port,{others,tone,extra:first}] of generic){extra=first;add({port,label:humanize(port),value:others.length>1?`${others.length} connections`:others[0],tone})}
  const order={data:0,control:0,supply:1,ground:2};
  return rows.sort((a,b)=>order[a.tone]-order[b.tone]);
 }

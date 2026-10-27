@@ -3,12 +3,12 @@ import {ComponentGroup,GROUP_ORDER,componentGroup,partNumber} from "./studio";
 
 type RailPart={semanticId:string;label:string;family?:string;subsystem:string};
 type Props={projectName:string;objective?:string;parts:RailPart[];entities:any[];findings:any[];selected:string|null;
- onSelect:(id:string)=>void;onIsolate:(subsystem:string)=>void;onOpenChecks:()=>void;thumbnails?:Record<string,string>};
+ onSelect:(id:string)=>void;onIsolate:(subsystem:string)=>void;onOpenChecks:()=>void;thumbnails?:Record<string,string>;highlighted?:string[]};
 
 // A finding needs attention when it is not passed: failed, or reported at warning level or above.
 export const attentionCount=(findings:any[])=>findings.filter(f=>f.status==="failed"||["WARN","ERROR","CRITICAL"].includes(String(f.severity).toUpperCase())).length;
 
-export function StudioRail({projectName,objective,parts,entities,findings,selected,onSelect,onIsolate,onOpenChecks,thumbnails={}}:Props){
+export function StudioRail({projectName,objective,parts,entities,findings,selected,onSelect,onIsolate,onOpenChecks,thumbnails={},highlighted=[]}:Props){
  const [query,setQuery]=useState(""),[collapsed,setCollapsed]=useState<Set<ComponentGroup>>(new Set());
  const byId=new Map(entities.map(entity=>[entity.id,entity]));
  const familyOf=(part:RailPart)=>part.family||byId.get(part.semanticId)?.metadata?.family;
@@ -25,7 +25,8 @@ export function StudioRail({projectName,objective,parts,entities,findings,select
     return <section className="rail-group" key={group} data-testid={`rail-group-${group}`}>
      <button className="rail-group-heading" aria-expanded={!closed} onClick={()=>setCollapsed(previous=>{const next=new Set(previous);next.has(group)?next.delete(group):next.add(group);return next})}><span>{closed?"›":"⌄"} {group}</span><b>{members.length}</b></button>
      {!closed&&members.map(part=>{const family=familyOf(part)||"part";const thumb=thumbnails[family];
-      return <div className={`rail-part ${selected===part.semanticId?"selected":""}`} key={part.semanticId}>
+      const linked=highlighted.includes(part.semanticId);
+      return <div className={`rail-part ${selected===part.semanticId?"selected":""}${linked?" linked":""}`} data-highlighted={linked?"true":undefined} key={part.semanticId}>
        <button className="rail-part-main" aria-label={`${part.label} ${part.semanticId}`} onClick={()=>onSelect(part.semanticId)}>
         {thumb?<img src={thumb} alt=""/>:<span className={`rail-icon icon-${componentGroup(family).toLowerCase()}`} aria-hidden="true"/>}
         <span className="rail-part-text"><b>{part.label||part.semanticId}</b><small>{partNumber(byId.get(part.semanticId))||family}</small></span>
