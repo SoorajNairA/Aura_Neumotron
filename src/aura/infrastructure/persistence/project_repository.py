@@ -87,6 +87,9 @@ class ProjectRepository(Protocol):
     def list_work_items(self, project_id: str) -> list[dict[str, Any]]: ...
     def save_idea_session(self, session: dict[str, Any]) -> None: ...
     def get_idea_session(self, session_id: str) -> dict[str, Any] | None: ...
+    def save_firmware_edit(self, project_id: str, block: str, revision_id: str) -> None: ...
+    def get_firmware_edit(self, project_id: str) -> dict[str, Any] | None: ...
+    def delete_firmware_edit(self, project_id: str) -> None: ...
 
 
 class SQLiteProjectRepository:
@@ -113,6 +116,7 @@ class SQLiteProjectRepository:
                 if version != SCHEMA_VERSION:
                     raise UnsupportedSchemaVersion(f"Workspace schema {version} is unsupported; expected {SCHEMA_VERSION}")
                 self._connection.execute("CREATE TABLE IF NOT EXISTS work_items(project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE, work_item_id TEXT NOT NULL, item_json TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(project_id, work_item_id))")
+                self._connection.execute("CREATE TABLE IF NOT EXISTS firmware_edits(project_id TEXT PRIMARY KEY, block TEXT NOT NULL, revision_id TEXT NOT NULL, updated_at TEXT NOT NULL)")
                 self._connection.execute("CREATE TABLE IF NOT EXISTS idea_sessions(session_id TEXT PRIMARY KEY, session_json TEXT NOT NULL, updated_at TEXT NOT NULL)")
                 self._connection.commit()
                 return
@@ -138,6 +142,7 @@ class SQLiteProjectRepository:
                 CREATE TABLE work_items(project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
                     work_item_id TEXT NOT NULL, item_json TEXT NOT NULL, updated_at TEXT NOT NULL,
                     PRIMARY KEY(project_id, work_item_id));
+                CREATE TABLE IF NOT EXISTS firmware_edits(project_id TEXT PRIMARY KEY, block TEXT NOT NULL, revision_id TEXT NOT NULL, updated_at TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS idea_sessions(session_id TEXT PRIMARY KEY, session_json TEXT NOT NULL, updated_at TEXT NOT NULL);
                 """)
 
@@ -163,6 +168,18 @@ class SQLiteProjectRepository:
     def get_idea_session(self, session_id: str) -> dict[str, Any] | None:
         with self._lock: row=self._connection.execute("SELECT session_json FROM idea_sessions WHERE session_id=?",(session_id,)).fetchone()
         return json.loads(row[0]) if row else None
+
+    def save_firmware_edit(self, project_id: str, block: str, revision_id: str) -> None:
+        with self._lock, self._connection:
+            self._connection.execute("INSERT INTO firmware_edits VALUES(?,?,?,?) ON CONFLICT(project_id) DO UPDATE SET block=excluded.block,revision_id=excluded.revision_id,updated_at=excluded.updated_at",
+                (project_id,block,revision_id,datetime.now(timezone.utc).isoformat()))
+
+    def get_firmware_edit(self, project_id: str) -> dict[str, Any] | None:
+        with self._lock: row=self._connection.execute("SELECT block,revision_id,updated_at FROM firmware_edits WHERE project_id=?",(project_id,)).fetchone()
+        return {"block":row[0],"revisionId":row[1],"updatedAt":row[2]} if row else None
+
+    def delete_firmware_edit(self, project_id: str) -> None:
+        with self._lock, self._connection: self._connection.execute("DELETE FROM firmware_edits WHERE project_id=?",(project_id,))
 
     def get_project(self, project_id: str) -> StoredProject | None:
         with self._lock:

@@ -53,6 +53,7 @@ from .narration import NarrationService
 from .work_items import EngineeringWorkService, WorkDomainError
 from .scenarios import EngineeringScenario,LiveScenarioAnalyzer,ScenarioError,analyze as analyze_scenario
 from aura.firmware import FirmwareUnsupported, generate_fan_sketch
+from aura.firmware.sketch import extract_control, splice_control
 from aura.firmware.compile import CompileResult, compile_sketch
 
 LOGGER = logging.getLogger("aura.workspace")
@@ -114,6 +115,12 @@ class RepresentationUpdateBody(BaseModel):
     revision: Optional[int] = None
     operationId: Optional[str] = None
     generation: Optional[int] = None
+
+class FirmwareEditBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    block: str = Field(min_length=1,max_length=20000)
+    revisionId: str = Field(min_length=1,max_length=128)
+
 
 class PinProposalBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -1097,20 +1104,43 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     firmware_compiles:dict[str,CompileResult]={}
     firmware_compiling:set[str]=set()
 
+    def _effective_firmware(project_id:str,graph:EngineeringGraph):
+        # Generated sketch with the user's saved fanControl block spliced in; everything else follows the graph.
+        artifact=generate_fan_sketch(graph);edit=application.repository.get_firmware_edit(project_id)
+        return replace(artifact,source=splice_control(artifact.source,edit["block"])) if edit else artifact
+
     @app.get("/api/projects/{project_id}/firmware")
     def get_firmware(project_id:str)->dict[str,Any]:
         graph=_record(application,project_id).graph;last=firmware_compiles.get(project_id)
         common={"revisionId":graph.current_revision_id,"lastCompile":last.to_dict() if last else None,
                 "lastCompileCurrent":bool(last and last.revision_id==graph.current_revision_id)}
-        try: artifact=generate_fan_sketch(graph)
-        except FirmwareUnsupported as exc: return {"supported":False,"reasons":list(exc.reasons),**common}
-        return {"supported":True,"reasons":[],"source":artifact.source,"pins":artifact.pins,"fqbn":artifact.fqbn,
-                "libraries":list(artifact.libraries),"tOnC":artifact.t_on_c,"tOffC":artifact.t_off_c,**common}
+        try: artifact=_effective_firmware(project_id,graph)
+        except FirmwareUnsupported as exc: return {"supported":False,"reasons":list(exc.reasons),"edit":None,**common}
+        edit=application.repository.get_firmware_edit(project_id)
+        return {"supported":True,"reasons":[],"source":artifact.source,"controlBlock":extract_control(artifact.source),"pins":artifact.pins,"fqbn":artifact.fqbn,
+                "libraries":list(artifact.libraries),"tOnC":artifact.t_on_c,"tOffC":artifact.t_off_c,
+                "edit":{"revisionId":edit["revisionId"],"needsReview":edit["revisionId"]!=graph.current_revision_id} if edit else None,**common}
+
+    @app.put("/api/projects/{project_id}/firmware/edit")
+    def save_firmware_edit(project_id:str,body:FirmwareEditBody)->dict[str,Any]:
+        graph=_record(application,project_id).graph
+        if body.revisionId!=graph.current_revision_id: raise HTTPException(409,detail={"code":"stale_revision","currentRevisionId":graph.current_revision_id})
+        try: splice_control(generate_fan_sketch(graph).source,body.block)
+        except FirmwareUnsupported as exc: raise HTTPException(422,detail={"code":"FIRMWARE_UNSUPPORTED","reasons":list(exc.reasons)}) from exc
+        except ValueError as exc: raise HTTPException(422,detail={"code":str(exc),"message":"Edit only the fanControl function; keep its signature and leave the markers out."}) from exc
+        application.repository.save_firmware_edit(project_id,body.block,graph.current_revision_id)
+        firmware_compiles.pop(project_id,None)
+        return {"revisionId":graph.current_revision_id,"saved":True}
+
+    @app.delete("/api/projects/{project_id}/firmware/edit",status_code=204)
+    def reset_firmware_edit(project_id:str)->Response:
+        _record(application,project_id);application.repository.delete_firmware_edit(project_id);firmware_compiles.pop(project_id,None)
+        return Response(status_code=204)
 
     @app.post("/api/projects/{project_id}/firmware/compile")
     async def compile_firmware(project_id:str)->dict[str,Any]:
         graph=_record(application,project_id).graph
-        try: artifact=generate_fan_sketch(graph)
+        try: artifact=_effective_firmware(project_id,graph)
         except FirmwareUnsupported as exc: raise HTTPException(422,detail={"code":"FIRMWARE_UNSUPPORTED","reasons":list(exc.reasons)}) from exc
         # One compile per project at a time, so repeated clicks cannot exhaust the worker pool.
         if project_id in firmware_compiling: raise HTTPException(409,detail={"code":"COMPILE_IN_PROGRESS"})

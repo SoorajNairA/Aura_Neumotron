@@ -35,3 +35,8 @@ CREATE TABLE IF NOT EXISTS work_items (
 CREATE TABLE IF NOT EXISTS idea_sessions (
     session_id TEXT PRIMARY KEY, session_json JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS firmware_edits (
+    project_id TEXT PRIMARY KEY REFERENCES projects(project_id) ON DELETE CASCADE,
+    block TEXT NOT NULL, revision_id TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL
+);

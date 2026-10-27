@@ -202,3 +202,32 @@ test("pin picker shows the verification rejection and changes nothing",async({pa
  await page.getByLabel("Change pin for Gate (IN)").selectOption("4");
  await expect(page.getByTestId("pin-error")).toContainText("conflicting GPIO assignments");
 });
+
+test("code view shows a firmware load error with retry instead of hanging",async({page})=>{
+ await mock(page);let calls=0;
+ await page.route("**/api/projects/project-fan/firmware",r=>{calls++;calls===1?r.fulfill({status:500,json:{detail:"boom"}}):r.fulfill({json:supported})});
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:"Code",exact:true}).click();
+ await expect(page.getByTestId("firmware-error")).toBeVisible();
+ await page.getByRole("button",{name:"Retry"}).click();
+ await expect(page.getByTestId("code-source")).toBeVisible();
+});
+
+test("fanControl block is editable, saved for the revision and flagged after a revision change",async({page})=>{
+ const block="bool fanControl(bool prevOn, float tC, bool valid, float tOn, float tOff) {\n  return tC >= tOn;\n}\n";
+ let edit:any=null;const saved:any[]=[];
+ await mock(page);
+ await page.route("**/api/projects/project-fan/firmware",r=>r.fulfill({json:{...supported,controlBlock:block,edit}}));
+ await page.route("**/api/projects/project-fan/firmware/edit",r=>{if(r.request().method()==="PUT"){saved.push(r.request().postDataJSON());edit={revisionId:"revision-1",needsReview:false};r.fulfill({json:{saved:true}})}else{edit=null;r.fulfill({status:204,body:""})}});
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:"Code",exact:true}).click();
+ const editor=page.getByLabel("Edit fanControl");
+ await expect(editor).toHaveValue(block);
+ await editor.fill(block.replace("return tC >= tOn;","return tC > tOn;"));
+ await page.getByRole("button",{name:"Save edit"}).click();
+ expect(saved).toEqual([{block:block.replace("return tC >= tOn;","return tC > tOn;"),revisionId:"revision-1"}]);
+ await expect(page.getByTestId("edit-badge")).toHaveText("Edited fanControl");
+ edit={revisionId:"revision-0",needsReview:true};
+ await page.getByRole("button",{name:"Reset to generated"}).click();
+ await expect(page.getByTestId("edit-badge")).toHaveCount(0);
+});

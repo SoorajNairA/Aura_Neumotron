@@ -67,3 +67,21 @@ def generate_fan_sketch(graph: EngineeringGraph) -> FirmwareArtifact:
     source = TEMPLATE_PATH.read_text(encoding="utf-8")
     for key, value in values.items(): source = source.replace("{{" + key + "}}", str(value))
     return FirmwareArtifact(source, graph.current_revision_id, FQBN, LIBRARIES, pins, t_on, t_off)
+
+
+_BEGIN, _END = "// BEGIN fanControl\n", "// END fanControl"
+
+
+def extract_control(source: str) -> str:
+    """The user-editable control rule: the text between the fanControl markers."""
+    start = source.index(_BEGIN) + len(_BEGIN)
+    return source[start:source.index(_END, start)]
+
+
+def splice_control(source: str, block: str) -> str:
+    """Replace only the fanControl block; pins, thresholds and board setup stay generated from the graph."""
+    if "bool fanControl(" not in block: raise ValueError("CONTROL_SIGNATURE_REQUIRED")
+    if _BEGIN.strip() in block or _END in block: raise ValueError("CONTROL_MARKERS_NOT_ALLOWED")
+    block = block if block.endswith("\n") else block + "\n"
+    start = source.index(_BEGIN) + len(_BEGIN)
+    return source[:start] + block + source[source.index(_END, start):]

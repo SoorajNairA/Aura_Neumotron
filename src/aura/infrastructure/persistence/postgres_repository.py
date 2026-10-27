@@ -84,6 +84,20 @@ class PostgresProjectRepository:
             cursor.execute("SELECT session_json FROM idea_sessions WHERE session_id=%s",(session_id,)); row=cursor.fetchone()
         return dict(row[0]) if row else None
 
+    def save_firmware_edit(self, project_id: str, block: str, revision_id: str) -> None:
+        with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:
+            cursor.execute("INSERT INTO firmware_edits VALUES(%s,%s,%s,CURRENT_TIMESTAMP) ON CONFLICT(project_id) DO UPDATE SET block=EXCLUDED.block,revision_id=EXCLUDED.revision_id,updated_at=EXCLUDED.updated_at",
+                (project_id,block,revision_id))
+
+    def get_firmware_edit(self, project_id: str) -> dict[str, Any] | None:
+        with self._pool.connection() as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT block,revision_id,updated_at FROM firmware_edits WHERE project_id=%s",(project_id,)); row=cursor.fetchone()
+        return {"block":row[0],"revisionId":row[1],"updatedAt":row[2].isoformat()} if row else None
+
+    def delete_firmware_edit(self, project_id: str) -> None:
+        with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:
+            cursor.execute("DELETE FROM firmware_edits WHERE project_id=%s",(project_id,))
+
     def is_ready(self) -> bool:
         try:
             with self._pool.connection() as connection:
