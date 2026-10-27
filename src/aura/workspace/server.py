@@ -48,7 +48,7 @@ from .assembly import engineering_assembly
 from .events import WorkspaceEvent
 from .representation_service import RepresentationService, initial_records, representation_specs
 from .representations import RepresentationRecord, RepresentationStatus, RepresentationType
-from .modifications import LiveModificationPlanner,ModificationError,ModificationProposal,inverse_proposal,propose,propose_pin_change
+from .modifications import LiveModificationPlanner,ModificationError,ModificationProposal,inverse_proposal,propose,propose_add_components,propose_pin_change
 from .narration import NarrationService
 from .work_items import EngineeringWorkService, WorkDomainError
 from .scenarios import EngineeringScenario,LiveScenarioAnalyzer,ScenarioError,analyze as analyze_scenario
@@ -120,6 +120,12 @@ class FirmwareEditBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     block: str = Field(min_length=1,max_length=20000)
     revisionId: str = Field(min_length=1,max_length=128)
+
+
+class ComponentProposalBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    baseRevision:int
+    componentDefinitionIds:list[str]
 
 
 class PinProposalBody(BaseModel):
@@ -999,6 +1005,17 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             {"type":"modification.requested","semantic_ids":body.selectedSemanticIds,"payload":{"request":body.request}},
             {"type":"modification.preview_ready","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal.proposal_id,"affected":list(proposal.affected_ids),"regenerated":list(proposal.regenerate),"unchanged":list(proposal.unaffected)}}])
         await application.publish_with_narration(events,record.graph,record.representations)
+        return proposal.to_dict()
+
+    @app.post("/api/projects/{project_id}/component-proposals")
+    def create_component_proposal(project_id:str,body:ComponentProposalBody)->dict[str,Any]:
+        record=_record(application,project_id)
+        try: proposal=propose_add_components(record.graph,body.baseRevision,body.componentDefinitionIds)
+        except ModificationError as exc:
+            raise HTTPException(exc.status,detail={"code":exc.code,"message":exc.message,"currentRevision":len(record.graph.revisions)}) from exc
+        except ValueError as exc:
+            raise HTTPException(409,detail={"code":str(exc),"currentRevision":len(record.graph.revisions)}) from exc
+        _remember_bounded(application.modification_proposals,proposal.proposal_id,proposal)
         return proposal.to_dict()
 
     @app.post("/api/projects/{project_id}/pin-proposals")

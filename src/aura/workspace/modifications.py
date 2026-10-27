@@ -336,6 +336,30 @@ def inverse_proposal(graph: EngineeringGraph, revision: dict[str, Any]) -> Modif
     diff = revision.get("verification", {}).get("diff")
     if not diff or not diff.get("changed"): raise ValueError("nothing_to_undo")
     patch, changed = revision["patch"], diff["changed"]
+    added = [item for item in changed if item.get("operation") == "add_component"]
+    if added:
+        patch_ops = []
+        for item in added:
+            if item["targetId"] not in graph.entities: raise ValueError("nothing_to_undo")
+            if item.get("connectionId"):
+                patch_ops += [GraphOperation(PatchOperation.REMOVE_RELATIONSHIP, target_id=f"{item['connectionId']}-edge"),
+                              GraphOperation(PatchOperation.REMOVE_ENTITY, target_id=item["connectionId"])]
+            patch_ops.append(GraphOperation(PatchOperation.REMOVE_ENTITY, target_id=item["targetId"]))
+        # Nets were materialized on commit; drop the ones that would point at removed parts.
+        removed = {item["targetId"] for item in added}
+        patch_ops += [GraphOperation(PatchOperation.REMOVE_ENTITY, target_id=net.id) for net in graph.entities.values()
+                      if net.metadata.get("semantic_type") == "electrical_net"
+                      and any(t.get("componentId") in removed for t in net.metadata.get("terminals", []))]
+        pins = next((item for item in changed if item.get("path") == "parameters.gpio_map"), None)
+        if pins:
+            controller = graph.get(pins["targetId"])
+            params = dict(controller.metadata.get("parameters", {})) | {"gpio_map": pins["oldValue"]}
+            patch_ops.append(GraphOperation(PatchOperation.UPDATE_ENTITY, target_id=controller.id, changes={"metadata": dict(controller.metadata) | {"parameters": params}}))
+        inverse = [{**item, "operation": "remove_component", "oldValue": item.get("newValue"), "newValue": None} for item in added]
+        graph_patch = GraphPatch(f"patch-{uuid4().hex}", tuple(patch_ops), f"Undo: {patch.summary}", graph.current_revision_id)
+        affected = tuple(diff.get("affected", []))
+        return ModificationProposal(f"undo-{uuid4().hex}", len(graph.revisions), affected, f"Undo: {patch.summary}", "undo", tuple(inverse), affected,
+            tuple(diff.get("unchanged", [])), tuple(diff.get("regenerated", [])), {"outcome": "pending_graph_verification", "checks": []}, graph_patch)
     attachment = next((item for item in changed if item.get("operation") in {"update_mechanical_attachment", "add_mechanical_attachment"}), None)
     if attachment:
         relation_id, connection_id = attachment["targetId"], attachment["connectionId"]
@@ -391,3 +415,63 @@ def propose_pin_change(graph: EngineeringGraph, base: int, controller_id: str, p
     verification = {"outcome": "pending_graph_verification", "checks": [{"state": "PASSED", "message": "Pin is output-capable and not a strapping pin"}]}
     return ModificationProposal(f"proposal-{uuid4().hex}", base, (controller.id,), summary, "pin_change", operations, (controller.id,),
                                 ("mechanical assembly",), ("firmware",), verification, patch)
+
+
+SIGNAL_FAMILIES = frozenset({"temperature_sensor", "environmental_sensor", "distance_sensor", "light_sensor", "motion_sensor", "orientation_sensor",
+                             "soil_moisture_sensor", "relay_module", "mosfet_driver", "motor_driver", "servo", "indicator", "switch"})
+
+
+def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: list[str]) -> ModificationProposal:
+    """Add catalogue parts; signal parts get the lowest free safe GPIO. Verification still decides on commit."""
+    from aura.engineering_graph.interfaces import ESP32_OUTPUT_GPIOS
+    from aura.verification.catalogue import BY_ID
+    if base != len(graph.revisions): raise ValueError("stale_revision")
+    if not definition_ids: raise ModificationError("EMPTY_SELECTION", "Select at least one part to add.", 422)
+    unknown = [item for item in definition_ids if item not in BY_ID]
+    if unknown: raise ModificationError("UNKNOWN_COMPONENT", f"Not in the catalogue: {', '.join(unknown)}.", 404)
+    definitions = [BY_ID[item] for item in definition_ids]
+    controller = next((e for e in graph.find(kind=EntityKind.COMPONENT) if e.metadata.get("parameters", {}).get("gpio_map") is not None), None)
+    if controller is None and any(d.family in SIGNAL_FAMILIES for d in definitions):
+        raise ModificationError("NO_CONTROLLER", "These parts need a controller pin, but the design has no controller.", 409)
+    params = dict(controller.metadata.get("parameters", {})) if controller else {}
+    old_map = dict(params.get("gpio_map") or {}); gpio_map = dict(old_map)
+    free = [g for g in ESP32_OUTPUT_GPIOS if g not in ESP32_STRAPPING_GPIOS and g not in gpio_map.values()]
+    if sum(d.family in SIGNAL_FAMILIES for d in definitions) > len(free):
+        raise ModificationError("NO_FREE_PIN", "Not enough free safe ESP32 pins for these parts.", 409)
+    patch_ops, operations, ids = [], [], []
+    for definition in definitions:
+        suffix = uuid4().hex[:8]; entity_id = f"component-user-{definition.family.replace('_', '-')}-{suffix}"
+        size = definition.properties.get("dimensions")
+        dims = {key: {"value": value, "unit": "mm"} for key, value in zip(("width", "length", "height"), size.value)} if size else {}
+        metadata = {"family": definition.family, "role": definition.family, "component_definition_id": definition.component_definition_id,
+                    "interfaces": list(definition.interfaces), "dimensions": dims, "representation_status": "placeholder",
+                    "parameters": {"component_definition_id": definition.component_definition_id, "component_definition_version": CATALOGUE_VERSION}}
+        parent = controller.parent_id if controller else graph.project_id
+        patch_ops.append(GraphOperation(PatchOperation.ADD_ENTITY, entity=EngineeringEntity(entity_id, EntityKind.COMPONENT, definition.part_number, parent, metadata)))
+        operation = {"operation": "add_component", "targetId": entity_id, "componentDefinitionId": definition.component_definition_id,
+                     "path": "components", "oldValue": None, "newValue": definition.part_number, "gpio": None}
+        if definition.family in SIGNAL_FAMILIES:
+            gpio = free.pop(0); port = next(f"signal-{n}" for n in range(1, 64) if f"signal-{n}" not in gpio_map); gpio_map[port] = gpio
+            sensor = definition.family.endswith("_sensor")
+            source, target = (entity_id, controller.id) if sensor else (controller.id, entity_id)
+            kind = "signal" if sensor else "control"
+            connection_id = f"connection-user-wire-{suffix}"
+            wire = {"source_id": source, "target_id": target, "connection_type": kind,
+                    "source_interface": "signal" if sensor else port, "target_interface": port if sensor else "signal"}
+            patch_ops += [GraphOperation(PatchOperation.ADD_ENTITY, entity=EngineeringEntity(connection_id, EntityKind.CONNECTION, f"{definition.part_number} signal", graph.project_id, wire)),
+                          GraphOperation(PatchOperation.ADD_RELATIONSHIP, relationship=Relationship(f"{connection_id}-edge", source, target, kind, {"connection_id": connection_id}))]
+            operation |= {"gpio": gpio, "port": port, "connectionId": connection_id}
+        operations.append(operation); ids.append(entity_id)
+    affected = tuple(ids)
+    if gpio_map != old_map:
+        params["gpio_map"] = gpio_map
+        patch_ops.append(GraphOperation(PatchOperation.UPDATE_ENTITY, target_id=controller.id, changes={"metadata": dict(controller.metadata) | {"parameters": params}}))
+        operations.append({"operation": "replace_parameter", "targetId": controller.id, "path": "parameters.gpio_map", "oldValue": old_map, "newValue": gpio_map})
+        affected += (controller.id,)
+    summary = f"Add {', '.join(d.part_number for d in definitions)}"
+    checks = [{"state": "PASSED", "message": "Parts come from the verified catalogue; pins avoid strapping and used GPIOs"}]
+    if any(d.family.endswith("_sensor") for d in definitions):
+        checks.append({"state": "WARNING", "message": "Single signal pin assigned; bus parts (I2C/SPI) need wiring review."})
+    patch = GraphPatch(f"patch-{uuid4().hex}", tuple(patch_ops), summary, graph.current_revision_id)
+    return ModificationProposal(f"proposal-{uuid4().hex}", base, affected, summary, "add_component", tuple(operations), affected,
+                                ("existing components",), ("firmware",), {"outcome": "pending_graph_verification", "checks": checks}, patch)
