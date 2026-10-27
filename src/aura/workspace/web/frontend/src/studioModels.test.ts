@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {describe,expect,it} from "vitest";
 import {buildStudioModel,hasStudioModel} from "./studioModels";
+import {pinAnchors} from "./silkscreen";
 
 const part=(semanticId:string,family:string,dimensions:number[],visualKind?:string,studio=true)=>({semanticId,label:semanticId,family,visualKind,studio,subsystem:"s",parentAssembly:"a",representationSource:"x",dimensions,assembledTransform:{position:[0,0,0]},explodedTransform:{position:[0,0,0]},verificationState:"conceptual"});
 const size=(object:THREE.Object3D)=>new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3());
@@ -72,5 +73,30 @@ describe("module models beyond the fan workflow",()=>{
  it("names moving parts for the simulation",()=>{
   expect(buildStudioModel(part("component-servo","servo",[23,12,29]))!.getObjectByName("servo-horn")).toBeDefined();
   expect(buildStudioModel(part("component-led","indicator",[5,5,8]))!.getObjectByName("led-lens")).toBeDefined();
+ });
+});
+
+describe("pin anchors and silkscreen",()=>{
+ const anchorsOf=(family:string,dims:number[],kind?:string)=>{const group=buildStudioModel(part(`component-${family}`,family,dims,kind))!;group.updateMatrixWorld(true);return pinAnchors(group)};
+ const world=(o:THREE.Object3D)=>o.getWorldPosition(new THREE.Vector3());
+ it("puts all 38 DevKitC header pins on the ESP32 at 2.54 mm pitch",()=>{
+  const pins=anchorsOf("microcontroller_board",[28,52,12],"esp32_devkit");
+  expect(Object.keys(pins)).toHaveLength(38);
+  for(const name of ["IO4","IO16","IO32","3V3","5V","EN","VP","GND","GND.2","GND.3"])expect(pins[name],name).toBeDefined();
+  expect(world(pins.IO4).distanceTo(world(pins.IO16))).toBeCloseTo(2.54,3);
+  expect(world(pins["3V3"]).distanceTo(world(pins.IO4))).toBeGreaterThan(20);
+ });
+ const expected:[string,number[],string[]][]=[
+  ["temperature_sensor",[22,16,6],["VCC","DAT","GND"]],["mosfet_driver",[34,26,14],["IN","VCC","GND","V+","V-","OUT+","OUT-"]],
+  ["relay_module",[50,26,18],["IN","VCC","GND","COM","NO","NC"]],["soil_moisture_sensor",[98,23,4],["VCC","AOUT","GND"]],
+  ["light_sensor",[32,14,7],["VCC","GND","DO","AO"]],["motion_sensor",[32,24,24],["VCC","OUT","GND"]],["indicator",[5,5,8],["A","K"]],
+  ["switch",[12,12,8],["1","2"]],["servo",[23,12,29],["SIG","V+","GND"]],["fan",[90,30,90],["+","-"]],["low_voltage_power_source",[48,30,18],["+","-"]],
+  ["resistor",[7,3,3],["A","B"]],["flyback_diode",[10,3,3],["A","K"]],["breadboard",[165.1,54.6,8.5],["+","-"]],["environmental_sensor",[10,10,3],["VCC","GND","SCL","SDA"]]];
+ for(const [family,dims,names] of expected)it(`names the ${family} pins`,()=>expect(Object.keys(anchorsOf(family,dims)).sort()).toEqual([...names].sort()));
+ it("prints board names and pin labels",()=>{
+  const texts=(family:string,dims:number[],kind?:string)=>{const out:string[]=[];buildStudioModel(part("c",family,dims,kind))!.traverse(o=>out.push(...(o.userData.texts||[])));return out};
+  expect(texts("microcontroller_board",[28,52,12],"esp32_devkit")).toEqual(expect.arrayContaining(["ESP32-DevKitC","IO4","3V3","GND"]));
+  expect(texts("temperature_sensor",[22,16,6])).toEqual(expect.arrayContaining(["DS18B20","VCC","DAT","GND"]));
+  expect(texts("mosfet_driver",[34,26,14])).toEqual(expect.arrayContaining(["IN","OUT+","OUT-"]));
  });
 });

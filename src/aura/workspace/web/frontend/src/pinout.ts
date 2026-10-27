@@ -3,8 +3,8 @@
 // J2 is the left header and J3 the right one with the antenna at the top; pin 1 is next to the antenna.
 type Side="left"|"right";
 export type HeaderPin={header:"J2"|"J3";position:number;side:Side};
-const J2=["3V3","EN","VP","VN","IO34","IO35","IO32","IO33","IO25","IO26","IO27","IO14","IO12","GND","IO13","SD2","SD3","CMD","5V"];
-const J3=["GND","IO23","IO22","TX","RX","IO21","GND","IO19","IO18","IO5","IO17","IO16","IO4","IO0","IO2","IO15","SD1","SD0","CLK"];
+export const J2=["3V3","EN","VP","VN","IO34","IO35","IO32","IO33","IO25","IO26","IO27","IO14","IO12","GND","IO13","SD2","SD3","CMD","5V"];
+export const J3=["GND","IO23","IO22","TX","RX","IO21","GND","IO19","IO18","IO5","IO17","IO16","IO4","IO0","IO2","IO15","SD1","SD0","CLK"];
 const GPIO_OF:Record<string,number>={VP:36,VN:39,TX:1,RX:3,SD2:9,SD3:10,CMD:11,SD1:8,SD0:7,CLK:6};
 
 export const ESP32_DEVKITC:Record<number,{label:string}&HeaderPin>={};
