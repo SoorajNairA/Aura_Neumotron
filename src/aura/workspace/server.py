@@ -39,6 +39,7 @@ from aura.verification.catalogue import CATALOGUE, search as search_catalogue
 from aura.verification.results import VerificationState
 from aura.verification.delta import verification_readiness
 from .bridge import WorkspaceBridge
+from .ideas import compose_objective, new_session, proposal_card, ready_to_propose, run_turn
 from .assessment import (
     REQUEST_SCOPE, PlanningOrigin, RepresentationInput, RequestAssessment, RequestLedger, WorkspaceAssessment, assess_request,
     assess_workspace, collect_request_obligations, refresh_assessment,
@@ -62,6 +63,22 @@ def _remember_bounded(store: dict[str, Any], key: str, value: Any, max_entries: 
     store[key]=value
     while len(store)>max_entries:
         store.pop(next(iter(store)))
+
+
+class IdeaBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    idea: str = Field(min_length=3,max_length=2000)
+    planningMode: Literal["deterministic_test","live_model"] = "live_model"
+
+
+class IdeaMessageBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: str = Field(min_length=1,max_length=2000)
+
+
+class IdeaApproveBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    proposalId: str = Field(min_length=1,max_length=128)
 
 
 class CreateProjectBody(BaseModel):
@@ -190,6 +207,7 @@ class WorkspaceApplication:
         self.representation_service = RepresentationService(self.repository, CircuitGeneratorAdapter(timeout=settings.circuit_timeout))
         self.narration_service = NarrationService()
         self.modification_proposals:dict[str,ModificationProposal]={}
+        self.idea_proposals:dict[str,tuple[str,str,PlanningOutcome]]={}
         self.modification_operations:dict[str,ModificationProposal]={}
         self.modification_locks:dict[str,list[Any]]={}
         self.modification_locks_guard=threading.Lock()
@@ -393,7 +411,8 @@ class WorkspaceApplication:
         """A replay retains its operation revision and marks older proof stale."""
         return dict(response) | {"assessment": self.assessment(record, revision_number=response["revision"]).to_dict()}
 
-    async def create(self, body: CreateProjectBody, *, creation_info: dict[str, Any] | None = None) -> StoredProject:
+    async def create(self, body: CreateProjectBody, *, creation_info: dict[str, Any] | None = None,
+                     outcome: PlanningOutcome | None = None) -> StoredProject:
         key=PlannerService._id(body.objective,"project")
         with self.creation_locks_guard:
             entry=self.creation_locks.setdefault(key,[threading.Lock(),0])
@@ -401,9 +420,11 @@ class WorkspaceApplication:
         lock=entry[0]
         await run_in_threadpool(lock.acquire)
         try:
+            # An approved idea proposal carries its already-reviewed plan; plain creates plan here.
+            planned = {"planned": outcome} if outcome is not None else {}
             if creation_info is None:
-                return await self._create_serialized(body)
-            return await self._create_serialized(body, creation_info=creation_info)
+                return await self._create_serialized(body, **planned)
+            return await self._create_serialized(body, creation_info=creation_info, **planned)
         finally:
             lock.release()
             with self.creation_locks_guard:
@@ -441,7 +462,8 @@ class WorkspaceApplication:
             await self.publish_with_narration(committed,record.graph,record.representations)
         return record
 
-    async def _create_serialized(self, body: CreateProjectBody, *, creation_info: dict[str, Any] | None = None) -> StoredProject:
+    async def _create_serialized(self, body: CreateProjectBody, *, creation_info: dict[str, Any] | None = None,
+                                 planned: PlanningOutcome | None = None) -> StoredProject:
         if creation_info is not None:
             creation_info["reusedProject"] = False
         if body.operationId:
@@ -457,7 +479,7 @@ class WorkspaceApplication:
             return await self._resume_incomplete_representations(self.recover_interrupted(existing))
         ledger = collect_request_obligations(body.objective)
         try:
-            outcome = await run_in_threadpool(self.plan, body)
+            outcome = planned or await run_in_threadpool(self.plan, body)
         except ValueError as exc:
             detail=exc.args[0] if exc.args and isinstance(exc.args[0],dict) else {"status":"UNSUPPORTED","reasons":[str(exc)]}
             raise HTTPException(422,detail=detail) from exc
@@ -1000,6 +1022,71 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         finally: firmware_compiling.discard(project_id)
         if result.revision_id==_record(application,project_id).graph.current_revision_id: firmware_compiles[project_id]=result
         return result.to_dict()
+
+    def _idea(session_id:str)->dict[str,Any]:
+        session=application.repository.get_idea_session(session_id)
+        if session is None: raise HTTPException(404,detail={"code":"IDEA_NOT_FOUND"})
+        return session
+
+    async def _idea_turn(session:dict[str,Any],text:str)->dict[str,Any]:
+        try: provider=application.provider or application._default_provider()
+        except RuntimeError as exc: raise HTTPException(503,detail={"code":"MODEL_UNAVAILABLE","message":str(exc),"sessionId":session["sessionId"]}) from exc
+        if provider is None or not hasattr(provider,"generate_structured"):
+            raise HTTPException(503,detail={"code":"MODEL_UNAVAILABLE","message":"Idea conversations need a configured model provider.","sessionId":session["sessionId"]})
+        application.provider=provider
+        try: updated=await run_in_threadpool(run_turn,provider,session,text)
+        except Exception as exc:
+            name=exc.__class__.__name__
+            status,code=(503,"MODEL_AUTHENTICATION") if "Authentication" in name else (504,"MODEL_TIMEOUT") if "Timeout" in name else (502,"MODEL_UNAVAILABLE")
+            raise HTTPException(status,detail={"code":code,"message":str(exc),"sessionId":session["sessionId"]}) from exc
+        application.repository.save_idea_session(updated)
+        return updated
+
+    @app.post("/api/ideas",status_code=201)
+    async def create_idea(body:IdeaBody)->dict[str,Any]:
+        session=new_session(body.idea);session["planningMode"]=body.planningMode
+        # Saved before the first model call, so a provider failure never loses the idea.
+        application.repository.save_idea_session(session)
+        return await _idea_turn(session,body.idea)
+
+    @app.get("/api/ideas/{session_id}")
+    def get_idea(session_id:str)->dict[str,Any]: return _idea(session_id)
+
+    @app.post("/api/ideas/{session_id}/messages")
+    async def idea_message(session_id:str,body:IdeaMessageBody)->dict[str,Any]:
+        return await _idea_turn(_idea(session_id),body.text)
+
+    @app.post("/api/ideas/{session_id}/proposal")
+    async def idea_proposal(session_id:str)->dict[str,Any]:
+        session=_idea(session_id)
+        if session["scope"]["status"]=="OUT_OF_SCOPE":
+            raise HTTPException(409,detail={"code":"OUT_OF_SCOPE","reasons":session["scope"]["reasons"],"alternative":session["scope"]["alternative"]})
+        if not ready_to_propose(session):
+            raise HTTPException(409,detail={"code":"REQUIREMENTS_INCOMPLETE","message":"Agree what the device does and how it is powered first."})
+        objective=compose_objective(session)[:2000]
+        body=CreateProjectBody(objective=objective,planningMode=session.get("planningMode","live_model"))
+        try: outcome=await run_in_threadpool(application.plan,body)
+        except ValueError as exc:
+            raise HTTPException(422,detail=exc.args[0] if exc.args and isinstance(exc.args[0],dict) else {"status":"UNSUPPORTED","reasons":[str(exc)]}) from exc
+        except RuntimeError as exc: raise HTTPException(503,detail={"code":"MODEL_UNAVAILABLE","message":str(exc)}) from exc
+        proposal_id=f"proposal-{uuid4().hex}"
+        card=proposal_card(proposal_id,objective,session,outcome.plan,VerificationService().verify(outcome.plan).findings)
+        _remember_bounded(application.idea_proposals,proposal_id,(session_id,objective,outcome))
+        session["proposal"]=card;session["updatedAt"]=datetime.now(timezone.utc).isoformat()
+        application.repository.save_idea_session(session)
+        return card
+
+    @app.post("/api/ideas/{session_id}/approve",status_code=201)
+    async def idea_approve(session_id:str,body:IdeaApproveBody)->dict[str,Any]:
+        session=_idea(session_id);cached=application.idea_proposals.get(body.proposalId)
+        if cached is None or cached[0]!=session_id or (session.get("proposal") or {}).get("proposalId")!=body.proposalId:
+            raise HTTPException(409,detail={"code":"PROPOSAL_EXPIRED","message":"This proposal is no longer available. Propose the design again."})
+        _,objective,outcome=cached;creation_info:dict[str,Any]={}
+        create_body=CreateProjectBody(objective=objective,planningMode=session.get("planningMode","live_model"),operationId=body.proposalId)
+        record=await application.create(create_body,creation_info=creation_info,outcome=outcome)
+        session["projectId"]=record.project_id;session["updatedAt"]=datetime.now(timezone.utc).isoformat()
+        application.repository.save_idea_session(session)
+        return _project_payload(record,assessment=application.assessment(record,reused_project=creation_info.get("reusedProject")))
 
     @app.get("/api/projects/{project_id}/work")
     def list_work(project_id:str)->dict[str,Any]:

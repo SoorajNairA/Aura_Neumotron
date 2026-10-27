@@ -151,4 +151,29 @@ def run_turn(provider: Any, session: dict[str, Any], user_text: str) -> dict[str
     prompt = _SYSTEM.format(slots=", ".join(SLOTS), families=", ".join(CAPABILITY_MANIFEST["supportedComponentFamilies"]),
                             capability=compact_capability_context(), requirements=json.dumps(session["requirements"]), idea=session["originalIdea"])
     result = provider.generate_structured(history, system_prompt=prompt, max_tokens=1200, response_schema=TURN_SCHEMA)
-    return apply_turn(session, user_text, json.loads(result.text))
+    return apply_turn(session, user_text, json.loads(getattr(result, "text", result)))
+
+
+def proposal_card(proposal_id: str, objective: str, session: dict[str, Any], plan: Any, findings: Any) -> dict[str, Any]:
+    """What the user approves: planned parts with documented specs, alternatives, cost and stated limits."""
+    from aura.verification.catalogue import evidence_records
+    sources = {record.evidence_id: record for record in evidence_records()}
+    priority = "cost" if session["requirements"]["budget"]["value"] else "power"
+    components, ids = [], []
+    for component in plan.components:
+        definition_id = component.parameters.get("component_definition_id")
+        item = _BY_ID.get(definition_id)
+        if item: ids.append(definition_id)
+        components.append({"semanticId": component.id, "name": component.name, "role": component.role,
+            "partNumber": item.part_number if item else None, "componentDefinitionId": definition_id,
+            "specs": {name: fact.to_dict() for name, fact in item.properties.items()} if item else {},
+            "evidence": [{"id": e, "title": sources[e].title, "source": sources[e].source, "publisher": sources[e].publisher,
+                          "sourceVersion": sources[e].source_version} for e in (item.evidence_ids if item else ()) if e in sources],
+            "price": item.price if item else None,
+            "alternatives": rank_alternatives(definition_id, priority) if item else []})
+    verified = {"tool_verified", "source_verified", "cross_checked"}
+    limitations = list(dict.fromkeys(f.message for f in findings if getattr(f.state, "value", f.state) not in verified))
+    assumptions = [f"{name}: {slot['value']} ({slot['source']})" for name, slot in session["requirements"].items()
+                   if slot["value"] and slot["source"] != "user"]
+    return {"proposalId": proposal_id, "objective": objective, "components": components, "cost": cost_summary(ids),
+            "rankedBy": priority, "limitations": limitations, "assumptions": assumptions + list(plan.request.assumptions)}
