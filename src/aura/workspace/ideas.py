@@ -44,9 +44,12 @@ def apply_turn(session: dict[str, Any], user_text: str, turn: dict[str, Any]) ->
                                  "tradeoff": str(q.get("tradeoff") or "")}
                                 for q in (turn.get("questions") or []) if q.get("slot") in SLOTS][:MAX_QUESTIONS]
     supported = set(CAPABILITY_MANIFEST["supportedComponentFamilies"])
-    for family in turn.get("families") or []:
-        target = updated["families"] if family in supported else updated["unsupportedNeeds"]
-        if family not in target: target.append(family)
+    # Each turn names the whole current part list; an earlier guess (e.g. a bare motor beside a fan) must not linger.
+    if turn.get("families"):
+        updated["families"], updated["unsupportedNeeds"] = [], []
+        for family in turn["families"]:
+            target = updated["families"] if family in supported else updated["unsupportedNeeds"]
+            if family not in target: target.append(family)
     updated["scope"] = _scope(updated, turn.get("scope") or {})
     updated["messages"] += [{"role": "user", "text": user_text, "timestamp": now},
                             {"role": "assistant", "text": str(turn.get("reply") or ""), "timestamp": now}]
@@ -71,7 +74,10 @@ def compose_objective(session: dict[str, Any]) -> str:
     req = session["requirements"]
     parts = [f"Build a low-voltage device that will {req['function']['value']}" if req["function"]["value"] else "Build a low-voltage device"]
     parts += [f"{name.capitalize()}: {req[name]['value']}" for name in SLOTS[1:] if req[name]["value"]]
-    if session["families"]: parts.append("Uses: " + ", ".join(family.replace("_", " ") for family in session["families"]))
+    families = session["families"]
+    # The fan family already includes its motor (planner rule fan_supplies_motor); naming a bare motor beside it adds a dangling drive.
+    if "fan" in families: families = [family for family in families if family not in {"small_dc_motor", "motor_driver"}]
+    if families: parts.append("Uses: " + ", ".join(family.replace("_", " ") for family in families))
     return ". ".join(parts) + "."
 
 
@@ -136,7 +142,8 @@ _SYSTEM = """You are AURA's requirements engineer for small low-voltage IoT and 
 Converse with the user to agree requirements before any design is made. Rules:
 - Requirement slots: {slots}. Update a slot only from what the user said (source user) or a default the user accepted (source default); mark unconfirmed guesses source assumption, status proposed.
 - Ask at most 3 questions per turn, only about open slots that matter for this idea. Each question carries a reasonable suggested default and its tradeoff.
-- Name the component families the design needs, using only these names: {families}.
+- List ALL component families the design currently needs (the full list each turn, dropping ones no longer needed), using only these names: {families}.
+- For cooling or airflow use the fan family: it already includes its motor. small_dc_motor is a bare motor and needs a driven mechanism (wheel, pump, lever).
 - If the idea needs something outside the capability below, set scope OUT_OF_SCOPE, explain why in plain words, and offer an achievable low-voltage alternative.
 - Never invent component ratings or prices. Never claim a part is universally best.
 - reply: a short, friendly message to the user summarising what you understood and asking the questions.

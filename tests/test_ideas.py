@@ -158,3 +158,22 @@ def test_run_turn_provider_error_leaves_session_unchanged():
     with pytest.raises(RuntimeError):
         run_turn(FakeProvider(error=RuntimeError("401 rejected")), session, "hello")
     assert session == before
+
+
+def test_latest_family_list_replaces_earlier_guesses():
+    session = apply_turn(new_session("idea"), "hi", turn(families=["small_dc_motor", "fan", "jet_engine"]))
+    session = apply_turn(session, "more", turn(families=["microcontroller_board", "temperature_sensor", "fan", "mosfet_driver"]))
+    assert session["families"] == ["microcontroller_board", "temperature_sensor", "fan", "mosfet_driver"]
+    assert session["unsupportedNeeds"] == []
+    assert "motor" not in compose_objective(session)
+    kept = apply_turn(session, "ok", turn(families=[]))
+    assert kept["families"] == session["families"]
+
+
+def test_fan_objective_omits_its_own_motor():
+    session = apply_turn(new_session("idea"), "hi", turn(slots=[slot("function", "cool my desk automatically")],
+                         families=["microcontroller_board", "small_dc_motor", "motor_driver", "fan", "mosfet_driver"]))
+    text = compose_objective(session)
+    assert "fan" in text and "motor" not in text
+    pump = apply_turn(new_session("idea"), "hi", turn(families=["small_dc_motor", "servo"]))
+    assert "small dc motor" in compose_objective(pump)
