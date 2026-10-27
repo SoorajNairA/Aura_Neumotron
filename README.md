@@ -138,6 +138,12 @@ hardware evidence.
   part highlights what it is wired to. Prototypes get an 830-point breadboard
   (nominal standard size) that can be left out. Common modules have detailed
   3D models; others are labelled "Generic proxy".
+- **Readable 3D**: boards carry printed names and pin labels (ESP32-DevKitC
+  `IO4`, `3V3`, `GND`…; module `VCC/DAT/GND`, terminals `V+/OUT+`), and every
+  cable runs from a real pin to a real pin, colour-coded (red +, black GND,
+  yellow signal, orange control, blue switched load) and numbered like the
+  part card. Hover a cable for both ends; parts without a model get a dashed
+  "approximate route". Routing is illustrative, not a measured cable layout.
 - **Component library** (☰ in Design): search the catalogue, add several parts
   as one verified proposal (safe GPIOs, undoable), edit part settings, mount
   parts, and try DS18B20/fan behavioral test benches (not hardware).
