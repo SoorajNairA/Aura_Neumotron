@@ -57,6 +57,7 @@ from aura.firmware.sketch import extract_control, splice_control
 from aura.firmware.compile import CompileResult, compile_sketch
 from aura.firmware.generic import generate_generic_sketch
 from aura.hardware.ports import list_ports
+from aura.hardware.upload import upload_sketch
 from aura.firmware.io import RuleError, default_rules, io_points, validate_rules
 
 LOGGER = logging.getLogger("aura.workspace")
@@ -119,6 +120,12 @@ class RepresentationUpdateBody(BaseModel):
     revision: Optional[int] = None
     operationId: Optional[str] = None
     generation: Optional[int] = None
+
+class UploadBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    # A port name never starts with "-", so it cannot be read as an arduino-cli option.
+    port: str = Field(min_length=1,max_length=64,pattern=r"^[A-Za-z0-9/][A-Za-z0-9_./-]*$")
+
 
 class FirmwareEditBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -1235,6 +1242,25 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     def reset_firmware_edit(project_id:str)->Response:
         _record(application,project_id);application.repository.delete_firmware_edit(project_id);firmware_compiles.pop(project_id,None)
         return Response(status_code=204)
+
+    # Ports held by a running serial monitor (port -> project id); upload refuses them instead of racing.
+    busy_ports:dict[str,str]={};app.state.hardware_busy_ports=busy_ports
+    uploading:set[str]=set();firmware_uploads:dict[str,Any]={}
+
+    @app.post("/api/projects/{project_id}/firmware/upload")
+    async def upload_firmware(project_id:str,body:UploadBody)->dict[str,Any]:
+        graph=_record(application,project_id).graph;last=firmware_compiles.get(project_id)
+        try: artifact,_=_effective_firmware(project_id,graph)
+        except FirmwareUnsupported as exc: raise HTTPException(422,detail={"code":"FIRMWARE_UNSUPPORTED","reasons":list(exc.reasons)}) from exc
+        if last is None or last.status!="passed" or last.revision_id!=graph.current_revision_id:
+            raise HTTPException(409,detail={"code":"COMPILE_REQUIRED","message":"Compile this revision first."})
+        if body.port in busy_ports: raise HTTPException(409,detail={"code":"PORT_BUSY","message":"Stop the serial monitor on this port first."})
+        if project_id in uploading: raise HTTPException(409,detail={"code":"UPLOAD_IN_PROGRESS"})
+        uploading.add(project_id)
+        try: result=await run_in_threadpool(upload_sketch,artifact,body.port)
+        finally: uploading.discard(project_id)
+        firmware_uploads[project_id]=result
+        return result.to_dict()
 
     @app.post("/api/projects/{project_id}/firmware/compile")
     async def compile_firmware(project_id:str)->dict[str,Any]:
