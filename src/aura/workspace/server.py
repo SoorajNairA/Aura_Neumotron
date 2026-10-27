@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Literal, Optional
 from uuid import uuid4
 
-from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
@@ -261,10 +261,32 @@ class WorkspaceApplication:
         reason = None if mode == "deterministic_test" else "live model was not configured"
         return PlanningOutcome(PlannerService().plan(request), mode, reason)
 
+    def model_profiles(self) -> Any:
+        if getattr(self, "_model_profiles", None) is None:
+            from aura.app.config import aura_data_dir
+            from aura.app.model_profiles import ProfileStore
+            self._model_profiles = ProfileStore(aura_data_dir() / "model_profiles.json")
+        return self._model_profiles
+
+    def reset_default_provider(self) -> None:
+        """Forget a provider built from configuration so the next call rebuilds it; an injected provider stays."""
+        if self.provider is not None and self.provider is getattr(self, "_configured_provider", None):
+            self.provider = None
+        self._configured_provider = None
+
     def _default_provider(self) -> Any | None:
+        provider = self._build_default_provider()
+        self._configured_provider = provider
+        return provider
+
+    def _build_default_provider(self) -> Any | None:
         try:
             from aura.app.config import Settings
             settings = Settings()
+            # A profile the user activated decides alone; if it fails the error surfaces and no other provider is tried.
+            profiles = self.model_profiles()
+            if profiles.active_id():
+                return profiles.build_provider(timeout=settings.planner_timeout)
             if settings.planner_provider=="vertex":
                 from aura.infrastructure.llm.vertex import VertexPlannerProvider
                 project=settings.gcp_project
@@ -730,6 +752,61 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.get("/api/capabilities")
     def get_capabilities()->dict[str,Any]: return CAPABILITY_MANIFEST
+
+    # --- Model profiles: keys are write-only and never appear in any response ---
+    from aura.app.model_profiles import ProfileError
+    def _profiles_payload()->dict[str,Any]:
+        from aura.app.config import Settings
+        store=application.model_profiles();active=store.active_id()
+        return {"active":active,"activeSource":"profile" if active else "environment","environmentProvider":Settings().planner_provider,"profiles":store.list()}
+
+    def _profile_http_error(exc:Exception)->HTTPException:
+        return HTTPException(getattr(exc,"status",500),detail={"code":getattr(exc,"code","PROFILE_ERROR"),"message":getattr(exc,"message","Model profile request failed"),"errors":getattr(exc,"errors",[])})
+
+    @app.get("/api/model-profiles")
+    def list_model_profiles()->dict[str,Any]:
+        try: return _profiles_payload()
+        except ProfileError as exc: raise _profile_http_error(exc) from None
+
+    @app.post("/api/model-profiles/active")
+    def set_active_model_profile(body:dict[str,Any]=Body(...))->dict[str,Any]:
+        try:
+            application.model_profiles().set_active(str(body.get("profileId") or ""))
+            application.reset_default_provider()
+            return _profiles_payload()
+        except ProfileError as exc: raise _profile_http_error(exc) from None
+
+    @app.put("/api/model-profiles/{profile_id}")
+    def put_model_profile(profile_id:str,body:dict[str,Any]=Body(...))->dict[str,Any]:
+        try:
+            if body.get("profileId") not in (None,profile_id): raise ProfileError("PROFILE_INVALID","profileId in the body must match the URL",["profileId mismatch"])
+            profile=application.model_profiles().upsert({**body,"profileId":profile_id})
+            application.reset_default_provider()
+            return profile
+        except ProfileError as exc: raise _profile_http_error(exc) from None
+
+    @app.put("/api/model-profiles/{profile_id}/key",status_code=204)
+    async def put_model_profile_key(profile_id:str,request:Request)->Response:
+        # Raw body parsing: a framework validation error would echo the submitted value, which here is a secret.
+        try:
+            body=await request.json();key=body.get("key") if isinstance(body,dict) else None
+            if not isinstance(key,str): raise ProfileError("PROFILE_INVALID","A key string is required",["key is required"])
+            application.model_profiles().set_key(profile_id,key);application.reset_default_provider()
+        except ValueError: raise HTTPException(422,detail={"code":"PROFILE_INVALID","message":"Body must be JSON with a key string","errors":["key is required"]}) from None
+        except ProfileError as exc: raise _profile_http_error(exc) from None
+        return Response(status_code=204)
+
+    @app.delete("/api/model-profiles/{profile_id}",status_code=204)
+    def delete_model_profile(profile_id:str)->Response:
+        try: application.model_profiles().delete(profile_id);application.reset_default_provider()
+        except ProfileError as exc: raise _profile_http_error(exc) from None
+        return Response(status_code=204)
+
+    @app.post("/api/model-profiles/{profile_id}/test")
+    async def test_model_profile(profile_id:str)->dict[str,Any]:
+        try: application.model_profiles().get(profile_id)
+        except ProfileError as exc: raise _profile_http_error(exc) from None
+        return await run_in_threadpool(application.model_profiles().test,profile_id)
 
     @app.get("/api/catalogue")
     def get_catalogue(family: Optional[str] = None, voltage: Optional[float] = None,

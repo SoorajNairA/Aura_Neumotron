@@ -75,12 +75,13 @@ export function checksForComponent(componentId:string,findings:any[]|undefined):
   .sort((a,b)=>order[a.tone]-order[b.tone]);
 }
 
-export function modelBadge(project:any):string{
+export function modelBadge(project:any,activeLabel?:string):string{
  if(!project)return "";
  if(project.planningMode==="deterministic_fallback")return "Offline fallback";
  if(project.planningMode==="deterministic_test")return "Deterministic";
  const origin=project.assessment?.planningOrigin||{};const provider=origin.provider?humanize(String(origin.provider)):"Live model";
  const model=String(origin.model||"");
+ if(!model&&activeLabel)return activeLabel;
  return /nemotron/i.test(model)?`Nemotron · ${provider}`:`${model||"Model"} · ${provider}`;
 }
 
