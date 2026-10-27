@@ -164,12 +164,12 @@ def run_turn(provider: Any, session: dict[str, Any], user_text: str) -> dict[str
     return apply_turn(session, user_text, json.loads(getattr(result, "text", result)))
 
 
-_BUILT_IN = re.compile(r"\b(pcb|enclosure|case|housing)\b", re.IGNORECASE)
+_BUILT_IN = re.compile(r"\b(pcbs?|printed circuit|enclosures?|cases?|housings?|box(es)?)\b", re.IGNORECASE)
 
 
-def wants_breadboard(requirements: dict[str, Any], families: list[str]) -> bool:
+def wants_breadboard(requirements: dict[str, Any], families: list[str], texts: list[str] = ()) -> bool:
     """A prototype of plug-in modules goes on a breadboard unless the requirements ask for a PCB or enclosure."""
-    text = " ".join(str(slot.get("value") or "") for slot in requirements.values() if isinstance(slot, dict))
+    text = " ".join([*(str(slot.get("value") or "") for slot in requirements.values() if isinstance(slot, dict)), *texts])
     return bool(families) and not _BUILT_IN.search(text)
 
 

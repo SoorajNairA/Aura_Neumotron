@@ -42,6 +42,7 @@ export function GenericSimulation({ios,rules,revisionId,onMoving,onOutputs}:{ios
   <ul className="sim-outputs">{outputs.map(io=><li key={io.id} className={`sim-state ${Number(shown.outputs[io.id])>0?"on":"off"}`}>
    <span data-testid={`sim-output-${io.id}`}>{io.id} <b>{outputText(shown.outputs[io.id])}</b></span><span>{io.name} · GPIO{io.gpio}</span>{faultSelect(io,OUTPUT_FAULTS)}</li>)}</ul>
   {shown.warnings.length>0&&<ul className="sim-warnings" role="alert" data-testid="sim-warnings">{shown.warnings.map(text=><li key={text}>{text}</li>)}</ul>}
+  {ios.filter(io=>!io.supported).map(io=><p className="sim-note" key={io.id}>{io.name}: No driver yet — not simulated</p>)}
   {!rules.length&&<p className="sim-note">No control rules: outputs stay at their start value.</p>}
   <p className="sim-note">3D motion is an animation of the simulated output, not a measured movement.</p>
  </aside>;

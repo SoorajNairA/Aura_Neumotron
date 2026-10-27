@@ -62,8 +62,8 @@ def _driver_code(io: IoPoint) -> tuple[list[str], list[str], list[str], list[str
     if kind == "analog":
         return ([f"#define {_upper(io)}_RAW_AT_0 3000  // uncalibrated: raw reading at 0 %", f"#define {_upper(io)}_RAW_AT_100 1300  // uncalibrated: raw reading at 100 %"],
                 [], ["  {", f"    int raw = analogRead({pin});",
-                     "    // A reading pinned to a rail is treated as a disconnected sensor (assumption).",
-                     f"    S.{name}_ok = raw > 0 && raw < 4095;",
+                     *(["    // A reading pinned to a rail is treated as a disconnected probe (assumption).", f"    S.{name}_ok = raw > 0 && raw < 4095;"]
+                       if io.definition_id == "capacitive-soil-v1" else [f"    S.{name}_ok = true;  // full dark or full light can read a rail; not a fault"]),
                      f"    S.{name} = constrain(map(raw, {_upper(io)}_RAW_AT_0, {_upper(io)}_RAW_AT_100, 0, 100), 0, 100);", "  }"], [])
     if io.definition_id == "push-button":
         return ([f"int {name}_raw = HIGH; unsigned long {name}_changed = 0;"], [f"  pinMode({pin}, INPUT_PULLUP);"],
@@ -74,6 +74,10 @@ def _driver_code(io: IoPoint) -> tuple[list[str], list[str], list[str], list[str
         return ([], [f"  pinMode({pin}, INPUT);"], [f"  S.{name} = digitalRead({pin}) == HIGH ? 1 : 0; S.{name}_ok = true;"], [])
     if kind == "pwm":
         return ([f"Servo servo_{name};"], [f"  servo_{name}.attach({pin});"], [], [f"  servo_{name}.write((int)S.{name});"])
+    if io.definition_id == "relay-module-5v":
+        on = f"{_upper(io)}_ON"
+        return ([f"#define {on} HIGH  // assumption: many relay modules are active-LOW; set LOW if yours is"],
+                [f"  pinMode({pin}, OUTPUT);", f"  digitalWrite({pin}, !{on});"], [], [f"  digitalWrite({pin}, S.{name} >= 0.5 ? {on} : !{on});"])
     return ([], [f"  pinMode({pin}, OUTPUT);", f"  digitalWrite({pin}, LOW);"], [], [f"  digitalWrite({pin}, S.{name} >= 0.5 ? HIGH : LOW);"])
 
 

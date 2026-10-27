@@ -28,7 +28,7 @@ DRIVERS: dict[str, Driver] = {
 }
 SLUGS = {"ds18b20-module": "temp", "capacitive-soil-v1": "soil", "photoresistor-module": "light", "pir-hc-sr501": "motion",
          "push-button": "button", "relay-module-5v": "relay", "led-generic": "led", "sg90-servo": "servo"}
-LOAD_SLUGS = {"fan": "fan", "small_dc_pump": "pump", "dc_motor": "motor", "motor": "motor"}
+LOAD_SLUGS = {"fan": "fan", "small_dc_pump": "pump", "small_dc_motor": "motor", "dc_motor": "motor", "motor": "motor"}
 RANGES = {"celsius": (-55, 125, "°C"), "percent": (0, 100, "%"), "bool": (0, 1, ""), "angle": (0, 180, "°")}
 
 
@@ -67,10 +67,11 @@ def io_points(graph: EngineeringGraph) -> list[IoPoint]:
         if port not in wired or wired[port] not in graph.entities: continue
         part = graph.entities[wired[port]]; definition = definition_id(part); driver = DRIVERS.get(definition or "")
         slug = SLUGS.get(definition or "") or str(part.metadata.get("family", "part"))
-        if definition == "logic-mosfet-module":
+        # Switching modules are named for their load, so the fan fail-safe follows the fan whichever driver switches it.
+        if definition in {"logic-mosfet-module", "relay-module-5v"}:
             loads = [str(graph.entities[c["target_id"]].metadata.get("family")) for c in connections if c.get("source_id") == part.id
                      and c.get("connection_type") == "switched-power" and c.get("target_id") in graph.entities]
-            slug = next((LOAD_SLUGS[family] for family in loads if family in LOAD_SLUGS), "switch")
+            slug = next((LOAD_SLUGS[family] for family in loads if family in LOAD_SLUGS), slug if definition == "relay-module-5v" else "switch")
         counts[slug] = counts.get(slug, 0) + 1
         low, high, unit = RANGES[driver.value] if driver else (0, 0, "")
         points.append(IoPoint(f"{slug}_{counts[slug]}", part.id, part.name, definition, driver.role if driver else None, driver.value if driver else None,
