@@ -56,6 +56,7 @@ from aura.firmware import FirmwareUnsupported, generate_fan_sketch
 from aura.firmware.sketch import extract_control, splice_control
 from aura.firmware.compile import CompileResult, compile_sketch
 from aura.firmware.generic import generate_generic_sketch
+from aura.hardware.ports import list_ports
 from aura.firmware.io import RuleError, default_rules, io_points, validate_rules
 
 LOGGER = logging.getLogger("aura.workspace")
@@ -1200,6 +1201,9 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             return generate_generic_sketch(graph,rules),meta|{"droppedRules":dropped}
         edit=application.repository.get_firmware_edit(project_id)
         return (replace(artifact,source=splice_control(artifact.source,edit["block"])) if edit else artifact),{}
+
+    @app.get("/api/hardware/ports")
+    async def hardware_ports()->dict[str,Any]: return await run_in_threadpool(list_ports)
 
     @app.get("/api/projects/{project_id}/firmware")
     def get_firmware(project_id:str)->dict[str,Any]:
