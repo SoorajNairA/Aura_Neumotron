@@ -14,6 +14,7 @@ import {buildStudioModel} from "./studioModels";
 import {renderThumbnails} from "./thumbnails";
 import {markStudioParts,modelBadge,neighbours} from "./studio";
 import {StudioRail} from "./StudioRail";
+import {ModelBadge,ModelSettings} from "./ModelSettings";
 import {
  EvidencePresentation,ScenarioImpactPresentation,VerificationFindingPresentation,WorkItemPresentation,
  assessmentPresentation,evidencePresentation,findingPresentation,projectStatus,providerErrorPresentation,requiresReason,sanitizeDisplayText,scenarioPresentation,statusLabel,statusTone,
@@ -168,6 +169,7 @@ export function WorkspaceApp(){
  const [exploded,setExploded]=useState(false),[xray,setXray]=useState(true),[connection,setConnection]=useState(query.get("connection")||"connecting"),[hovered,setHovered]=useState<string|null>(null);
  const settingsTrigger=useRef<HTMLButtonElement>(null),settingsMenu=useRef<HTMLDivElement>(null),[isolated,setIsolated]=useState("all");
   const [firmware,setFirmware]=useState<FirmwareInfo>(),[settingsOpen,setSettingsOpen]=useState(false),[designView,setDesignView]=useState<ViewMode>("assembly");
+ const [modelSettingsOpen,setModelSettingsOpen]=useState(false),[modelRev,setModelRev]=useState(0);
   const space=spaceOf(mode);
   // Settings menu: focus the first item on open; Escape or an outside click closes and returns focus.
   useEffect(()=>{if(!settingsOpen)return;settingsMenu.current?.querySelector<HTMLButtonElement>("[role=menuitem]")?.focus();
@@ -262,12 +264,13 @@ export function WorkspaceApp(){
    <span className={`project-state tone-${statusTone(projectState)}`} aria-label={`Operational status: ${projectState}`} title="Operational project readiness; independent of engineering fulfillment">{projectState}</span>
    <nav className="workspace-tabs space-tabs" aria-label="Workspace spaces">{([["design","Design"],["code","Code"],["simulation","Simulation"],["build","Build"]] as [Space,string][]).map(([target,label])=>{const unavailable=target==="build"||(target==="simulation"&&!firmware?.supported);const title=target==="build"?"Coming next: USB upload, live telemetry":unavailable?(firmware?.reasons?.join("; ")||"Simulation is unavailable for this design"):undefined;return <button className={space===target&&mode!=="work"?"active":""} key={target} disabled={unavailable} title={title} onClick={()=>setMode(target==="design"?designView:target)}><span className={`space-icon space-${target}`} aria-hidden="true"/>{label}</button>})}</nav>
    <button className="top-summary verify-status" aria-label="VERIFICATION AND ASSESSMENT" onClick={()=>setOverlay(true)}><span>ENGINEERING ASSESSMENT</span><b className={`tone-${assessment.request.tone==="pass"?"neutral":assessment.request.tone}`}>{assessment.request.label}</b></button>
-   <span className="model-badge" data-testid="model-badge" title="Model that planned this project. Model switching comes later.">{modelBadge(project)}</span>
+   <ModelBadge project={project} reloadKey={modelRev} onOpenSettings={()=>setModelSettingsOpen(true)}/>
    <span className={`backend-state ${connection}`} title="Backend connection">{connection==="connected"?"● LIVE":connection==="reconnecting"?"◌ RECONNECTING":"○ OFFLINE"}</span>
    <div className="settings-menu"><button ref={settingsTrigger} className="icon-button" aria-label="Settings" aria-haspopup="menu" aria-expanded={settingsOpen} onClick={()=>setSettingsOpen(!settingsOpen)}>⚙</button>
-    {settingsOpen&&<div ref={settingsMenu} role="menu" className="menu-popover"><button role="menuitem" onClick={()=>{setSettingsOpen(false);resetWorkspace()}}>New design<small>Start another project</small></button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setMode("work");setSelectedFinding(undefined);setEvidence(undefined)}}>Work items<small>{workStatus==="ready"?`${counts.in_progress||0} active · ${counts.paused||0} paused`:"unavailable"}</small></button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setOverlay(true)}}>Verification details</button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setDeveloper(!developer)}}>Developer panel</button></div>}
+    {settingsOpen&&<div ref={settingsMenu} role="menu" className="menu-popover"><button role="menuitem" onClick={()=>{setSettingsOpen(false);resetWorkspace()}}>New design<small>Start another project</small></button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setMode("work");setSelectedFinding(undefined);setEvidence(undefined)}}>Work items<small>{workStatus==="ready"?`${counts.in_progress||0} active · ${counts.paused||0} paused`:"unavailable"}</small></button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setOverlay(true)}}>Verification details</button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setDeveloper(!developer)}}>Developer panel</button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setModelSettingsOpen(true)}}>Model settings</button></div>}
    </div>
    <button className="connect-device" disabled title="Coming next: USB serial upload and telemetry">Connect device</button>
+  {modelSettingsOpen&&<ModelSettings onClose={()=>setModelSettingsOpen(false)} onChanged={()=>setModelRev(rev=>rev+1)}/>}
   </header>
 
   <aside className="systems-rail">

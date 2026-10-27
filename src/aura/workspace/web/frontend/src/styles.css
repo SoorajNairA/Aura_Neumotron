@@ -295,3 +295,31 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .concept-badge:before{width:7px;height:7px;border-radius:50%;background:var(--pass);content:""}
 .view-switch{left:auto;right:16px;transform:none}
 .view-switch{right:44px}
+/* Model settings: badge menu and settings dialog (light ivory/sage tokens). */
+.model-menu{position:relative;display:inline-flex}
+.model-menu .model-badge{cursor:pointer}.model-menu .model-badge:after{content:"▾";margin-left:8px;color:var(--text-dim);font-size:11px}
+.model-menu .model-badge:hover,.model-menu .model-badge[aria-expanded=true]{border-color:var(--accent)}
+.model-popover{right:auto;left:0;min-width:280px}
+.model-popover button{align-items:baseline}.model-popover button[aria-checked=true]{background:var(--accent-soft);color:var(--accent)}
+.model-menu-note{margin:2px 10px 6px;color:var(--text-dim);font-size:11px}
+.model-error{margin:6px 0;color:var(--fail);font-size:12px}
+.model-settings-backdrop{position:fixed;z-index:200;inset:0;display:grid;place-items:center;padding:16px;background:rgba(30,39,34,.38)}
+.model-settings{width:min(680px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:20px 22px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg);color:var(--text);box-shadow:var(--shadow)}
+.model-settings:focus{outline:0}
+.model-settings header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.model-settings h2{margin:0;font-size:18px}.model-settings h3{margin:0 0 10px;font-size:14px}
+.model-settings header button{width:32px;height:32px;padding:0;font-size:18px;line-height:1}
+.model-settings-intro,.model-settings-note{margin:6px 0 12px;color:var(--text-soft);font-size:12px}
+.model-profile-list{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:8px}
+.model-profile-list li{display:grid;grid-template-columns:1fr auto;gap:8px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface)}
+.model-profile-list li.active{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.model-profile-list small{display:block;color:var(--text-soft);font-size:12px;overflow-wrap:anywhere}
+.model-profile-list p{grid-column:1/-1;margin:0;font-size:12px}
+.model-active-tag{margin-left:8px;padding:1px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:600}
+.model-profile-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
+.model-form{display:grid;gap:10px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface)}
+.model-form label{display:grid;gap:4px;color:var(--text-soft);font-size:12px;font-weight:600}
+.model-form input,.model-form select{padding:8px 10px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:13px}
+.model-form input:focus,.model-form select:focus{border-color:var(--accent);outline:0;box-shadow:0 0 0 3px var(--accent-soft)}
+.model-form p{margin:0}.model-form-actions{display:flex;gap:8px}
+.model-settings button.primary{border-color:var(--accent);background:var(--accent);color:#fff}
+@media(max-width:600px){.model-profile-list li{grid-template-columns:1fr}.model-settings{padding:16px 14px}}
