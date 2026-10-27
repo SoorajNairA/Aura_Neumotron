@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {checksForComponent,componentGroup,connectionRows,modelBadge,partNumber} from "./studio";
+import {PICKABLE_GPIOS,checksForComponent,componentGroup,connectionRows,modelBadge,partNumber} from "./studio";
 
 const conn=(source_id:string,source_interface:string,target_id:string,target_interface:string,connection_type:string)=>({id:`connection-${source_id}-${target_id}-${connection_type}`,kind:"connection",metadata:{source_id,target_id,source_interface,target_interface,connection_type}});
 const comp=(id:string,family:string,parameters:Record<string,unknown>={})=>({id,kind:"component",name:id,metadata:{family,parameters}});
@@ -31,7 +31,7 @@ describe("studio helpers",()=>{
  });
  it("derives DS18B20 pin rows from the graph",()=>{
   expect(connectionRows("component-temperature-sensor",graph)).toEqual([
-   {port:"signal",label:"Data (DQ)",value:"GPIO 4",tone:"data"},
+   {port:"signal",label:"Data (DQ)",value:"GPIO 4",tone:"data",pin:{controllerId:"component-controller",port:"signal-1",gpio:4}},
    {port:"power",label:"Supply (VDD)",value:"3.3 V",tone:"supply"},
    {port:"ground",label:"Ground (GND)",value:"GND",tone:"ground"}]);
  });
@@ -40,7 +40,11 @@ describe("studio helpers",()=>{
   expect(rows.some(row=>row.value.startsWith("GPIO"))).toBe(false);
   expect(rows.map(row=>row.value)).toEqual(["Switched by MOSFET","GND"]);
   expect(connectionRows("missing",graph)).toEqual([]);
-  expect(connectionRows("component-driver",graph)[0]).toEqual({port:"signal",label:"Gate (IN)",value:"GPIO 16",tone:"control"});
+  expect(connectionRows("component-driver",graph)[0]).toEqual({port:"signal",label:"Gate (IN)",value:"GPIO 16",tone:"control",pin:{controllerId:"component-controller",port:"signal-2",gpio:16}});
+ });
+ it("offers only output-capable, non-strapping pins for reassignment",()=>{
+  expect(PICKABLE_GPIOS).toContain(16);expect(PICKABLE_GPIOS).toContain(17);
+  for(const pin of [0,2,5,6,12,15,34,35,36,39])expect(PICKABLE_GPIOS).not.toContain(pin);
  });
  it("maps findings to check tones for one component",()=>{
   const findings=[{findingId:"a",summary:"Datasheet range",check:"catalogue-properties",status:"source_verified",semanticIds:["component-temperature-sensor"]},

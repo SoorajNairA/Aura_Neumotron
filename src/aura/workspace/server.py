@@ -48,7 +48,7 @@ from .assembly import engineering_assembly
 from .events import WorkspaceEvent
 from .representation_service import RepresentationService, initial_records, representation_specs
 from .representations import RepresentationRecord, RepresentationStatus, RepresentationType
-from .modifications import LiveModificationPlanner,ModificationError,ModificationProposal,inverse_proposal,propose
+from .modifications import LiveModificationPlanner,ModificationError,ModificationProposal,inverse_proposal,propose,propose_pin_change
 from .narration import NarrationService
 from .work_items import EngineeringWorkService, WorkDomainError
 from .scenarios import EngineeringScenario,LiveScenarioAnalyzer,ScenarioError,analyze as analyze_scenario
@@ -114,6 +114,14 @@ class RepresentationUpdateBody(BaseModel):
     revision: Optional[int] = None
     operationId: Optional[str] = None
     generation: Optional[int] = None
+
+class PinProposalBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    baseRevision: int
+    controllerId: str = Field(min_length=1,max_length=128)
+    port: str = Field(min_length=1,max_length=64)
+    gpio: int
+
 
 class ProposalBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -984,6 +992,18 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
             {"type":"modification.requested","semantic_ids":body.selectedSemanticIds,"payload":{"request":body.request}},
             {"type":"modification.preview_ready","semantic_ids":list(proposal.affected_ids),"payload":{"proposalId":proposal.proposal_id,"affected":list(proposal.affected_ids),"regenerated":list(proposal.regenerate),"unchanged":list(proposal.unaffected)}}])
         await application.publish_with_narration(events,record.graph,record.representations)
+        return proposal.to_dict()
+
+    @app.post("/api/projects/{project_id}/pin-proposals")
+    def create_pin_proposal(project_id:str,body:PinProposalBody)->dict[str,Any]:
+        record=_record(application,project_id)
+        try: proposal=propose_pin_change(record.graph,body.baseRevision,body.controllerId,body.port,body.gpio)
+        except ModificationError as exc:
+            raise HTTPException(exc.status,detail={"code":exc.code,"message":exc.message,"currentRevision":len(record.graph.revisions)}) from exc
+        except ValueError as exc:
+            raise HTTPException(409,detail={"code":str(exc),"currentRevision":len(record.graph.revisions)}) from exc
+        # Committed through the shared commit route, so revisions, verification and undo stay one path.
+        _remember_bounded(application.modification_proposals,proposal.proposal_id,proposal)
         return proposal.to_dict()
 
     @app.post("/api/projects/{project_id}/verification/{finding_id}/repair-proposal",status_code=201)

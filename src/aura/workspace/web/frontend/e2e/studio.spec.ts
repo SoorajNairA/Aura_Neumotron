@@ -171,3 +171,34 @@ test("stage shows the concept status badge and an assembly selector",async({page
  const assembly=page.getByLabel("Assembly");await expect(assembly).toHaveValue("all");
  await assembly.selectOption({label:"actuator"});await expect(assembly).toHaveValue("actuator");
 });
+
+test("pin picker proposes and commits a GPIO change through the shared revision path",async({page})=>{
+ await mock(page);
+ const wired={...graph,entities:graph.entities.map((e:any)=>e.id==="component-controller"?{...e,metadata:{family:"microcontroller_board",parameters:{gpio_map:{"signal-1":4,"signal-2":16}}}}:e.id==="component-driver"?{...e,metadata:{family:"mosfet_driver",parameters:{}}}:e)
+  .concat([{id:"connection-gate",kind:"connection",metadata:{source_id:"component-controller",source_interface:"signal-2",target_id:"component-driver",target_interface:"signal",connection_type:"control"}}])};
+ await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:wired}));
+ const proposals:any[]=[];let committed=false;
+ await page.route("**/api/projects/project-fan/pin-proposals",r=>{proposals.push(r.request().postDataJSON());r.fulfill({json:{proposalId:"proposal-pin",summary:"Move ESP32 signal-2 from GPIO16 to GPIO17"}})});
+ await page.route("**/api/projects/project-fan/modification-proposals/proposal-pin/commit",r=>{committed=true;r.fulfill({json:{revision:2}})});
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:/Logic-level MOSFET switch component-driver/}).click();
+ const picker=page.getByLabel("Change pin for Gate (IN)");
+ await expect(picker).toHaveValue("16");
+ await expect(picker.locator("option[value='5']")).toHaveCount(0);
+ await picker.selectOption("17");
+ await expect.poll(()=>committed).toBe(true);
+ expect(proposals).toEqual([{baseRevision:1,controllerId:"component-controller",port:"signal-2",gpio:17}]);
+});
+
+test("pin picker shows the verification rejection and changes nothing",async({page})=>{
+ await mock(page);
+ const wired={...graph,entities:graph.entities.map((e:any)=>e.id==="component-controller"?{...e,metadata:{family:"microcontroller_board",parameters:{gpio_map:{"signal-1":4,"signal-2":16}}}}:e)
+  .concat([{id:"connection-gate",kind:"connection",metadata:{source_id:"component-controller",source_interface:"signal-2",target_id:"component-driver",target_interface:"signal",connection_type:"control"}}])};
+ await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:wired}));
+ await page.route("**/api/projects/project-fan/pin-proposals",r=>r.fulfill({json:{proposalId:"proposal-pin"}}));
+ await page.route("**/api/projects/project-fan/modification-proposals/proposal-pin/commit",r=>r.fulfill({status:422,json:{detail:{code:"verification_rejected",reasons:["ESP32 DevKit has unsafe or conflicting GPIO assignments: signal-1=GPIO4, signal-2=GPIO4."]}}}));
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:/Logic-level MOSFET switch component-driver/}).click();
+ await page.getByLabel("Change pin for Gate (IN)").selectOption("4");
+ await expect(page.getByTestId("pin-error")).toContainText("conflicting GPIO assignments");
+});

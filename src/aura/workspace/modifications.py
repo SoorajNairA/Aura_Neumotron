@@ -368,3 +368,26 @@ def inverse_proposal(graph: EngineeringGraph, revision: dict[str, Any]) -> Modif
     return ModificationProposal(f"undo-{uuid4().hex}", len(graph.revisions), (target_id,), f"Undo: {patch.summary}", "undo", tuple(inverse),
         tuple(diff.get("affected", [target_id])), tuple(diff.get("unchanged", [])), tuple(diff.get("regenerated", [])),
         {"outcome": "accepted_with_warnings", "checks": [{"state": "PASSED", "message": "Prior structured values restored"}]}, graph_patch)
+
+
+# Strapping pins (0, 2, 5, 12, 15) set the ESP32 boot mode; the picker keeps them out of user-chosen assignments.
+ESP32_STRAPPING_GPIOS = (0, 2, 5, 12, 15)
+
+
+def propose_pin_change(graph: EngineeringGraph, base: int, controller_id: str, port: str, gpio: int) -> ModificationProposal:
+    """Reassign one controller port to another GPIO; verification still decides conflicts on commit."""
+    from aura.engineering_graph.interfaces import ESP32_OUTPUT_GPIOS
+    if base != len(graph.revisions): raise ValueError("stale_revision")
+    if controller_id not in graph.entities: raise ModificationError("UNKNOWN_CONTROLLER", "That controller is not in the current design.", 404)
+    controller = graph.get(controller_id); meta = dict(controller.metadata); params = dict(meta.get("parameters", {}))
+    gpio_map = dict(params.get("gpio_map") or {})
+    if port not in gpio_map: raise ModificationError("UNKNOWN_PORT", f"{controller.name} has no GPIO-assigned port {port}.", 422)
+    if gpio not in ESP32_OUTPUT_GPIOS or gpio in ESP32_STRAPPING_GPIOS:
+        raise ModificationError("PIN_NOT_ALLOWED", f"GPIO{gpio} is not an output-capable, non-strapping ESP32 pin.", 422)
+    old = gpio_map[port]; gpio_map[port] = gpio; params["gpio_map"] = gpio_map; meta["parameters"] = params
+    summary = f"Move {controller.name} {port} from GPIO{old} to GPIO{gpio}"
+    patch = GraphPatch(f"patch-{uuid4().hex}", (GraphOperation(PatchOperation.UPDATE_ENTITY, target_id=controller.id, changes={"metadata": meta}),), summary, graph.current_revision_id)
+    operations = ({"operation": "replace_parameter", "path": f"parameters.gpio_map.{port}", "oldValue": old, "newValue": gpio},)
+    verification = {"outcome": "pending_graph_verification", "checks": [{"state": "PASSED", "message": "Pin is output-capable and not a strapping pin"}]}
+    return ModificationProposal(f"proposal-{uuid4().hex}", base, (controller.id,), summary, "pin_change", operations, (controller.id,),
+                                ("mechanical assembly",), ("firmware",), verification, patch)

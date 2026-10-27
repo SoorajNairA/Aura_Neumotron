@@ -341,3 +341,4 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .model-form p{margin:0}.model-form-actions{display:flex;gap:8px}
 .model-settings button.primary{border-color:var(--accent);background:var(--accent);color:#fff}
 @media(max-width:600px){.model-profile-list li{grid-template-columns:1fr}.model-settings{padding:16px 14px}}
+.pin-error{margin:8px 0 0;color:var(--fail);font-size:12px;line-height:1.4;overflow-wrap:anywhere}.connection-rows select{justify-self:end;padding:2px 4px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-weight:650}

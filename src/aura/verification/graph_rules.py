@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from aura.engineering_graph.electrical import electrical_nets
+from aura.engineering_graph.interfaces import ESP32_INPUT_ONLY_GPIOS, ESP32_OUTPUT_GPIOS
 from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
 
 from .results import VerificationState
@@ -74,10 +75,24 @@ class Terminal:
     port: dict[str, Any]
 
 
+def _gpio_assignments(graph: EngineeringGraph, components: dict[str, EngineeringEntity], add: AddFinding) -> None:
+    """Same rule as plan plausibility ELEC_GPIO, so edited pin maps are judged like planned ones."""
+    for controller in sorted((c for c in components.values() if _data(c).get("gpio_map")), key=lambda item: item.id):
+        gpio=dict(_data(controller)["gpio_map"]);pins=list(gpio.values())
+        control_ports={dict(e.metadata).get("source_interface") for e in graph.find(kind=EntityKind.CONNECTION)
+                       if dict(e.metadata).get("source_id")==controller.id and dict(e.metadata).get("connection_type")=="control"}
+        invalid={port:pin for port,pin in gpio.items() if pins.count(pin)>1 or pin not in (*ESP32_OUTPUT_GPIOS,*ESP32_INPUT_ONLY_GPIOS)
+                 or (pin in ESP32_INPUT_ONLY_GPIOS and port in control_ports)}
+        if invalid:
+            add("ELEC_GPIO",VerificationState.FAILED,"critical",f"{controller.name} has unsafe or conflicting GPIO assignments: {', '.join(f'{port}=GPIO{pin}' for port,pin in sorted(invalid.items()))}.",(controller.id,),
+                category="electrical",interface_ids=tuple(sorted(invalid)),expected={"allowedOutputGpios":list(ESP32_OUTPUT_GPIOS)},actual={"gpioMap":gpio},blocking=True)
+
+
 def evaluate_graph(graph: EngineeringGraph, add: AddFinding) -> None:
     """Inspect a complete graph without changing it; graph-owned nets are authoritative."""
     components={item.id:item for item in graph.find(kind=EntityKind.COMPONENT)}
     ports={key:_port_records(value) for key,value in components.items()}
+    _gpio_assignments(graph,components,add)
     nets=electrical_nets(graph)
     terminal_net: dict[tuple[str,str],str]={}
     net_terminals: dict[str,list[Terminal]]={}

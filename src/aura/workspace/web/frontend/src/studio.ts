@@ -1,6 +1,9 @@
 export type ComponentGroup="Controller"|"Sensors"|"Actuators"|"Power"|"Other";
 export const GROUP_ORDER:ComponentGroup[]=["Controller","Sensors","Actuators","Power","Other"];
-export type ConnectionRow={port:string;label:string;value:string;tone:"data"|"supply"|"ground"|"control"};
+export type PinRef={controllerId:string;port:string;gpio:number};
+export type ConnectionRow={port:string;label:string;value:string;tone:"data"|"supply"|"ground"|"control";pin?:PinRef};
+// ESP32 output-capable GPIOs minus strapping pins (0, 2, 5, 12, 15); the backend applies the same rule.
+export const PICKABLE_GPIOS=[4,13,14,16,17,18,19,21,22,23,25,26,27,32,33];
 export type CheckRow={id:string;title:string;detail:string;tone:"pass"|"warn"|"fail"};
 
 const ACTUATORS=new Set(["fan","servo","small_dc_motor","small_dc_pump","mosfet_driver","motor_driver","relay_module","bare_relay"]);
@@ -46,7 +49,7 @@ export function connectionRows(componentId:string,graph:{entities:Entity[]}|unde
    const gpio=params(other).gpio_map?.[otherPort];
    const sensor=family(self)?.endsWith("_sensor");
    const label=params(self).component_definition_id==="ds18b20-module"?"Data (DQ)":sensor?"Signal":"Gate (IN)";
-   add({port,label,value:gpio!==undefined?`GPIO ${gpio}`:otherPort,tone:sensor?"data":"control"});continue}
+   add({port,label,value:gpio!==undefined?`GPIO ${gpio}`:otherPort,tone:sensor?"data":"control",...(gpio!==undefined?{pin:{controllerId:other!.id,port:otherPort,gpio}}:{})});continue}
   if(type==="regulated-power"&&CONTROLLERS.has(family(other)||"")&&port==="power"){
    const volts=params(other).logic_voltage_v;add({port,label:"Supply (VDD)",value:volts?`${volts} V`:"Controller rail",tone:"supply"});continue}
   if(type==="switched-power"&&mine==="target"&&port==="power"){add({port,label:"Supply (+)",value:`Switched by ${family(other)==="mosfet_driver"?"MOSFET":humanize(family(other)||"driver")}`,tone:"supply"});continue}
