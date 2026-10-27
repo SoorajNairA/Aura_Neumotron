@@ -58,6 +58,9 @@ from aura.firmware.compile import CompileResult, compile_sketch
 from aura.firmware.generic import generate_generic_sketch
 from aura.hardware.ports import list_ports
 from aura.hardware.upload import upload_sketch
+from aura.hardware.serial import SerialSession, evidence, fake_board
+from aura.hardware.ports import FAKE_PORT, fake_enabled
+from aura.firmware.compile import find_cli
 from aura.firmware.io import RuleError, default_rules, io_points, validate_rules
 
 LOGGER = logging.getLogger("aura.workspace")
@@ -1215,7 +1218,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     @app.get("/api/projects/{project_id}/firmware")
     def get_firmware(project_id:str)->dict[str,Any]:
         graph=_record(application,project_id).graph;last=firmware_compiles.get(project_id)
-        common={"revisionId":graph.current_revision_id,"lastCompile":last.to_dict() if last else None,
+        common={"hardwareEvidence":application.repository.get_hardware_evidence(project_id),"revisionId":graph.current_revision_id,"lastCompile":last.to_dict() if last else None,
                 "lastCompileCurrent":bool(last and last.revision_id==graph.current_revision_id),"addedWithoutDriver":_added_without_driver(graph)}
         try: artifact,meta=_effective_firmware(project_id,graph)
         except FirmwareUnsupported as exc: return {"supported":False,"reasons":list(exc.reasons),"edit":None,**common}
@@ -1261,6 +1264,57 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         finally: uploading.discard(project_id)
         firmware_uploads[project_id]=result
         return result.to_dict()
+
+    serial_sessions:dict[str,SerialSession]={};app.state.serial_sessions=serial_sessions
+
+    def _stop_serial(project_id:str)->None:
+        session=serial_sessions.pop(project_id,None)
+        if session is None: return
+        session.stop()
+        if busy_ports.get(session.port)==project_id: busy_ports.pop(session.port,None)
+
+    @app.post("/api/projects/{project_id}/serial/start")
+    async def serial_start(project_id:str,body:UploadBody)->dict[str,Any]:
+        graph=_record(application,project_id).graph
+        # A second start replaces the first session, so a monitor process never outlives its session.
+        await run_in_threadpool(_stop_serial,project_id)
+        if busy_ports.get(body.port) not in (None,project_id): raise HTTPException(409,detail={"code":"PORT_BUSY","message":"Another project is monitoring this port."})
+        if project_id in uploading: raise HTTPException(409,detail={"code":"UPLOAD_IN_PROGRESS"})
+        fake=body.port==FAKE_PORT and fake_enabled()
+        if fake:
+            try: artifact,_=_effective_firmware(project_id,graph)
+            except FirmwareUnsupported as exc: raise HTTPException(422,detail={"code":"FIRMWARE_UNSUPPORTED","reasons":list(exc.reasons)}) from exc
+            session=SerialSession(body.port,graph.current_revision_id,fake_source=lambda stop:fake_board(artifact,stop))
+        else:
+            cli=find_cli()
+            if cli is None: raise HTTPException(422,detail={"code":"TOOLCHAIN_MISSING","missing":"arduino-cli"})
+            session=SerialSession(body.port,graph.current_revision_id,cli=cli)
+        try: session.start()
+        except OSError as exc: raise HTTPException(422,detail={"code":"MONITOR_FAILED","message":str(exc)[:300]}) from exc
+        serial_sessions[project_id]=session;busy_ports[body.port]=project_id
+        return {"running":True,"port":body.port,"fake":fake}
+
+    @app.post("/api/projects/{project_id}/serial/stop")
+    async def serial_stop(project_id:str)->dict[str,Any]:
+        await run_in_threadpool(_stop_serial,project_id);return {"running":False}
+
+    @app.get("/api/projects/{project_id}/serial")
+    def serial_lines(project_id:str,after:int=0)->dict[str,Any]:
+        graph=_record(application,project_id).graph;session=serial_sessions.get(project_id)
+        stored=application.repository.get_hardware_evidence(project_id)
+        if session is None: return {"running":False,"port":None,"fake":False,"lines":[],"wrongRevision":None,"evidence":stored}
+        every=session.lines(0);current=graph.current_revision_id
+        latest=next((line["telemetry"] for line in reversed(every) if line["telemetry"]),None)
+        wrong={"board":str(latest["rev"]),"current":current} if latest and latest["rev"]!=current else None
+        found=evidence(every,current,port=session.port,fake=session.fake)
+        # Evidence is only ever written from real-port telemetry for the current revision.
+        if found and (stored is None or stored.get("revisionId")!=current or stored.get("port")!=session.port):
+            application.repository.save_hardware_evidence(project_id,found);stored=found
+        return {"running":session.running,"port":session.port,"fake":session.fake,"lines":[line for line in every if line["seq"]>after],"wrongRevision":wrong,"evidence":stored}
+
+    def stop_all_serial()->None:
+        for project_id in list(serial_sessions): _stop_serial(project_id)
+    app.router.on_shutdown.append(stop_all_serial)
 
     @app.post("/api/projects/{project_id}/firmware/compile")
     async def compile_firmware(project_id:str)->dict[str,Any]:
