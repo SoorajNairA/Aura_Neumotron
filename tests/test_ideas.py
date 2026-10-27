@@ -108,3 +108,18 @@ def test_cost_summary_lists_excluded():
     assert summary["excluded"] == ["dc-fan-5v"]
     assert round(summary["totalUsd"], 2) == round(15.02 + 0.10 + 0.10, 2)
     assert all(item["source"].startswith("https://") for item in summary["items"])
+
+
+def test_idea_session_round_trip_survives_reopen(tmp_path):
+    from aura.infrastructure.persistence.project_repository import SQLiteProjectRepository
+    db = tmp_path / "aura.db"
+    session = new_session("a fan that turns on when my room is hot")
+    repository = SQLiteProjectRepository(db, tmp_path / "artifacts")
+    repository.save_idea_session(session)
+    session["messages"].append({"role": "user", "text": "hi", "timestamp": "t"})
+    repository.save_idea_session(session)
+    repository.close()
+    reopened = SQLiteProjectRepository(db, tmp_path / "artifacts")
+    assert reopened.get_idea_session(session["sessionId"]) == session
+    assert reopened.get_idea_session("idea-missing") is None
+    reopened.close()

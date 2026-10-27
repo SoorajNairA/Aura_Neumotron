@@ -85,6 +85,8 @@ class ProjectRepository(Protocol):
     def save_work_item(self, item: dict[str, Any]) -> None: ...
     def get_work_item(self, project_id: str, work_item_id: str) -> dict[str, Any] | None: ...
     def list_work_items(self, project_id: str) -> list[dict[str, Any]]: ...
+    def save_idea_session(self, session: dict[str, Any]) -> None: ...
+    def get_idea_session(self, session_id: str) -> dict[str, Any] | None: ...
 
 
 class SQLiteProjectRepository:
@@ -111,6 +113,7 @@ class SQLiteProjectRepository:
                 if version != SCHEMA_VERSION:
                     raise UnsupportedSchemaVersion(f"Workspace schema {version} is unsupported; expected {SCHEMA_VERSION}")
                 self._connection.execute("CREATE TABLE IF NOT EXISTS work_items(project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE, work_item_id TEXT NOT NULL, item_json TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(project_id, work_item_id))")
+                self._connection.execute("CREATE TABLE IF NOT EXISTS idea_sessions(session_id TEXT PRIMARY KEY, session_json TEXT NOT NULL, updated_at TEXT NOT NULL)")
                 self._connection.commit()
                 return
             with self._connection:
@@ -135,6 +138,7 @@ class SQLiteProjectRepository:
                 CREATE TABLE work_items(project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
                     work_item_id TEXT NOT NULL, item_json TEXT NOT NULL, updated_at TEXT NOT NULL,
                     PRIMARY KEY(project_id, work_item_id));
+                CREATE TABLE IF NOT EXISTS idea_sessions(session_id TEXT PRIMARY KEY, session_json TEXT NOT NULL, updated_at TEXT NOT NULL);
                 """)
 
     def save_work_item(self, item: dict[str, Any]) -> None:
@@ -150,6 +154,15 @@ class SQLiteProjectRepository:
     def list_work_items(self, project_id: str) -> list[dict[str, Any]]:
         with self._lock: rows=self._connection.execute("SELECT item_json FROM work_items WHERE project_id=? ORDER BY updated_at,work_item_id",(project_id,)).fetchall()
         return [json.loads(row[0]) for row in rows]
+
+    def save_idea_session(self, session: dict[str, Any]) -> None:
+        with self._lock, self._connection:
+            self._connection.execute("INSERT INTO idea_sessions VALUES(?,?,?) ON CONFLICT(session_id) DO UPDATE SET session_json=excluded.session_json,updated_at=excluded.updated_at",
+                (session["sessionId"],json.dumps(session,separators=(",",":")),session["updatedAt"]))
+
+    def get_idea_session(self, session_id: str) -> dict[str, Any] | None:
+        with self._lock: row=self._connection.execute("SELECT session_json FROM idea_sessions WHERE session_id=?",(session_id,)).fetchone()
+        return json.loads(row[0]) if row else None
 
     def get_project(self, project_id: str) -> StoredProject | None:
         with self._lock:

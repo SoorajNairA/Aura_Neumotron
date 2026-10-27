@@ -31,3 +31,7 @@ CREATE TABLE IF NOT EXISTS work_items (
     work_item_id TEXT NOT NULL, item_json JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL,
     PRIMARY KEY(project_id, work_item_id)
 );
+
+CREATE TABLE IF NOT EXISTS idea_sessions (
+    session_id TEXT PRIMARY KEY, session_json JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL
+);

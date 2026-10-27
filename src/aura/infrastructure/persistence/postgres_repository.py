@@ -73,6 +73,17 @@ class PostgresProjectRepository:
             cursor.execute("SELECT item_json FROM work_items WHERE project_id=%s ORDER BY updated_at,work_item_id",(project_id,)); rows=cursor.fetchall()
         return [dict(row[0]) for row in rows]
 
+    def save_idea_session(self, session: dict[str, Any]) -> None:
+        from psycopg.types.json import Jsonb
+        with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:
+            cursor.execute("INSERT INTO idea_sessions VALUES(%s,%s,%s) ON CONFLICT(session_id) DO UPDATE SET session_json=EXCLUDED.session_json,updated_at=EXCLUDED.updated_at",
+                (session["sessionId"],Jsonb(session),session["updatedAt"]))
+
+    def get_idea_session(self, session_id: str) -> dict[str, Any] | None:
+        with self._pool.connection() as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT session_json FROM idea_sessions WHERE session_id=%s",(session_id,)); row=cursor.fetchone()
+        return dict(row[0]) if row else None
+
     def is_ready(self) -> bool:
         try:
             with self._pool.connection() as connection:
