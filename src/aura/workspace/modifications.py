@@ -451,6 +451,7 @@ def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: l
         metadata = {"family": definition.family, "role": definition.family, "component_definition_id": definition.component_definition_id,
                     "interfaces": list(definition.interfaces), "dimensions": dims, "representation_status": "placeholder",
                     "parameters": {"component_definition_id": definition.component_definition_id, "component_definition_version": CATALOGUE_VERSION}}
+        if size and size.qualifier != "rated": metadata["dimensions_qualifier"] = size.qualifier
         parent = controller.parent_id if controller else graph.project_id
         patch_ops.append(GraphOperation(PatchOperation.ADD_ENTITY, entity=EngineeringEntity(entity_id, EntityKind.COMPONENT, definition.part_number, parent, metadata)))
         operation = {"operation": "add_component", "targetId": entity_id, "componentDefinitionId": definition.component_definition_id,

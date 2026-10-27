@@ -41,6 +41,10 @@ class PhysicalPart:
             "outputAxis":list(self.output_axis) if self.output_axis else None,"visualKind":self.visual_kind or self.family}
 
 
+BREADBOARD_MODULES=frozenset({"microcontroller_board","mosfet_driver","relay_module","motor_driver","flyback_diode","pull_up_resistor","resistor",
+                               "indicator","switch","temperature_sensor","light_sensor","motion_sensor","environmental_sensor"})
+
+
 def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
     components=graph.find(kind=EntityKind.COMPONENT);groups:dict[str,list[EngineeringEntity]]={}
     for entity in components:groups.setdefault(entity.parent_id or "conceptual",[]).append(entity)
@@ -201,6 +205,16 @@ def engineering_assembly(graph:EngineeringGraph)->dict[str,Any]:
     for component_id in sorted(primary_ids):
         if placement[component_id] in {"INDEPENDENT_LAYOUT","CONCEPTUAL_TOPOLOGY"}:
             unresolved_primary.append({"componentId":component_id,"reason":"primary mechanism lacks a root-to-mate transform"})
+    # A breadboard is the prototype base: plug-in modules sit on it in one row, controller first, across the centre channel.
+    board=next((part for part in parts if part.family=="breadboard"),None)
+    if board:
+        bx,by,bz=positions[board.semantic_id];top=bz+board.dimensions[2]/2;cursor=bx-board.dimensions[0]/2+4.0
+        for part in sorted((p for p in parts if p.family in BREADBOARD_MODULES and placement[p.semantic_id] in {"INDEPENDENT_LAYOUT","SEMANTIC_SUPPORT"}),
+                           key=lambda p:(p.family!="microcontroller_board",p.semantic_id)):
+            width,depth,height=part.dimensions
+            if depth>board.dimensions[1] or cursor+width>bx+board.dimensions[0]/2: continue
+            positions[part.semantic_id]=[cursor+width/2,by,top+height/2];placement[part.semantic_id]="SEMANTIC_SUPPORT"
+            independent_mounts[part.semantic_id]=board.semantic_id;cursor+=width+4.0
     from dataclasses import replace
     parts=[replace(part,assembled=tuple(positions[part.semantic_id]),exploded=tuple(positions[part.semantic_id][i]+(part.exploded[i]-part.assembled[i]) for i in range(3)),rotation=rotations[part.semantic_id],transform_source=placement[part.semantic_id]) for part in parts]
     by_id={part.semantic_id:part for part in parts}

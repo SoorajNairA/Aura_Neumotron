@@ -147,8 +147,12 @@ _PRICES = {
     "supply-usb-5v-1a": (5.95, "https://www.adafruit.com/product/501"),
 }
 
+# Mechanical base only: no electrical rating is claimed, and the size is the common 830-point nominal, not a measured part.
+_BREADBOARD = ComponentDefinition("breadboard-830", "breadboard", "Generic", "830-point solderless breadboard",
+                                  {"dimensions": _p([165.1, 54.6, 8.5], "mm", "assumption", "nominal standard size")}, (),
+                                  (_SOURCES["assumption"].evidence_id,), {"type": "proxy", "dimensionsProperty": "dimensions"})
 CATALOGUE = tuple(replace(item, price={"usd": _PRICES[item.component_definition_id][0], "source": _PRICES[item.component_definition_id][1], "retrieved": "2026-10-27"})
-                  if item.component_definition_id in _PRICES else item for item in (_definition(*spec) for spec in _SPECS))
+                  if item.component_definition_id in _PRICES else item for item in (_definition(*spec) for spec in _SPECS)) + (_BREADBOARD,)
 BY_ID = {item.component_definition_id: item for item in CATALOGUE}
 
 

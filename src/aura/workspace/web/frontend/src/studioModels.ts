@@ -28,6 +28,8 @@ const FINISH:Record<string,THREE.MeshPhysicalMaterialParameters>={
  button:{color:0xd9d2c3,roughness:.4},
  resistorBody:{color:0xd8c39a,roughness:.55},
  diodeBody:{color:0x18191b,roughness:.4},
+ boardWhite:{color:0xf1eee6,roughness:.7},boardShade:{color:0xd9d4c8,roughness:.8},hole:{color:0x2b2b2b,roughness:.9},
+ railRed:{color:0xc8372d,roughness:.5},railBlue:{color:0x2457b8,roughness:.5},
  bandYellow:{color:0xe3b505,roughness:.5},bandViolet:{color:0x7b3fa0,roughness:.5},bandRed:{color:0xc8372d,roughness:.5},bandSilver:{color:0xc0c4c8,metalness:.8,roughness:.3},
 };
 
@@ -140,6 +142,21 @@ function deskFan(part:StudioPart){
  return b.group;
 }
 
+// 830-point solderless breadboard at nominal standard size: 63 columns of 2×5 terminal holes either side of a
+// centre channel, and four 50-hole power rails (red +, blue −) in groups of five. Holes are one instanced mesh.
+function breadboard(part:StudioPart){
+ const b=new Builder(),[w,l,h]=part.dimensions.map(x=>Math.max(Number(x)||10,4)),top=h/2,p=2.54;
+ b.box([w,l,h],"boardWhite",[0,0,0],1);
+ b.box([w-4,2.4,1.2],"boardShade",[0,0,top-.55]);
+ const holes:Vec[]=[];
+ for(let c=0;c<63;c++)for(const side of[-1,1])for(let r=0;r<5;r++)holes.push([(c-31)*p,side*(p*1.5+r*p),top]);
+ for(const side of[-1,1])for(const rail of[0,1])for(let i=0;i<50;i++)holes.push([(i-24.5)*p+(Math.floor(i/5)-4.5)*p,side*(p*1.5+4*p+5.5+rail*p),top]);
+ const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,.6),b.mat("hole"),holes.length);mesh.name="breadboard-holes";
+ holes.forEach((at,i)=>mesh.setMatrixAt(i,new THREE.Matrix4().makeTranslation(...at)));mesh.instanceMatrix.needsUpdate=true;b.group.add(mesh);
+ for(const side of[-1,1])for(const [rail,kind] of[[0,"railBlue"],[1,"railRed"]] as const)b.box([w-12,.5,.12],kind,[0,side*(p*1.5+4*p+5.5+rail*p+(rail?1:-1)*1.6),top+.05]);
+ return b.group;
+}
+
 export function buildStudioModel(part:StudioPart):THREE.Group|null{
  if(!part.studio)return null;
  const family=part.family||"",kind=part.visualKind||"";
@@ -150,5 +167,6 @@ export function buildStudioModel(part:StudioPart):THREE.Group|null{
  if(family==="low_voltage_power_source")return powerModule(part);
  if(family==="resistor")return axial(part,"resistor");
  if(family==="flyback_diode")return axial(part,"diode");
+ if(family==="breadboard")return breadboard(part);
  return null;
 }

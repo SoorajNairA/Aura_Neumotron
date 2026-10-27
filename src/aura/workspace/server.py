@@ -39,7 +39,7 @@ from aura.verification.catalogue import CATALOGUE, search as search_catalogue
 from aura.verification.results import VerificationState
 from aura.verification.delta import verification_readiness
 from .bridge import WorkspaceBridge
-from .ideas import compose_objective, new_session, proposal_card, ready_to_propose, run_rules, run_turn
+from .ideas import compose_objective, new_session, proposal_card, ready_to_propose, run_rules, run_turn, wants_breadboard
 from .assessment import (
     REQUEST_SCOPE, PlanningOrigin, RepresentationInput, RequestAssessment, RequestLedger, WorkspaceAssessment, assess_request,
     assess_workspace, collect_request_obligations, refresh_assessment,
@@ -82,6 +82,7 @@ class IdeaMessageBody(BaseModel):
 class IdeaApproveBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     proposalId: str = Field(min_length=1,max_length=128)
+    breadboard: Optional[bool] = None
 
 
 class CreateProjectBody(BaseModel):
@@ -1308,6 +1309,9 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         control=await run_in_threadpool(_control_rules,ios,session["requirements"])
         card=proposal_card(proposal_id,objective,session,outcome.plan,verified.findings)|{"planningMode":outcome.mode,"fallbackReason":outcome.fallback_reason,
               "controlRules":control,"ios":[asdict(io) for io in ios]}
+        included=wants_breadboard(session["requirements"],session.get("families",[]))
+        card["breadboard"]={"included":included,"reason":"Prototype of plug-in modules: they sit on an 830-point breadboard (nominal standard size). You can leave it out."
+                            if included else "Not added: the requirements mention a PCB or enclosure."}
         _remember_bounded(application.idea_proposals,proposal_id,(session_id,objective,outcome))
         session["proposal"]=card;session["updatedAt"]=datetime.now(timezone.utc).isoformat()
         application.repository.save_idea_session(session)
@@ -1326,6 +1330,13 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         control=(session.get("proposal") or {}).get("controlRules")
         # Approval covers the rule list shown on the card; firmware reads it from here.
         if control: application.repository.save_control_rules(record.project_id,{key:control[key] for key in ("rules","source","explanation")})
+        breadboard=body.breadboard if body.breadboard is not None else bool(((session.get("proposal") or {}).get("breadboard") or {}).get("included"))
+        if breadboard:
+            # Added as its own verified revision, so it shows in history and can be undone like any library add.
+            board=propose_add_components(record.graph,len(record.graph.revisions),["breadboard-830"])
+            _remember_bounded(application.modification_proposals,board.proposal_id,board)
+            await commit_modification(record.project_id,board.proposal_id,None)
+            record=_record(application,record.project_id)
         session["projectId"]=record.project_id;session["updatedAt"]=datetime.now(timezone.utc).isoformat()
         application.repository.save_idea_session(session)
         return _project_payload(record,assessment=application.assessment(record,reused_project=creation_info.get("reusedProject")))

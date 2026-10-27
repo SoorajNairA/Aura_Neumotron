@@ -48,3 +48,14 @@ describe("studio model gating",()=>{
   expect(buildStudioModel(part("component-sensor","temperature_sensor",[22,16,6],undefined,false))).toBeNull();
  });
 });
+
+describe("breadboard model",()=>{
+ it("has 830 contact holes at 2.54 mm pitch on the nominal footprint",()=>{
+  const group=buildStudioModel(part("component-breadboard","breadboard",[165.1,54.6,8.5]))!;
+  const holes=group.getObjectByName("breadboard-holes") as THREE.InstancedMesh;
+  expect(holes.count).toBe(830);
+  const a=new THREE.Matrix4(),b=new THREE.Matrix4();holes.getMatrixAt(0,a);holes.getMatrixAt(1,b);
+  expect(new THREE.Vector3().setFromMatrixPosition(a).distanceTo(new THREE.Vector3().setFromMatrixPosition(b))).toBeCloseTo(2.54,5);
+  const box=size(group);expect(box.x).toBeCloseTo(165.1,1);expect(box.y).toBeCloseTo(54.6,1);
+ });
+});

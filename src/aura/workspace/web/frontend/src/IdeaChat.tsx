@@ -8,7 +8,7 @@ const SLOT_LABELS:Record<string,string>={function:"Function",budget:"Budget",pow
 
 // The conversation that turns an idea into agreed requirements and an approved proposal.
 export function IdeaChat({apiBase,idea,onApproved,onClose}:Props){
- const [session,setSession]=useState<any>(),[proposal,setProposal]=useState<any>(),[draft,setDraft]=useState("");
+ const [session,setSession]=useState<any>(),[proposal,setProposal]=useState<any>(),[draft,setDraft]=useState(""),[breadboard,setBreadboard]=useState<boolean>();
  const [busy,setBusy]=useState<string|null>(null),[error,setError]=useState<Failure>(),[retry,setRetry]=useState<(()=>void)|null>(null);
  const [existing,setExisting]=useState<string>();const started=useRef(false);
  const call=async(path:string,body?:any,label="Thinking…",again?:()=>void)=>{
@@ -22,8 +22,8 @@ export function IdeaChat({apiBase,idea,onApproved,onClose}:Props){
  const start=async()=>{const next=await call("/api/ideas",{idea},"Reading your idea…",start);if(next)setSession(next)};
  useEffect(()=>{if(!started.current){started.current=true;start()}},[]);
  const send=async(text:string)=>{if(!session||!text.trim())return;const next=await call(`/api/ideas/${session.sessionId}/messages`,{text},"Thinking…",()=>send(text));if(next){setSession(next);setDraft("");setProposal(undefined)}};
- const propose=async()=>{const card=await call(`/api/ideas/${session.sessionId}/proposal`,undefined,"Planning the design…",propose);if(card)setProposal(card)};
- const approve=async()=>{const project=await call(`/api/ideas/${session.sessionId}/approve`,{proposalId:proposal.proposalId},"Building the approved design…",approve);if(project?.projectId)onApproved(project.projectId)};
+ const propose=async()=>{const card=await call(`/api/ideas/${session.sessionId}/proposal`,undefined,"Planning the design…",propose);if(card)setProposal(card);setBreadboard(undefined)};
+ const approve=async()=>{const project=await call(`/api/ideas/${session.sessionId}/approve`,{proposalId:proposal.proposalId,...(proposal.breadboard?{breadboard:breadboard??proposal.breadboard.included}:{})},"Building the approved design…",approve);if(project?.projectId)onApproved(project.projectId)};
  const scope=session?.scope;
  return <section className="idea-chat" data-testid="idea-chat" aria-label="Design conversation">
   <header className="idea-head"><div><small>DESIGN CONVERSATION</small><h2>{idea}</h2></div><button onClick={onClose}>Back</button></header>
@@ -60,6 +60,7 @@ export function IdeaChat({apiBase,idea,onApproved,onClose}:Props){
       <small>Approving also approves these rules; AURA writes the firmware from them.</small></section>}
      {proposal.limitations.length>0&&<details open><summary>Limitations</summary><ul>{proposal.limitations.map((item:string)=><li key={item}>{item}</li>)}</ul></details>}
      {proposal.assumptions.length>0&&<details><summary>Assumptions</summary><ul>{proposal.assumptions.map((item:string)=><li key={item}>{item}</li>)}</ul></details>}
+     {proposal.breadboard&&<label className="breadboard-toggle"><input type="checkbox" data-testid="breadboard-toggle" checked={breadboard??proposal.breadboard.included} onChange={event=>setBreadboard(event.target.checked)}/> Breadboard <small>{proposal.breadboard.reason}</small></label>}
      <div className="proposal-actions"><button data-testid="approve-design" onClick={approve} disabled={Boolean(busy)}>Approve</button><button data-testid="change-design" onClick={()=>setProposal(undefined)} disabled={Boolean(busy)}>Change</button></div>
     </section>}
    </aside>

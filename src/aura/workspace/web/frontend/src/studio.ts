@@ -70,7 +70,7 @@ const PASS=new Set(["passed","source_verified","tool_verified","cross_checked"])
 export function markStudioParts<T extends {parts:any[]}>(assembly:T,graph:{entities:Entity[]}|undefined):T{
  const ids=new Set((graph?.entities||[]).map(entity=>params(entity).component_definition_id));
  const studio=ids.has("dc-fan-5v")&&ids.has("ds18b20-module")&&ids.has("esp32-devkit-v1");
- return {...assembly,parts:assembly.parts.map(part=>({...part,studio}))};
+ return {...assembly,parts:assembly.parts.map(part=>({...part,studio:studio||part.family==="breadboard"}))};
 }
 
 export function checksForComponent(componentId:string,findings:any[]|undefined):CheckRow[]{

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -161,6 +162,15 @@ def run_turn(provider: Any, session: dict[str, Any], user_text: str) -> dict[str
                             capability=compact_capability_context(), requirements=json.dumps(session["requirements"]), idea=session["originalIdea"])
     result = provider.generate_structured(history, system_prompt=prompt, max_tokens=1200, response_schema=TURN_SCHEMA)
     return apply_turn(session, user_text, json.loads(getattr(result, "text", result)))
+
+
+_BUILT_IN = re.compile(r"\b(pcb|enclosure|case|housing)\b", re.IGNORECASE)
+
+
+def wants_breadboard(requirements: dict[str, Any], families: list[str]) -> bool:
+    """A prototype of plug-in modules goes on a breadboard unless the requirements ask for a PCB or enclosure."""
+    text = " ".join(str(slot.get("value") or "") for slot in requirements.values() if isinstance(slot, dict))
+    return bool(families) and not _BUILT_IN.search(text)
 
 
 _RULES_SYSTEM = """You write the control rules for a small device. Use only these IO points (id: direction, kind, range, part):

@@ -97,3 +97,16 @@ test("an offline deterministic proposal is labelled, and an existing project is 
  await page.getByRole("button",{name:"Open existing project"}).click();
  await opened;
 });
+
+test("the breadboard can be left out before approval",async({page})=>{
+ await mockIdeas(page);
+ await page.route("**/api/ideas/idea-1/proposal",r=>r.fulfill({json:{...card,breadboard:{included:true,reason:"Prototype of plug-in modules: they sit on an 830-point breadboard (nominal standard size). You can leave it out."}}}));
+ await page.goto("/");await page.getByLabel("Describe an engineering system").fill("a fan that turns on when my room is hot");await page.getByRole("button",{name:"Design with AURA"}).click();
+ await page.getByTestId("default-chip").click();await page.getByTestId("propose-design").click();
+ const toggle=page.getByTestId("breadboard-toggle");
+ await expect(toggle).toBeChecked();await expect(page.getByTestId("proposal-card")).toContainText("nominal standard size");
+ await toggle.uncheck();
+ const approved=page.waitForRequest("**/api/ideas/idea-1/approve");
+ await page.getByTestId("approve-design").click();
+ expect((await approved).postDataJSON()).toEqual({proposalId:"proposal-1",breadboard:false});
+});
