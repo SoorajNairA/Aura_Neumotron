@@ -20,8 +20,11 @@ class FirmwareArtifact:
     fqbn: str
     libraries: tuple[str, ...]
     pins: dict[str, int]
-    t_on_c: float
-    t_off_c: float
+    t_on_c: float | None = None
+    t_off_c: float | None = None
+    kind: str = "fan"
+    ios: tuple = ()
+    rules: tuple = ()
 
 
 class FirmwareUnsupported(ValueError):
