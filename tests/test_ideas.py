@@ -1,0 +1,110 @@
+from aura.workspace.ideas import (SLOTS, apply_turn, compose_objective, cost_summary, new_session,
+                                  rank_alternatives, ready_to_propose)
+
+
+def turn(**overrides):
+    base = {"slots": [], "questions": [], "families": [], "scope": {"status": "IN_SCOPE", "reasons": [], "alternative": None}, "reply": "ok"}
+    return base | overrides
+
+
+def slot(name, value, source="user", status="agreed", tradeoff=""):
+    return {"slot": name, "value": value, "source": source, "status": status, "tradeoff": tradeoff}
+
+
+def test_new_session_has_all_slots_open():
+    session = new_session("a fan for my room")
+    assert session["sessionId"].startswith("idea-")
+    assert session["originalIdea"] == "a fan for my room"
+    assert set(session["requirements"]) == set(SLOTS)
+    assert all(item["status"] == "open" for item in session["requirements"].values())
+
+
+def test_unknown_slot_dropped():
+    session = apply_turn(new_session("idea"), "hi", turn(slots=[slot("colour", "red"), slot("power", "USB 5 V")]))
+    assert "colour" not in session["requirements"]
+    assert session["requirements"]["power"]["value"] == "USB 5 V"
+
+
+def test_apply_turn_records_messages_and_does_not_mutate_input():
+    original = new_session("idea")
+    updated = apply_turn(original, "it should cool me", turn(reply="What power source?"))
+    assert original["messages"] == []
+    assert [m["role"] for m in updated["messages"]] == ["user", "assistant"]
+    assert updated["messages"][1]["text"] == "What power source?"
+
+
+def test_unsupported_family_recorded_not_agreed():
+    session = apply_turn(new_session("idea"), "hi", turn(families=["fan", "jet_engine"]))
+    assert session["families"] == ["fan"]
+    assert session["unsupportedNeeds"] == ["jet_engine"]
+
+
+def test_questions_capped_at_three_and_known_slots_only():
+    questions = [{"slot": name, "question": f"{name}?", "suggestedDefault": "x", "tradeoff": "y"} for name in ("budget", "power", "connectivity", "environment", "colour")]
+    session = apply_turn(new_session("idea"), "hi", turn(questions=questions))
+    assert len(session["openQuestions"]) == 3
+    assert all(item["slot"] in SLOTS for item in session["openQuestions"])
+
+
+def test_scope_unsupported_overrides_model():
+    session = apply_turn(new_session("idea"), "hi", turn(slots=[slot("function", "design a full passenger aircraft")]))
+    assert session["scope"]["status"] == "OUT_OF_SCOPE"
+    assert session["scope"]["reasons"]
+
+
+def test_model_can_downgrade_but_not_upgrade_scope():
+    out = apply_turn(new_session("idea"), "hi", turn(slots=[slot("function", "cool a desk with a fan")],
+                     scope={"status": "OUT_OF_SCOPE", "reasons": ["needs mains"], "alternative": "USB fan"}))
+    assert out["scope"]["status"] == "OUT_OF_SCOPE"
+    assert out["scope"]["alternative"] == "USB fan"
+    vague = apply_turn(new_session("idea"), "hi", turn(slots=[slot("function", "make life nicer")]))
+    assert vague["scope"]["status"] == "UNKNOWN"
+
+
+def test_supported_families_put_vague_wording_in_scope():
+    session = apply_turn(new_session("idea"), "hi", turn(slots=[slot("function", "keep my room comfy")], families=["temperature_sensor", "fan"]))
+    assert session["scope"]["status"] == "IN_SCOPE"
+
+
+def test_ready_requires_function_agreed_and_power_set():
+    session = apply_turn(new_session("idea"), "hi", turn(slots=[slot("function", "switch a fan on when hot", status="proposed")], families=["fan"]))
+    assert not ready_to_propose(session)
+    session = apply_turn(session, "yes", turn(slots=[slot("function", "switch a fan on when hot")]))
+    assert not ready_to_propose(session)
+    session = apply_turn(session, "default", turn(slots=[slot("power", "USB 5 V", source="default", status="proposed")]))
+    assert ready_to_propose(session)
+
+
+def test_not_ready_when_out_of_scope():
+    session = apply_turn(new_session("idea"), "hi", turn(slots=[slot("function", "a passenger aircraft"), slot("power", "jet fuel")]))
+    assert not ready_to_propose(session)
+
+
+def test_compose_objective_contains_function_power_and_parts():
+    session = apply_turn(new_session("idea"), "hi", turn(slots=[slot("function", "switch a fan on when the room is hot"), slot("power", "USB 5 V")], families=["temperature_sensor", "fan"]))
+    text = compose_objective(session)
+    assert "switch a fan on when the room is hot" in text and "USB 5 V" in text and "temperature sensor" in text
+
+
+def test_alternatives_same_family_ranked_by_price_then_unpriced_last():
+    ranked = rank_alternatives("ds18b20-module", "cost")
+    assert ranked[0]["componentDefinitionId"] == "ds18b20-module"
+    assert {item["family"] for item in ranked} == {"temperature_sensor"}
+    priced = [item for item in ranked if item["priceUsd"] is not None]
+    assert ranked[:len(priced)] == priced
+    assert all("best" not in str(item).lower() for item in ranked)
+    assert sum(item["selected"] for item in ranked) == 1
+
+
+def test_alternatives_by_power_sort_on_documented_current():
+    ranked = rank_alternatives("ds18b20-module", "power")
+    currents = [item["currentMa"] for item in ranked if item["currentMa"] is not None]
+    assert currents == sorted(currents)
+
+
+def test_cost_summary_lists_excluded():
+    summary = cost_summary(["esp32-devkit-v1", "dc-fan-5v", "resistor-4k7", "resistor-4k7"])
+    assert summary["estimate"] is True
+    assert summary["excluded"] == ["dc-fan-5v"]
+    assert round(summary["totalUsd"], 2) == round(15.02 + 0.10 + 0.10, 2)
+    assert all(item["source"].startswith("https://") for item in summary["items"])
