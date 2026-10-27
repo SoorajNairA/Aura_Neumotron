@@ -157,3 +157,20 @@ def test_unreadable_profile_file_is_reported(api):
     (api.data_dir / "model_profiles.json").write_text("{broken", encoding="utf-8")
     response = api.get("/api/model-profiles")
     assert response.status_code == 500 and response.json()["detail"]["code"] == "PROFILES_UNREADABLE"
+
+
+def test_rejected_key_on_any_profile_is_not_a_silent_fallback(monkeypatch):
+    from fastapi.testclient import TestClient
+    from aura.infrastructure.llm.nebius import NebiusAuthenticationError
+    from aura.workspace.server import create_app
+
+    class Rejecting:
+        def generate_structured(self, *args, **kwargs):
+            raise NebiusAuthenticationError("Local API key was rejected (401); check the profile key and model access")
+        def get_diagnostics(self): return {"backend": "openai_compatible"}
+
+    monkeypatch.setenv("AURA_DETERMINISTIC_FALLBACK", "1")
+    with TestClient(create_app(provider=Rejecting(), storage_mode="memory")) as client:
+        response = client.post("/api/projects", json={"objective": "Build a temperature-controlled desk fan", "planningMode": "live_model"})
+        assert response.status_code == 503, response.text
+        assert "rejected" in response.text

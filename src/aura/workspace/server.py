@@ -250,7 +250,7 @@ class WorkspaceApplication:
             if provider is not None:
                 self.provider=provider
                 outcome = LivePlanner(provider, self.planner_timeout).plan(request)
-                if outcome.mode=="deterministic_fallback" and outcome.fallback_reason and any(term in outcome.fallback_reason for term in ("Application Default Credentials","ADC/IAM access","NEBIUS_API_KEY")):
+                if outcome.mode=="deterministic_fallback" and outcome.fallback_reason and any(term in outcome.fallback_reason for term in ("Application Default Credentials","ADC/IAM access","NEBIUS_API_KEY","API key was rejected")):
                     raise RuntimeError(outcome.fallback_reason)
                 if outcome.mode == "deterministic_fallback" and not fallback_enabled:
                     raise RuntimeError(outcome.fallback_reason or "live planning failed")
