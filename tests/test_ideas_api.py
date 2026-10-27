@@ -123,3 +123,45 @@ def test_direct_create_contract_unchanged(tmp_path):
     with client_for(TurnProvider(), tmp_path) as client:
         response = client.post("/api/projects", json={"objective": "Build a temperature-controlled desk fan", "planningMode": "deterministic_test"})
         assert response.status_code == 201, response.text
+
+
+def test_card_counts_every_unpriced_part_and_states_planning_mode(tmp_path):
+    with client_for(TurnProvider(READY), tmp_path) as client:
+        session_id = start(client).json()["sessionId"]
+        card = client.post(f"/api/ideas/{session_id}/proposal").json()
+        unpriced = [part for part in card["components"] if part["price"] is None]
+        assert len(card["cost"]["excluded"]) == len(unpriced)
+        assert card["planningMode"] == "deterministic_test" and "fallbackReason" in card
+
+
+def test_stale_proposal_cannot_be_approved_after_requirements_change(tmp_path):
+    with client_for(TurnProvider(READY, turn([("power", "AA batteries")])), tmp_path) as client:
+        session_id = start(client).json()["sessionId"]
+        card = client.post(f"/api/ideas/{session_id}/proposal").json()
+        client.post(f"/api/ideas/{session_id}/messages", json={"text": "actually batteries"})
+        response = client.post(f"/api/ideas/{session_id}/approve", json={"proposalId": card["proposalId"]})
+        assert response.status_code == 409 and response.json()["detail"]["code"] == "PROPOSAL_EXPIRED"
+
+
+def test_approve_never_silently_reuses_an_existing_project(tmp_path):
+    with client_for(TurnProvider(READY, READY), tmp_path) as client:
+        first = start(client).json()["sessionId"]
+        card = client.post(f"/api/ideas/{first}/proposal").json()
+        project_id = client.post(f"/api/ideas/{first}/approve", json={"proposalId": card["proposalId"]}).json()["projectId"]
+        second = start(client).json()["sessionId"]
+        card = client.post(f"/api/ideas/{second}/proposal").json()
+        response = client.post(f"/api/ideas/{second}/approve", json={"proposalId": card["proposalId"]})
+        assert response.status_code == 409
+        assert response.json()["detail"] == {"code": "PROJECT_EXISTS", "projectId": project_id,
+                                             "message": "A project with these requirements already exists. Open it, or change a requirement."}
+
+
+def test_rejected_plan_is_repaired_at_proposal_time_or_refused(tmp_path, monkeypatch):
+    from aura.verification.service import VerificationService
+    original = VerificationService.verify
+    monkeypatch.setattr(VerificationService, "verify", lambda self, plan: original(self, plan).__class__(**{**original(self, plan).__dict__, "decision": __import__("aura.verification.results", fromlist=["VerificationDecision"]).VerificationDecision.REJECT}))
+    with client_for(TurnProvider(READY), tmp_path) as client:
+        session_id = start(client).json()["sessionId"]
+        response = client.post(f"/api/ideas/{session_id}/proposal")
+        assert response.status_code == 422 and response.json()["detail"]["code"] == "PLAN_REJECTED"
+        assert client.get(f"/api/ideas/{session_id}").json()["proposal"] is None

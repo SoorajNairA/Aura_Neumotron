@@ -177,3 +177,9 @@ def test_fan_objective_omits_its_own_motor():
     assert "fan" in text and "motor" not in text
     pump = apply_turn(new_session("idea"), "hi", turn(families=["small_dc_motor", "servo"]))
     assert "small dc motor" in compose_objective(pump)
+
+
+def test_new_turn_clears_the_previous_proposal():
+    session = new_session("idea"); session["proposal"] = {"proposalId": "proposal-old"}
+    assert apply_turn(session, "actually battery", turn())["proposal"] is None
+

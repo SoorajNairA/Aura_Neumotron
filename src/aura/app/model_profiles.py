@@ -139,8 +139,11 @@ class ProfileStore:
     def _env_key(self, profile_id: str) -> str:
         if profile_id != DEFAULT_PROFILE_ID:
             return ""
+        from urllib.parse import urlsplit
         from aura.app.config import Settings
-        return Settings().nebius_api_key
+        settings = Settings(); profile = self._profile(profile_id)
+        same_host = urlsplit(profile.get("baseUrl", "")).hostname == urlsplit(settings.nebius_base_url).hostname
+        return settings.nebius_api_key if profile.get("kind") == "nebius" and same_host else ""
 
     def _key_for(self, profile_id: str) -> str:
         return self._get_key(profile_id) or self._env_key(profile_id)

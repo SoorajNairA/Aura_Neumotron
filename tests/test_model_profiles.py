@@ -325,3 +325,14 @@ def test_workspace_fails_honestly_when_profile_store_is_unreadable(tmp_path, mon
     application._model_profiles = ProfileStore(tmp_path / "model_profiles.json", MemoryKeyring())
     with pytest.raises(RuntimeError):
         application._default_provider()
+
+
+def test_env_key_never_sent_to_an_edited_host(store, env_settings):
+    store.upsert({"profileId": "nemotron-nebius", "label": "Nemotron on Nebius", "kind": "nebius",
+                  "baseUrl": "https://api.openai.com/v1", "model": "nvidia/nemotron-test"})
+    with pytest.raises(ProfileError) as error:
+        store.build_provider("nemotron-nebius")
+    assert error.value.code == "PROFILE_KEY_MISSING"
+    store.upsert({"profileId": "nemotron-nebius", "label": "Nemotron on Nebius", "kind": "nebius",
+                  "baseUrl": "https://api.tokenfactory.example/v1/", "model": "nvidia/nemotron-other"})
+    assert store.build_provider("nemotron-nebius").model == "nvidia/nemotron-other"

@@ -53,6 +53,8 @@ def apply_turn(session: dict[str, Any], user_text: str, turn: dict[str, Any]) ->
     updated["scope"] = _scope(updated, turn.get("scope") or {})
     updated["messages"] += [{"role": "user", "text": user_text, "timestamp": now},
                             {"role": "assistant", "text": str(turn.get("reply") or ""), "timestamp": now}]
+    # Requirements may have changed, so a proposal shown before this turn can no longer be approved.
+    updated["proposal"] = None
     updated["updatedAt"] = now
     return updated
 
@@ -182,5 +184,7 @@ def proposal_card(proposal_id: str, objective: str, session: dict[str, Any], pla
     limitations = list(dict.fromkeys(f.message for f in findings if getattr(f.state, "value", f.state) not in verified))
     assumptions = [f"{name}: {slot['value']} ({slot['source']})" for name, slot in session["requirements"].items()
                    if slot["value"] and slot["source"] != "user"]
-    return {"proposalId": proposal_id, "objective": objective, "components": components, "cost": cost_summary(ids),
+    cost = cost_summary(ids)
+    cost["excluded"] += [part["semanticId"] for part in components if part["price"] is None and part["componentDefinitionId"] not in cost["excluded"]]
+    return {"proposalId": proposal_id, "objective": objective, "components": components, "cost": cost,
             "rankedBy": priority, "limitations": limitations, "assumptions": assumptions + list(plan.request.assumptions)}

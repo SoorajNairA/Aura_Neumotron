@@ -76,3 +76,20 @@ test("BUILD on a vague idea opens the conversation instead of a dead end",async(
  await expect(page.getByTestId("idea-chat")).toBeVisible();
  await expect(page.getByTestId("create-error")).toHaveCount(0);
 });
+
+test("an offline deterministic proposal is labelled, and an existing project is offered instead of reused silently",async({page})=>{
+ await mockIdeas(page);
+ await page.route("**/api/ideas/idea-1/proposal",r=>r.fulfill({json:{...card,planningMode:"deterministic_fallback",fallbackReason:"live model unavailable: timeout"}}));
+ await page.route("**/api/ideas/idea-1/approve",r=>r.fulfill({status:409,json:{detail:{code:"PROJECT_EXISTS",projectId:"project-old",message:"A project with these requirements already exists. Open it, or change a requirement."}}}));
+ await page.goto("/");
+ await page.getByLabel("Describe an engineering system").fill("a fan that turns on when my room is hot");
+ await page.getByRole("button",{name:"Design with AURA"}).click();
+ await page.getByTestId("default-chip").click();
+ await page.getByTestId("propose-design").click();
+ await expect(page.getByTestId("planning-mode")).toContainText("Offline deterministic plan");
+ await expect(page.getByTestId("planning-mode")).toContainText("timeout");
+ await page.getByTestId("approve-design").click();
+ const opened=page.waitForRequest("**/api/projects/project-old");
+ await page.getByRole("button",{name:"Open existing project"}).click();
+ await opened;
+});

@@ -1196,8 +1196,14 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         except ValueError as exc:
             raise HTTPException(422,detail=exc.args[0] if exc.args and isinstance(exc.args[0],dict) else {"status":"UNSUPPORTED","reasons":[str(exc)]}) from exc
         except RuntimeError as exc: raise HTTPException(503,detail={"code":"MODEL_UNAVAILABLE","message":str(exc)}) from exc
+        verifier=VerificationService();verified=verifier.verify(outcome.plan)
+        if not verified.accepted:
+            repair=(lambda:LivePlanner(application.provider,application.planner_timeout).repair(outcome.plan,verified)) if outcome.mode=="live_model" and application.provider is not None else (lambda:PlannerService().repair(outcome.plan,verified))
+            outcome=replace(outcome,plan=(await run_in_threadpool(repair)).plan);verified=verifier.verify(outcome.plan)
+            if not verified.accepted:
+                raise HTTPException(422,detail={"code":"PLAN_REJECTED","message":"AURA could not produce a design that passes its checks for these requirements.","reasons":list(verified.reasons)})
         proposal_id=f"proposal-{uuid4().hex}"
-        card=proposal_card(proposal_id,objective,session,outcome.plan,VerificationService().verify(outcome.plan).findings)
+        card=proposal_card(proposal_id,objective,session,outcome.plan,verified.findings)|{"planningMode":outcome.mode,"fallbackReason":outcome.fallback_reason}
         _remember_bounded(application.idea_proposals,proposal_id,(session_id,objective,outcome))
         session["proposal"]=card;session["updatedAt"]=datetime.now(timezone.utc).isoformat()
         application.repository.save_idea_session(session)
@@ -1211,6 +1217,8 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         _,objective,outcome=cached;creation_info:dict[str,Any]={}
         create_body=CreateProjectBody(objective=objective,planningMode=session.get("planningMode","live_model"),operationId=body.proposalId)
         record=await application.create(create_body,creation_info=creation_info,outcome=outcome)
+        if creation_info.get("reusedProject"):
+            raise HTTPException(409,detail={"code":"PROJECT_EXISTS","projectId":record.project_id,"message":"A project with these requirements already exists. Open it, or change a requirement."})
         session["projectId"]=record.project_id;session["updatedAt"]=datetime.now(timezone.utc).isoformat()
         application.repository.save_idea_session(session)
         return _project_payload(record,assessment=application.assessment(record,reused_project=creation_info.get("reusedProject")))
