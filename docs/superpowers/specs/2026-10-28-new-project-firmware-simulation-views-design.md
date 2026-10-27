@@ -32,14 +32,14 @@ when appropriate, and every unverified detail flagged.
 
 | Definition | Role | Pin kind | Code |
 |---|---|---|---|
-| `ds18b20-module` | input °C | digital (OneWire) | OneWire@2.3.8 + DallasTemperature@3.9.0, fault = `DEVICE_DISCONNECTED_C` |
+| `ds18b20-module` | input °C | digital (OneWire) | OneWire@2.3.8 + DallasTemperature@4.0.5, fault = `DEVICE_DISCONNECTED_C` |
 | `capacitive-soil-v1` | input % | analog (ADC1) | `analogRead`, 0–100 % by linear map with two calibration constants marked "uncalibrated" |
 | `photoresistor-module` | input % | analog (ADC1) | `analogRead`, 0–100 %, "uncalibrated" |
 | `pir-hc-sr501` | input bool | digital in | `digitalRead` |
 | `push-button` | input bool | digital in | `INPUT_PULLUP`, pressed = LOW, 30 ms debounce |
 | `relay-module-5v`, `logic-mosfet-module` | output bool | digital out | `digitalWrite` |
 | `led-generic` | output bool | digital out | `digitalWrite` |
-| `sg90-servo` | output angle 0–180 | PWM | ESP32Servo@3.0.6 |
+| `sg90-servo` | output angle 0–180 | PWM | ESP32Servo@3.2.1 |
 
 Any other part wired to the controller is listed as "No driver yet" in Code view and simulation.
 Analog inputs must be allocated ADC1 pins (GPIO 32, 33, 34, 35, 36, 39); input-only pins (34–39) are
