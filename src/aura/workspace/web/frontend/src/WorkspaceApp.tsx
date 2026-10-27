@@ -4,6 +4,11 @@ import * as THREE from "three";
 import {OrbitControls} from "three/examples/jsm/controls/OrbitControls.js";
 import {RoundedBoxGeometry} from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import {RoomEnvironment} from "three/examples/jsm/environments/RoomEnvironment.js";
+import {EffectComposer} from "three/examples/jsm/postprocessing/EffectComposer.js";
+import {RenderPass} from "three/examples/jsm/postprocessing/RenderPass.js";
+import {GTAOPass} from "three/examples/jsm/postprocessing/GTAOPass.js";
+import {OutputPass} from "three/examples/jsm/postprocessing/OutputPass.js";
+import {Quality,qualityFor,SlowFrames} from "./renderQuality";
 import {SelectionKind,SelectionSource,SelectionStore} from "./selection";
 import {WorkspaceSession} from "./workspaceSession";
 import {loadWorkspaceData} from "./workspaceHydration";
@@ -94,13 +99,19 @@ const SchematicViewport=memo(function SchematicViewport({circuit,mapping,nets=[]
 });
 
 class HolographicScene{
- scene=new THREE.Scene();activeProjectRoot=new THREE.Group();activeProjectId:string|null=null;camera:THREE.PerspectiveCamera;renderer:THREE.WebGLRenderer;controls:OrbitControls;nodes=new Map<string,THREE.Group>();parts=new Map<string,Part>();connections=new THREE.Group();wires=new THREE.Group();pinWires=new THREE.Group();graph?:{entities:any[]};tip!:HTMLDivElement;ray=new THREE.Raycaster();pointer=new THREE.Vector2();renderCount=0;selected:string|null=null;selectedNet:string|null=null;hovered:string|null=null;focus=new Set<string>();targetExplode=0;explode=0;tween?:{from:THREE.Vector3;to:THREE.Vector3;targetFrom:THREE.Vector3;targetTo:THREE.Vector3;start:number};resizeObserver:ResizeObserver;pointerMove:(e:PointerEvent)=>void;pointerClick:(e:PointerEvent)=>void;contextLost:(e:Event)=>void;contextRestored:()=>void;
+ scene=new THREE.Scene();activeProjectRoot=new THREE.Group();activeProjectId:string|null=null;camera:THREE.PerspectiveCamera;renderer:THREE.WebGLRenderer;controls:OrbitControls;nodes=new Map<string,THREE.Group>();parts=new Map<string,Part>();connections=new THREE.Group();wires=new THREE.Group();pinWires=new THREE.Group();graph?:{entities:any[]};composer?:EffectComposer;frames=new SlowFrames(10);quality:Quality="basic";tip!:HTMLDivElement;ray=new THREE.Raycaster();pointer=new THREE.Vector2();renderCount=0;selected:string|null=null;selectedNet:string|null=null;hovered:string|null=null;focus=new Set<string>();targetExplode=0;explode=0;tween?:{from:THREE.Vector3;to:THREE.Vector3;targetFrom:THREE.Vector3;targetTo:THREE.Vector3;start:number};resizeObserver:ResizeObserver;pointerMove:(e:PointerEvent)=>void;pointerClick:(e:PointerEvent)=>void;contextLost:(e:Event)=>void;contextRestored:()=>void;
  constructor(private host:HTMLElement,private intent:(id:string,source:SelectionSource,kind?:SelectionKind)=>void,private hover:(id:string|null)=>void,private fault:(message:string)=>void){
   // Warm studio backdrop: vertical gradient like a photo sweep.
    const sweep=document.createElement("canvas");sweep.width=2;sweep.height=256;const paint=sweep.getContext("2d");if(paint){const gradient=paint.createLinearGradient(0,0,0,256);gradient.addColorStop(0,"#f7f4ee");gradient.addColorStop(1,"#e6e0d5");paint.fillStyle=gradient;paint.fillRect(0,0,2,256)}
    const backdrop=new THREE.CanvasTexture(sweep);backdrop.colorSpace=THREE.SRGBColorSpace;this.scene.background=backdrop;this.scene.up.set(0,0,1);
   this.camera=new THREE.PerspectiveCamera(40,host.clientWidth/Math.max(host.clientHeight,1),.1,3000);this.camera.up.set(0,0,1);this.camera.position.set(370,-470,280);
   this.renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.setSize(host.clientWidth,host.clientHeight);this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1;this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;host.appendChild(this.renderer.domElement);
+   // Studio look: ambient occlusion darkens creases and contact points; dropped on weak GPUs, without WebGL2, or with reduced motion.
+   this.quality=qualityFor({webgl2:this.renderer.capabilities.isWebGL2,reducedMotion:matchMedia("(prefers-reduced-motion: reduce)").matches,slow:false});
+   if(this.quality==="high")try{const composer=new EffectComposer(this.renderer),ao=new GTAOPass(this.scene,this.camera,host.clientWidth,host.clientHeight);
+    ao.updateGtaoMaterial({radius:6,distanceExponent:1.4,thickness:3,scale:1});composer.addPass(new RenderPass(this.scene,this.camera));composer.addPass(ao);composer.addPass(new OutputPass());
+    composer.setSize(host.clientWidth,host.clientHeight);this.composer=composer}catch{this.quality="basic"}
+   (window as any).__auraRenderQuality=this.quality;
    const pmrem=new THREE.PMREMGenerator(this.renderer);this.scene.environment=pmrem.fromScene(new RoomEnvironment(),.04).texture;pmrem.dispose();
   this.controls=new OrbitControls(this.camera,this.renderer.domElement);this.controls.enableDamping=false;this.controls.target.set(0,10,70);
   this.activeProjectRoot.name="activeProjectRoot";this.activeProjectRoot.add(this.wires,this.connections,this.pinWires);this.scene.add(new THREE.HemisphereLight(0xffffff,0xd9d2c5,.6),this.activeProjectRoot);const key=new THREE.DirectionalLight(0xffffff,1.6);key.position.set(-240,-280,520);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.radius=6;key.shadow.bias=-.0005;Object.assign(key.shadow.camera,{left:-450,right:450,top:450,bottom:-450,near:10,far:1600});this.scene.add(key);
@@ -115,9 +126,12 @@ class HolographicScene{
    if(id!==this.hovered){this.hovered=id;this.hover(id);this.style()}};
   this.pointerClick=e=>{const hit=pick(e),wire=wireAt();if(wire&&(!hit||hit.kind!=="component")){this.setFocus([wire.from.part,wire.to.part]);return}if(hit)this.intent(hit.id,"3d",hit.kind)};this.contextLost=e=>{e.preventDefault();this.fault("3D representation interrupted — restoring WebGL context")};this.contextRestored=()=>this.fault("3D renderer restored");
   this.renderer.domElement.addEventListener("pointermove",this.pointerMove);this.renderer.domElement.addEventListener("click",this.pointerClick);this.renderer.domElement.addEventListener("webglcontextlost",this.contextLost);this.renderer.domElement.addEventListener("webglcontextrestored",this.contextRestored);
-  const resize=()=>{this.camera.aspect=host.clientWidth/Math.max(host.clientHeight,1);this.camera.updateProjectionMatrix();this.renderer.setSize(host.clientWidth,host.clientHeight);this.render()};this.resizeObserver=new ResizeObserver(resize);this.resizeObserver.observe(host);this.controls.addEventListener("change",this.render);this.render();
+  const resize=()=>{this.camera.aspect=host.clientWidth/Math.max(host.clientHeight,1);this.camera.updateProjectionMatrix();this.renderer.setSize(host.clientWidth,host.clientHeight);this.composer?.setSize(host.clientWidth,host.clientHeight);this.render()};this.resizeObserver=new ResizeObserver(resize);this.resizeObserver.observe(host);this.controls.addEventListener("change",this.render);this.render();
  }
- render=()=>{this.renderCount++;this.renderer.render(this.scene,this.camera)};
+ render=()=>{this.renderCount++;
+  if(!this.composer){this.renderer.render(this.scene,this.camera);return}
+  const started=performance.now();this.composer.render();this.frames.add(performance.now()-started);
+  if(this.frames.slow){this.composer.dispose();this.composer=undefined;this.quality="basic";(window as any).__auraRenderQuality="basic"}};
  // Simulation animation only: the rotor spins while the simulated fan output is on.
  spinTarget:string|null=null;spinFrame=0;
  setSpinning(id:string|null,on=false){this.spinTarget=on?id:null;(window as any).__auraFanSpinning=()=>this.spinTarget!==null;
@@ -217,7 +231,7 @@ class HolographicScene{
  setXray(on:boolean){for(const[id,g]of this.nodes)if(id.includes("enclosure"))g.traverse((o:any)=>{if(o.material){o.material.opacity=on?.12:o.material.userData.baseOpacity??.94;o.material.transparent=on||o.material.opacity<1}});this.render()}
  metrics(){let triangles=0,recursiveObjects=0,meshes=0,visibleMeshes=0,geometries=0,materials=0;const geometryIds=new Set<number>(),materialIds=new Set<number>();this.scene.traverse((o:any)=>{recursiveObjects++;if(o.isMesh){meshes++;if(o.visible)visibleMeshes++}if(o.geometry){const g=o.geometry as THREE.BufferGeometry;triangles+=g.index?g.index.count/3:(g.attributes.position?.count||0)/3;if(!geometryIds.has(g.id)){geometryIds.add(g.id);geometries++}}for(const m of o.material?(Array.isArray(o.material)?o.material:[o.material]):[])if(!materialIds.has(m.id)){materialIds.add(m.id);materials++}});const box=new THREE.Box3().setFromObject(this.activeProjectRoot),bounds=box.isEmpty()?null:{min:box.min.toArray(),max:box.max.toArray()},finiteBounds=bounds===null||[...bounds.min,...bounds.max].every(Number.isFinite);return{activeProjectId:this.activeProjectId,renders:this.renderCount,triangles:Math.round(triangles),objects:this.nodes.size,recursiveObjects,meshes,visibleMeshes,geometries,materials,rendererGeometries:this.renderer.info.memory.geometries,rendererTextures:this.renderer.info.memory.textures,bounds,finiteBounds,canvas:{width:this.renderer.domElement.width,height:this.renderer.domElement.height},contextLost:this.renderer.getContext().isContextLost()}}
  disposeNode(n:THREE.Object3D){n.traverse((o:any)=>{o.geometry?.dispose?.();for(const material of o.material?(Array.isArray(o.material)?o.material:[o.material]):[]){material.map?.dispose?.();material.dispose?.()}})}
- dispose(){cancelAnimationFrame(this.spinFrame);this.resizeObserver.disconnect();this.controls.removeEventListener("change",this.render);const canvas=this.renderer.domElement;canvas.removeEventListener("pointermove",this.pointerMove);canvas.removeEventListener("click",this.pointerClick);canvas.removeEventListener("webglcontextlost",this.contextLost);canvas.removeEventListener("webglcontextrestored",this.contextRestored);this.controls.dispose();this.disposeNode(this.scene);this.renderer.dispose();this.renderer.forceContextLoss();canvas.remove()}
+ dispose(){cancelAnimationFrame(this.spinFrame);this.composer?.dispose();this.resizeObserver.disconnect();this.controls.removeEventListener("change",this.render);const canvas=this.renderer.domElement;canvas.removeEventListener("pointermove",this.pointerMove);canvas.removeEventListener("click",this.pointerClick);canvas.removeEventListener("webglcontextlost",this.contextLost);canvas.removeEventListener("webglcontextrestored",this.contextRestored);this.controls.dispose();this.disposeNode(this.scene);this.renderer.dispose();this.renderer.forceContextLoss();canvas.remove()}
 }
 
 export function WorkspaceApp(){

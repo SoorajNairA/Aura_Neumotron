@@ -256,3 +256,12 @@ test("cables run pin to pin, stay on their pins when exploded, and share numbers
  await page.getByRole("button",{name:/component-temperature-sensor/}).click();
  await expect(page.getByTestId("connection-rows").getByTestId(`wire-number-${dat.number}`)).toBeVisible();
 });
+
+test("the 3D view picks a render quality and still draws the assembly",async({page})=>{
+ await mock(page);await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:pinGraph}));
+ await page.goto("/?projectId=project-fan");
+ await expect.poll(()=>page.evaluate(()=>(window as any).__auraRenderQuality)).toMatch(/^(high|basic)$/);
+ await expect.poll(()=>page.evaluate(()=>(window as any).__auraWires?.().length??0)).toBeGreaterThan(0);
+ const shot=await page.locator(".three canvas").screenshot();
+ expect(new Set(shot.subarray(100,shot.length).filter((_,i)=>i%97===0)).size).toBeGreaterThan(20);
+});
