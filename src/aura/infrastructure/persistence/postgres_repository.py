@@ -98,6 +98,16 @@ class PostgresProjectRepository:
         with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:
             cursor.execute("DELETE FROM firmware_edits WHERE project_id=%s",(project_id,))
 
+    def save_control_rules(self, project_id: str, payload: dict[str, Any]) -> None:
+        with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:
+            cursor.execute("INSERT INTO control_rules VALUES(%s,%s,CURRENT_TIMESTAMP) ON CONFLICT(project_id) DO UPDATE SET payload=EXCLUDED.payload,updated_at=EXCLUDED.updated_at",
+                (project_id,Jsonb(payload)))
+
+    def get_control_rules(self, project_id: str) -> dict[str, Any] | None:
+        with self._pool.connection() as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT payload FROM control_rules WHERE project_id=%s",(project_id,)); row=cursor.fetchone()
+        return dict(row[0]) if row else None
+
     def is_ready(self) -> bool:
         try:
             with self._pool.connection() as connection:

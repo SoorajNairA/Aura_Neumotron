@@ -216,10 +216,16 @@ def test_firmware_api_lifecycle(monkeypatch):
         assert after["revisionId"] != compiled["revisionId"] and after["lastCompileCurrent"] is False
 
 
-def test_firmware_api_unsupported_for_arm():
+def test_firmware_api_arm_gets_generic_servo_firmware():
+    with TestClient(create_app(storage_mode="memory")) as client:
+        firmware = client.get(f"/api/projects/{_create(client, 'Make a robotic arm')}/firmware").json()
+        assert firmware["supported"] and firmware["kind"] == "generic" and "servo_1" in firmware["pins"]
+
+
+def test_firmware_api_unsupported_without_esp32():
     app = create_app(storage_mode="memory")
     with TestClient(app) as client:
-        project_id = _create(client, "Make a robotic arm")
+        project_id = _create(client, "Build an Arduino Nano controlled tabletop DC fan with adjustable speed.")
         assert client.get(f"/api/projects/{project_id}/firmware").json()["supported"] is False
         response = client.post(f"/api/projects/{project_id}/firmware/compile")
         assert response.status_code == 422 and response.json()["detail"]["code"] == "FIRMWARE_UNSUPPORTED"

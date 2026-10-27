@@ -90,6 +90,8 @@ class ProjectRepository(Protocol):
     def save_firmware_edit(self, project_id: str, block: str, revision_id: str) -> None: ...
     def get_firmware_edit(self, project_id: str) -> dict[str, Any] | None: ...
     def delete_firmware_edit(self, project_id: str) -> None: ...
+    def save_control_rules(self, project_id: str, payload: dict[str, Any]) -> None: ...
+    def get_control_rules(self, project_id: str) -> dict[str, Any] | None: ...
 
 
 class SQLiteProjectRepository:
@@ -118,6 +120,7 @@ class SQLiteProjectRepository:
                 self._connection.execute("CREATE TABLE IF NOT EXISTS work_items(project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE, work_item_id TEXT NOT NULL, item_json TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(project_id, work_item_id))")
                 self._connection.execute("CREATE TABLE IF NOT EXISTS firmware_edits(project_id TEXT PRIMARY KEY, block TEXT NOT NULL, revision_id TEXT NOT NULL, updated_at TEXT NOT NULL)")
                 self._connection.execute("CREATE TABLE IF NOT EXISTS idea_sessions(session_id TEXT PRIMARY KEY, session_json TEXT NOT NULL, updated_at TEXT NOT NULL)")
+                self._connection.execute("CREATE TABLE IF NOT EXISTS control_rules(project_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL)")
                 self._connection.commit()
                 return
             with self._connection:
@@ -144,6 +147,7 @@ class SQLiteProjectRepository:
                     PRIMARY KEY(project_id, work_item_id));
                 CREATE TABLE IF NOT EXISTS firmware_edits(project_id TEXT PRIMARY KEY, block TEXT NOT NULL, revision_id TEXT NOT NULL, updated_at TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS idea_sessions(session_id TEXT PRIMARY KEY, session_json TEXT NOT NULL, updated_at TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS control_rules(project_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL);
                 """)
 
     def save_work_item(self, item: dict[str, Any]) -> None:
@@ -180,6 +184,15 @@ class SQLiteProjectRepository:
 
     def delete_firmware_edit(self, project_id: str) -> None:
         with self._lock, self._connection: self._connection.execute("DELETE FROM firmware_edits WHERE project_id=?",(project_id,))
+
+    def save_control_rules(self, project_id: str, payload: dict[str, Any]) -> None:
+        with self._lock, self._connection:
+            self._connection.execute("INSERT INTO control_rules VALUES(?,?,?) ON CONFLICT(project_id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at",
+                (project_id,json.dumps(payload,separators=(",",":")),datetime.now(timezone.utc).isoformat()))
+
+    def get_control_rules(self, project_id: str) -> dict[str, Any] | None:
+        with self._lock: row=self._connection.execute("SELECT payload FROM control_rules WHERE project_id=?",(project_id,)).fetchone()
+        return json.loads(row[0]) if row else None
 
     def get_project(self, project_id: str) -> StoredProject | None:
         with self._lock:

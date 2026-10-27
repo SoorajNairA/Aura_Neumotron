@@ -40,3 +40,8 @@ CREATE TABLE IF NOT EXISTS firmware_edits (
     project_id TEXT PRIMARY KEY REFERENCES projects(project_id) ON DELETE CASCADE,
     block TEXT NOT NULL, revision_id TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS control_rules (
+    project_id TEXT PRIMARY KEY REFERENCES projects(project_id) ON DELETE CASCADE,
+    payload JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL
+);

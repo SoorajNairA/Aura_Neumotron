@@ -163,6 +163,23 @@ def run_turn(provider: Any, session: dict[str, Any], user_text: str) -> dict[str
     return apply_turn(session, user_text, json.loads(getattr(result, "text", result)))
 
 
+_RULES_SYSTEM = """You write the control rules for a small device. Use only these IO points (id: direction, kind, range, part):
+{ios}
+Rules: "when" is above/below for numeric inputs (threshold and optional release on the off side) or on/off for on/off inputs.
+onValue/offValue are true/false for on/off outputs, or a number inside the output range. minOnSeconds keeps an output on at least that long.
+Rules run in order; a later rule on the same output wins. Use only the listed ids. Explain the behaviour in one or two plain sentences.
+Requirements (JSON): {requirements}"""
+
+
+def run_rules(provider: Any, ios: list[Any], requirements: dict[str, Any]) -> dict[str, Any]:
+    """Ask the model for a rule list only; AURA validates it and generates all code."""
+    from aura.firmware.io import RULES_SCHEMA
+    lines = "\n".join(f"- {io.id}: {io.role}, {io.value}, {io.low:g}–{io.high:g} {io.unit}".rstrip() + f", {io.name}" for io in ios if io.supported)
+    prompt = _RULES_SYSTEM.format(ios=lines, requirements=json.dumps(requirements))
+    result = provider.generate_structured([{"role": "user", "content": "Write the control rules."}], system_prompt=prompt, max_tokens=1200, response_schema=RULES_SCHEMA)
+    return json.loads(getattr(result, "text", result))
+
+
 def proposal_card(proposal_id: str, objective: str, session: dict[str, Any], plan: Any, findings: Any) -> dict[str, Any]:
     """What the user approves: planned parts with documented specs, alternatives, cost and stated limits."""
     from aura.verification.catalogue import evidence_records
