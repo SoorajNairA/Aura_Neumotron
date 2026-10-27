@@ -118,3 +118,32 @@ test("connection rejection is shown on the card",async({page})=>{
  await page.getByRole("button",{name:"Propose connection"}).click();
  await expect(page.getByTestId("connect-error")).toContainText("already occupied");
 });
+
+test("DS18B20 test bench shows a labelled behavioral reading; unsupported parts say so",async({page})=>{
+ await mock(page);
+ await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:{...graph,entities:graph.entities.map((e:any)=>e.id==="component-temperature-sensor"?{...e,metadata:{family:"temperature_sensor",parameters:{component_definition_id:"ds18b20-module"}}}:e)}}));
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:/component-temperature-sensor/}).click();
+ const bench=page.getByTestId("test-bench");
+ await expect(bench).toContainText("Behavioral model — not hardware");
+ await bench.getByLabel("Bench temperature").fill("30.03");
+ await expect(bench.getByTestId("bench-reading")).toHaveText("30.0000 °C");
+ await bench.getByLabel("Disconnect sensor").check();
+ await expect(bench.getByTestId("bench-reading")).toContainText("-127");
+ await page.getByRole("button",{name:/component-controller/}).click();
+ await expect(page.getByTestId("test-bench")).toHaveCount(1);
+ await expect(page.getByTestId("test-bench")).toContainText("No test bench yet");
+});
+
+test("fan test bench toggles the gate and never invents a current",async({page})=>{
+ await mock(page);
+ await page.route("**/api/catalogue/dc-fan-5v",r=>r.fulfill({json:{componentDefinitionId:"dc-fan-5v",family:"fan",properties:{}}}));
+ await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:{...graph,entities:graph.entities.map((e:any)=>e.id==="component-fan"?{...e,metadata:{family:"fan",parameters:{component_definition_id:"dc-fan-5v"}}}:e)}}));
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:/component-fan/}).click();
+ const bench=page.getByTestId("test-bench");
+ await expect(bench).toContainText("Stopped");
+ await bench.getByLabel("Gate on").check();
+ await expect(bench).toContainText("Running");
+ await expect(bench).toContainText("current not in catalogue");
+});

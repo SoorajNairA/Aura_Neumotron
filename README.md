@@ -109,6 +109,9 @@ the firmware follows them.
   connectivity, size, environment, experience) that proposes parts, compatible
   alternatives, a dated-price cost estimate and limitations for approval before
   a project is created. `scripts/idea_live_check.py` drives one live run.
+- **Component library** (☰ in Design): search the catalogue, add several parts
+  as one verified proposal (safe GPIOs, undoable), edit part settings, mount
+  parts, and try DS18B20/fan behavioral test benches (not hardware).
 - Versioned projects, revisions, undo, replayable events, and persistence.
 - Typed assemblies, subsystems, components, interfaces, and relationships.
 - AI-generated creation and edit proposals validated against strict schemas.

@@ -1,13 +1,14 @@
 import {useEffect,useState} from "react";
+import {TestBench} from "./TestBench";
 import {CheckRow,GROUP_ROLE,PICKABLE_GPIOS,PinRef,checksForComponent,componentGroup,connectionRows,partDescription,partNumber} from "./studio";
 
-type Props={componentId:string;label:string;family?:string;graph:{entities:any[]}|undefined;findings:any[];thumbnail?:string;onShowConnections:()=>void;onChangePin?:(pin:PinRef,gpio:number)=>Promise<string|undefined>;onChangeParameter?:(componentId:string,key:string,value:string|number|boolean)=>Promise<string|undefined>;connectTools?:ConnectTools};
+type Props={componentId:string;label:string;family?:string;graph:{entities:any[]}|undefined;findings:any[];thumbnail?:string;onShowConnections:()=>void;onChangePin?:(pin:PinRef,gpio:number)=>Promise<string|undefined>;onChangeParameter?:(componentId:string,key:string,value:string|number|boolean)=>Promise<string|undefined>;connectTools?:ConnectTools;benchApi?:string};
 
 type Iface={name:string;kind:string;compatible:string[]};
 export type ConnectTools={interfaces:(componentId:string)=>Promise<Iface[]>;connect:(source:{id:string;iface:string},target:{id:string;iface:string})=>Promise<string|undefined>};
 const HIDDEN_PARAMETERS=new Set(["component_definition_id","component_definition_version","gpio_map"]);
 
-export function ComponentCard({componentId,label,family,graph,findings,thumbnail,onShowConnections,onChangePin,onChangeParameter,connectTools}:Props){
+export function ComponentCard({componentId,label,family,graph,findings,thumbnail,onShowConnections,onChangePin,onChangeParameter,connectTools,benchApi}:Props){
  const [paramError,setParamError]=useState<string>();
  const [pinError,setPinError]=useState<string>(),[pinBusy,setPinBusy]=useState(false);
  const changePin=async(pin:PinRef,gpio:number)=>{if(!onChangePin||gpio===pin.gpio)return;setPinBusy(true);setPinError(undefined);try{setPinError(await onChangePin(pin,gpio))}finally{setPinBusy(false)}};
@@ -36,7 +37,8 @@ export function ComponentCard({componentId,label,family,graph,findings,thumbnail
   <h3 className="card-heading">Design checks</h3>
   {checks.length?<ul className="component-checks" data-testid="component-checks">{checks.slice(0,6).map(check=><li key={check.id} className={`check-${check.tone}`}><span className="check-mark" aria-hidden="true">{check.tone==="pass"?"✓":check.tone==="fail"?"✕":"!"}</span><div><b>{check.title}</b><small>{check.detail}</small></div></li>)}</ul>
    :<p className="empty-copy" data-testid="component-checks">No checks reference this component.</p>}
-  {connectTools&&graph&&<ConnectForm key={componentId} componentId={componentId} graph={graph} tools={connectTools}/>}
+  {benchApi!==undefined&&<TestBench key={`bench-${componentId}`} api={benchApi} family={kind} definitionId={entity?.metadata?.parameters?.component_definition_id}/>}
+  {connectTools&&graph&&<ConnectForm key={`connect-${componentId}`} componentId={componentId} graph={graph} tools={connectTools}/>}
   <button className="show-connections" onClick={onShowConnections}>Show connections</button>
  </div>;
 }
