@@ -50,3 +50,8 @@ def test_unsupported_and_underspecified_api_results():
  with TestClient(app) as client:
   for objective,status in (("Design a full passenger aircraft.","UNSUPPORTED"),("Build me something cool.","NEEDS_CLARIFICATION")):
    response=client.post("/api/projects",json={"objective":objective,"planningMode":"deterministic_test"});assert response.status_code==422 and response.json()["detail"]["status"]==status
+
+
+def test_plant_watering_objectives_are_supported():
+ for objective in ("Build a plant watering system","Make an automatic garden watering device","Water my plants when the soil is dry"):
+  assert classify_objective(objective)["status"]==CapabilityStatus.SUPPORTED.value,objective

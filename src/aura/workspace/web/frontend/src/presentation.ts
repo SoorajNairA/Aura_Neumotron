@@ -149,6 +149,13 @@ export function assessmentPresentation(raw:any,currentRevision?:number,currentRe
 
 export function providerErrorPresentation(payload:any,status=500){
   const detail=payload?.detail??payload;
+  // Capability gate rejections carry reasons and a follow-up question, not a provider error.
+  if(detail?.status==="NEEDS_CLARIFICATION"||detail?.status==="UNSUPPORTED"){
+    const clarify=detail.status==="NEEDS_CLARIFICATION";
+    const parts=[...textList(detail.reasons),...textList(detail.questions),...textList([detail.supportedAlternative])].filter(Boolean);
+    return {code:detail.status,title:clarify?"AURA needs more detail":"Outside AURA's current scope",
+      message:parts.join(" ")||"Describe what the device should sense, move, or control.",details:""};
+  }
   const text=sanitizeDisplayText(typeof detail==="string"?detail:detail?.userMessage??detail?.message??"");
   const supplied=sanitizeDisplayText(detail?.code);
   const code=/\bIAM403\b/i.test(text+supplied)?"IAM403":/^[A-Z][A-Z0-9_-]{0,79}$/.test(supplied)?supplied:`HTTP_${status}`;

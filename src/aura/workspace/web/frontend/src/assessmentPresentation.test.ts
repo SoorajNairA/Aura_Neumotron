@@ -141,3 +141,20 @@ describe("sanitized provider error presentation",()=>{
   expect(JSON.stringify(result)).not.toMatch(/unlabelled-secret|key-secret|hidden-password|sk-testsecret12345/);
  });
 });
+
+describe("capability rejection display",()=>{
+ it("shows the clarification reason and question instead of a bare HTTP code",()=>{
+  const error=(presentation as any).providerErrorPresentation({detail:{status:"NEEDS_CLARIFICATION",reasons:["The objective does not identify a supported low-voltage mechatronic function."],questions:["What should the device sense, move, or control using low-voltage components?"]}},422);
+  expect(error.code).toBe("NEEDS_CLARIFICATION");
+  expect(error.title).toBe("AURA needs more detail");
+  expect(error.message).toContain("does not identify a supported low-voltage mechatronic function");
+  expect(error.message).toContain("What should the device sense, move, or control");
+ });
+ it("shows the scope reason and alternative for unsupported objectives",()=>{
+  const error=(presentation as any).providerErrorPresentation({detail:{status:"UNSUPPORTED",reasons:["Current capability excludes aircraft engineering."],supportedAlternative:"A small low-voltage conceptual mechatronic analogue may be created instead."}},422);
+  expect(error.code).toBe("UNSUPPORTED");
+  expect(error.title).toBe("Outside AURA's current scope");
+  expect(error.message).toContain("excludes aircraft engineering");
+  expect(error.message).toContain("analogue may be created instead");
+ });
+});
