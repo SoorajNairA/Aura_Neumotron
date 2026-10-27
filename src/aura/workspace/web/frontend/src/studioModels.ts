@@ -98,7 +98,7 @@ function ds18b20(part:StudioPart){
  for(const x of[-1.27,0,1.27])b.cyl(.25,2.8,"tin",[w*.12+x,0,top+1.4]);
  header(b,-w/2+2,top,["VCC","DAT","GND"],labels);
  b.box([2,1.2,.6],"resistorBody",[w*.1,-l*.32,top+.3]);b.box([1.2,.8,.5],"ledRed",[w*.32,l*.3,top+.25]);
- labels.push({text:"DS18B20",x:w*.12,y:l*.36,size:scaleText(w,l)},{text:"4.7k",x:w*.1,y:-l*.32+1.6,size:.8});
+ labels.push({text:"DS18B20",x:w*.12,y:l*.36,size:scaleText(w,l)},{text:"R1",x:w*.1,y:-l*.32+1.6,size:.8});
  silkscreen(b.group,w,l,top,labels);
  return b.group;
 }
@@ -130,7 +130,7 @@ function powerModule(part:StudioPart){
  b.box([4,4,1],"chip",[w*.05,-l*.22,top+.5],.2);
  header(b,w/2-2,top,["+","-"],labels,-1);
  b.box([1.2,.8,.5],"ledRed",[-w*.1,-l*.35,top+.25]);
- labels.push({text:"5V OUT",x:w/2-8,y:-l*.38,size:scaleText(w,l)},{text:"USB-C",x:-w/2+4.2,y:-l*.38,size:1});
+ labels.push({text:"OUT",x:w/2-8,y:-l*.38,size:scaleText(w,l)},{text:"USB-C",x:-w/2+4.2,y:-l*.38,size:1});
  silkscreen(b.group,w,l,top,labels);
  return b.group;
 }
@@ -208,7 +208,7 @@ function relayModule(part:StudioPart){
  for(const [name,y] of [["NC",5],["COM",0],["NO",-5]] as const){b.cyl(1.6,.6,"tin",[19,y,11.9]);anchor(b.group,name,[19,y,12.2]);labels.push({text:name,x:14.6,y,size:1.3,align:"right"})}
  header(b,-22,1.6,["VCC","GND","IN"],labels);
  b.box([3,2,1.2],"chip",[-13,6,2.2]);b.box([1.2,.8,.5],"ledRed",[-13,-7,1.85]);b.box([2,1.2,.6],"resistorBody",[-15,-3,1.9]);b.box([2.5,1.4,1],"diodeBody",[-10,-2,2.1]);
- labels.push({text:"RELAY 5V",x:2,y:-10.8,size:1.6});
+ labels.push({text:"RELAY",x:2,y:-10.8,size:1.6});
  silkscreen(b.group,50,26,1.6,labels);
  return fitted(b.group,part);
 }

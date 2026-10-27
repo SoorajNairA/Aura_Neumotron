@@ -265,3 +265,19 @@ test("the 3D view picks a render quality and still draws the assembly",async({pa
  const shot=await page.locator(".three canvas").screenshot();
  expect(new Set(shot.subarray(100,shot.length).filter((_,i)=>i%97===0)).size).toBeGreaterThan(20);
 });
+
+test("guessed legacy tubes stay hidden and approximate routes are labelled",async({page})=>{
+ await mock(page);
+ const pump={id:"component-pump",kind:"component",name:"Water pump",metadata:{family:"small_dc_pump",parameters:{}}};
+ const extra={id:"conn-pump",kind:"connection",name:"pump",metadata:{source_id:"component-driver",target_id:"component-pump",source_interface:"load-output",target_interface:"power",connection_type:"switched-power"}};
+ const pumpPart={...parts[3],semanticId:"component-pump",label:"Water pump",family:"small_dc_pump",assembledTransform:{position:[400,0,20]}};
+ await page.route("**/api/projects/project-fan/assembly",r=>r.fulfill({json:{parts:[...parts,pumpPart],connectors:[],relationships:[]}}));
+ await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:{...pinGraph,entities:[...pinGraph.entities,pump,extra]}}));
+ await page.goto("/?projectId=project-fan");
+ await expect.poll(()=>page.evaluate(()=>(window as any).__auraWires?.().length??0)).toBeGreaterThan(0);
+ expect(await page.evaluate(()=>(window as any).__auraLegacyWiresVisible())).toBe(false);
+ expect(await page.evaluate(()=>(window as any).__auraApproximateLabels())).toBe(1);
+ await page.getByLabel("Assembly").selectOption({index:1});
+ expect(await page.evaluate(()=>(window as any).__auraLegacyWiresVisible())).toBe(false);
+ await page.getByLabel("Assembly").selectOption("all");
+});

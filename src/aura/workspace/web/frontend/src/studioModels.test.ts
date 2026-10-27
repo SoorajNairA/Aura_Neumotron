@@ -100,3 +100,12 @@ describe("pin anchors and silkscreen",()=>{
   expect(texts("mosfet_driver",[34,26,14])).toEqual(expect.arrayContaining(["IN","OUT+","OUT-"]));
  });
 });
+
+describe("review: no fixed ratings printed",()=>{
+ it("does not print voltages or resistor values that the graph may contradict",()=>{
+  const texts=(family:string,dims:number[])=>{const out:string[]=[];buildStudioModel(part("c",family,dims))!.traverse(o=>out.push(...(o.userData.texts||[])));return out.join(" ")};
+  expect(texts("low_voltage_power_source",[48,30,18])).not.toMatch(/\d\s*V/);
+  expect(texts("relay_module",[50,26,18])).not.toMatch(/\d\s*V/);
+  expect(texts("temperature_sensor",[22,16,6])).not.toMatch(/4\.7k/);
+ });
+});

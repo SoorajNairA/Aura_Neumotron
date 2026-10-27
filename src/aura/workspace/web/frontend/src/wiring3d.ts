@@ -52,7 +52,9 @@ export function resolveWires(graph:{entities:Entity[]}|undefined):Wire[]{
     // DevKitC header positions belong only to controller pins; a sensor's own GND is just GND.
   const detail=(entity:Entity|undefined,pin:string)=>entity?.metadata?.family==="microcontroller_board"?where(pin):"";
   const from={part:m.source_id,pin:fromPin,name:source?.name||m.source_id,detail:detail(source,fromPin),iface:m.source_interface},to={part:m.target_id,pin:toPin,name:target?.name||m.target_id,detail:detail(target,toPin),iface:m.target_interface};
-  wires.push({number,connectionId:entity.id,role,color:WIRE_COLORS[role],from,to,label:`${number} · ${from.name} · ${from.pin}${from.detail} ↔ ${to.name} · ${to.pin}${to.detail}`});
+  // The graph models the driver as a high-side switch; real low-side MOSFET modules switch the load's − side instead.
+  const caution=m.source_interface==="load-output"&&source?.metadata?.family==="mosfet_driver"?" — check module polarity: low-side modules switch the load's − side":"";
+  wires.push({number,connectionId:entity.id,role,color:WIRE_COLORS[role],from,to,label:`${number} · ${from.name} · ${from.pin}${from.detail} ↔ ${to.name} · ${to.pin}${to.detail}${caution}`});
  }
  return wires;
 }

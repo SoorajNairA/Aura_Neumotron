@@ -44,3 +44,10 @@ describe("wire label review",()=>{
   expect(Math.max(...curve.getPoints(40).map(p=>p.z))).toBeLessThan(40);
  });
 });
+
+describe("review: switched-load polarity",()=>{
+ it("marks driver-to-load wires as needing a module polarity check",()=>{
+  const wire=resolveWires(fan()).find(w=>w.from.pin==="OUT+")!;
+  expect(wire.label).toContain("check module polarity: low-side modules switch the load's − side");
+ });
+});
