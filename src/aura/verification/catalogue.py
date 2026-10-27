@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from .evidence import EvidenceKind, EvidenceRecord
@@ -31,13 +31,14 @@ class ComponentDefinition:
     interfaces: tuple[str, ...]
     evidence_ids: tuple[str, ...]
     representation: dict[str, Any]
+    price: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {"componentDefinitionId": self.component_definition_id, "componentDefinitionVersion": CATALOGUE_VERSION, "family": self.family,
                 "manufacturer": self.manufacturer, "partNumber": self.part_number,
                 "properties": {k: v.to_dict() for k, v in self.properties.items()},
                 "interfaces": list(self.interfaces), "evidenceIds": list(self.evidence_ids),
-                "representation": self.representation}
+                "representation": self.representation, "price": self.price}
 
 
 _SOURCES = {
@@ -137,7 +138,17 @@ _SPECS = (
  ("enclosure-160x200","enclosure","Curated","Splash-resistant 160x200","assumption",(0,1),0,(160,200,80)),
 )
 
-CATALOGUE = tuple(_definition(*spec) for spec in _SPECS)
+# Single-unit list prices with their source and retrieval date; parts without an exact listing stay unpriced.
+_PRICES = {
+    "esp32-devkit-v1": (15.02, "https://futureelectronics.com/p/semiconductors--wireless-rf--rf-wireless/esp32-devkitc-32e-espressif-systems-3165275"),
+    "ds18b20-module": (3.95, "https://www.adafruit.com/product/374"),
+    "resistor-4k7": (0.10, "https://www.digikey.com/en/products/detail/stackpole-electronics-inc/CFM14JT4K70/2617764"),
+    "1n4007-diode": (0.20, "https://azcus.digikey.com/en/products/detail/mcc-micro-commercial-components/1N4007-AP/10709094"),
+    "supply-usb-5v-1a": (5.95, "https://www.adafruit.com/product/501"),
+}
+
+CATALOGUE = tuple(replace(item, price={"usd": _PRICES[item.component_definition_id][0], "source": _PRICES[item.component_definition_id][1], "retrieved": "2026-10-27"})
+                  if item.component_definition_id in _PRICES else item for item in (_definition(*spec) for spec in _SPECS))
 BY_ID = {item.component_definition_id: item for item in CATALOGUE}
 
 
