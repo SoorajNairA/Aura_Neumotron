@@ -73,6 +73,15 @@ AURA_DETERMINISTIC_FALLBACK=true
 still run with its bounded deterministic fallback; live free-form engineering
 edits require the configured AI provider.
 
+For Nemotron on Nebius set `AURA_LLM_PROVIDER=nebius` with `NEBIUS_API_KEY`
+(and optionally `NEBIUS_BASE_URL`, `NEBIUS_MODEL`). In the app, the model badge
+menu → **Model settings** adds profiles for Nebius, any OpenAI-compatible
+endpoint, or a local Ollama endpoint. A profile needs a kind, endpoint and model
+id; keys are stored in Windows Credential Manager (`keyring`, service
+`aura-model`) and are never returned by the API. **Test** reports the real
+provider error. The active profile changes only when you choose it; a failing
+profile is reported, never silently replaced.
+
 ## Firmware toolchain (optional)
 
 The fan workflow generates an ESP32 sketch and can compile it with
@@ -89,8 +98,17 @@ arduino-cli lib install OneWire DallasTemperature
 
 Set `AURA_ARDUINO_CLI` to the executable path if it is not on `PATH`.
 
+In the Code space only the `fanControl` function is editable; pins, thresholds
+and board setup stay generated from the design. Pin changes are made from the
+inspector's GPIO picker and become a normal revision (verified, undoable), and
+the firmware follows them.
+
 ## Product capabilities
 
+- **Design with AURA**: a requirements conversation (function, budget, power,
+  connectivity, size, environment, experience) that proposes parts, compatible
+  alternatives, a dated-price cost estimate and limitations for approval before
+  a project is created. `scripts/idea_live_check.py` drives one live run.
 - Versioned projects, revisions, undo, replayable events, and persistence.
 - Typed assemblies, subsystems, components, interfaces, and relationships.
 - AI-generated creation and edit proposals validated against strict schemas.
