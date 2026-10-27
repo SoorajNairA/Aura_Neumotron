@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import copy
+import json
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from aura.capabilities import CAPABILITY_MANIFEST, classify_objective
+from aura.capabilities import CAPABILITY_MANIFEST, classify_objective, compact_capability_context
 from aura.verification.catalogue import CATALOGUE
 
 SLOTS = ("function", "budget", "power", "connectivity", "dimensions", "environment", "experience")
@@ -116,3 +117,38 @@ def cost_summary(definition_ids: list[str]) -> dict[str, Any]:
             continue
         items.append({"componentDefinitionId": part, "usd": item.price["usd"], "source": item.price["source"], "retrieved": item.price["retrieved"]})
     return {"totalUsd": round(sum(item["usd"] for item in items), 2), "estimate": True, "excluded": excluded, "items": items}
+
+
+_TEXT = {"type": "string", "maxLength": 400}
+TURN_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["slots", "questions", "families", "scope", "reply"], "properties": {
+    "slots": {"type": "array", "maxItems": 7, "items": {"type": "object", "additionalProperties": False, "required": ["slot", "value", "source", "status", "tradeoff"], "properties": {
+        "slot": {"type": "string", "enum": list(SLOTS)}, "value": _TEXT, "source": {"type": "string", "enum": sorted(SOURCES)},
+        "status": {"type": "string", "enum": sorted(STATUSES)}, "tradeoff": _TEXT}}},
+    "questions": {"type": "array", "maxItems": MAX_QUESTIONS, "items": {"type": "object", "additionalProperties": False, "required": ["slot", "question", "suggestedDefault", "tradeoff"], "properties": {
+        "slot": {"type": "string", "enum": list(SLOTS)}, "question": _TEXT, "suggestedDefault": _TEXT, "tradeoff": _TEXT}}},
+    "families": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 60}},
+    "scope": {"type": "object", "additionalProperties": False, "required": ["status", "reasons", "alternative"], "properties": {
+        "status": {"type": "string", "enum": ["IN_SCOPE", "OUT_OF_SCOPE", "UNKNOWN"]}, "reasons": {"type": "array", "maxItems": 4, "items": _TEXT},
+        "alternative": {"type": ["string", "null"], "maxLength": 400}}},
+    "reply": {"type": "string", "maxLength": 1200}}}
+
+_SYSTEM = """You are AURA's requirements engineer for small low-voltage IoT and mechatronic devices.
+Converse with the user to agree requirements before any design is made. Rules:
+- Requirement slots: {slots}. Update a slot only from what the user said (source user) or a default the user accepted (source default); mark unconfirmed guesses source assumption, status proposed.
+- Ask at most 3 questions per turn, only about open slots that matter for this idea. Each question carries a reasonable suggested default and its tradeoff.
+- Name the component families the design needs, using only these names: {families}.
+- If the idea needs something outside the capability below, set scope OUT_OF_SCOPE, explain why in plain words, and offer an achievable low-voltage alternative.
+- Never invent component ratings or prices. Never claim a part is universally best.
+- reply: a short, friendly message to the user summarising what you understood and asking the questions.
+Capability: {capability}
+Current requirements (JSON): {requirements}
+Original idea: {idea}"""
+
+
+def run_turn(provider: Any, session: dict[str, Any], user_text: str) -> dict[str, Any]:
+    """One structured model turn; provider errors propagate and the session is not modified."""
+    history = [{"role": m["role"], "content": m["text"]} for m in session["messages"]] + [{"role": "user", "content": user_text}]
+    prompt = _SYSTEM.format(slots=", ".join(SLOTS), families=", ".join(CAPABILITY_MANIFEST["supportedComponentFamilies"]),
+                            capability=compact_capability_context(), requirements=json.dumps(session["requirements"]), idea=session["originalIdea"])
+    result = provider.generate_structured(history, system_prompt=prompt, max_tokens=1200, response_schema=TURN_SCHEMA)
+    return apply_turn(session, user_text, json.loads(result.text))

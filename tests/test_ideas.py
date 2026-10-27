@@ -123,3 +123,38 @@ def test_idea_session_round_trip_survives_reopen(tmp_path):
     assert reopened.get_idea_session(session["sessionId"]) == session
     assert reopened.get_idea_session("idea-missing") is None
     reopened.close()
+
+
+class FakeProvider:
+    def __init__(self, payload=None, error=None):
+        self.payload, self.error, self.calls = payload, error, []
+
+    def generate_structured(self, messages, *, system_prompt=None, max_tokens=1200, response_schema=None):
+        import json
+        from aura.infrastructure.llm.provider import ModelGenerationResult
+        self.calls.append({"messages": messages, "system_prompt": system_prompt, "response_schema": response_schema})
+        if self.error: raise self.error
+        return ModelGenerationResult(json.dumps(self.payload))
+
+
+def test_run_turn_passes_schema_and_history():
+    from aura.workspace.ideas import TURN_SCHEMA, run_turn
+    provider = FakeProvider(turn(slots=[slot("function", "switch a fan on when hot")], families=["fan"], reply="Which power source?"))
+    first = run_turn(provider, new_session("hot room fan"), "hot room fan")
+    second = run_turn(provider, first, "USB please")
+    call = provider.calls[1]
+    assert call["response_schema"] == TURN_SCHEMA
+    assert [m["role"] for m in call["messages"]] == ["user", "assistant", "user"]
+    assert call["messages"][-1]["content"] == "USB please"
+    assert "switch a fan on when hot" in call["system_prompt"] and "fan" in call["system_prompt"]
+    assert second["messages"][-1]["text"] == "Which power source?"
+
+
+def test_run_turn_provider_error_leaves_session_unchanged():
+    import copy
+    import pytest
+    from aura.workspace.ideas import run_turn
+    session = new_session("idea"); before = copy.deepcopy(session)
+    with pytest.raises(RuntimeError):
+        run_turn(FakeProvider(error=RuntimeError("401 rejected")), session, "hello")
+    assert session == before
