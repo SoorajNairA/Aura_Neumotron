@@ -103,6 +103,22 @@ and board setup stay generated from the design. Pin changes are made from the
 inspector's GPIO picker and become a normal revision (verified, undoable), and
 the firmware follows them.
 
+## Hardware: upload and live board (optional)
+
+The Build space (or **Connect device**) lists USB ports through `arduino-cli
+board list`; common ESP32 DevKit USB-serial chips are tagged "likely ESP32
+(unverified)". Upload asks for confirmation and needs a passing compile of the
+current revision. If the ESP32 says "Failed to connect", hold BOOT while it
+uploads. The serial monitor (115200 baud) shows the board's output; the
+Simulation space can then switch to **Live board**, where the 3D follows the
+reported values and AURA flags an output that disagrees with the approved rule
+for three lines in a row.
+
+"Observed on hardware" appears only after three telemetry lines carrying the
+current revision arrive from a real port. Set `AURA_FAKE_BOARD=1` to add a test
+port `FAKE0`; its runs are labelled "Fake board (test)" and never count as
+hardware evidence.
+
 ## Product capabilities
 
 - **Design with AURA**: a requirements conversation (function, budget, power,
