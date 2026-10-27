@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import os
+import signal
 import subprocess
 import threading
 from collections import deque
@@ -16,7 +18,7 @@ MAX_LINE = 2000
 def parse_line(raw: bytes | str) -> dict[str, Any]:
     text = (raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else raw).rstrip("\r\n")[:MAX_LINE]
     try: value = json.loads(text) if text.startswith("{") else None
-    except ValueError: value = None
+    except (ValueError, RecursionError): value = None  # deeply nested junk is just text
     return {"text": text, "telemetry": value if isinstance(value, dict) and "rev" in value else None}
 
 
@@ -66,6 +68,17 @@ def fake_board(artifact: FirmwareArtifact, stop: threading.Event, period: float 
         step += 1; stop.wait(period)
 
 
+def _kill_tree(process: Any) -> None:
+    """Same tree kill as the compile runner: the monitor spawns a pluggable serial-monitor child that holds the port."""
+    try:
+        if os.name == "nt": subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True, timeout=10)
+        else: os.killpg(process.pid, signal.SIGKILL)
+    except (OSError, subprocess.TimeoutExpired, AttributeError):
+        process.kill()
+    try: process.wait(timeout=5)
+    except subprocess.TimeoutExpired: pass
+
+
 class SerialSession:
     def __init__(self, port: str, revision_id: str, *, cli: str | None = None, popen: Callable[..., Any] | None = None,
                  fake_source: Callable[[threading.Event], Iterator[str]] | None = None) -> None:
@@ -84,6 +97,13 @@ class SerialSession:
             self._seq += 1; self._buffer.append({"seq": self._seq, "time": datetime.now(timezone.utc).isoformat(), **line})
 
     def _read(self) -> None:
+        try: self._pump()
+        except Exception as exc:  # a reader error ends the session visibly instead of leaving it half alive
+            self._add(f"Monitor reader stopped: {exc.__class__.__name__}")
+        finally:
+            if self._process is not None and self._process.poll() is None: _kill_tree(self._process)
+
+    def _pump(self) -> None:
         if self._fake_source is not None:
             for raw in self._fake_source(self._stop):
                 if self._stop.is_set(): break
@@ -98,15 +118,15 @@ class SerialSession:
     def start(self) -> None:
         if self._fake_source is None:
             command = [self._cli or "arduino-cli", "monitor", "-p", self.port, "-q", "--config", "115200"]
-            self._process = (self._popen or subprocess.Popen)(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
+            windows = os.name == "nt"
+            # Own process group, so stop can end arduino-cli and its serial-monitor child together.
+            self._process = (self._popen or subprocess.Popen)(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                                                              start_new_session=not windows, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0)
         self._thread = threading.Thread(target=self._read, name=f"serial-{self.port}", daemon=True); self._thread.start()
 
     def stop(self) -> None:
         self._stop.set()
-        if self._process is not None and self._process.poll() is None:
-            self._process.terminate()
-            try: self._process.wait(timeout=2)
-            except subprocess.TimeoutExpired: self._process.kill()
+        if self._process is not None and self._process.poll() is None: _kill_tree(self._process)
         if self._thread is not None: self._thread.join(timeout=3)
 
     def lines(self, after: int = 0) -> list[dict[str, Any]]:

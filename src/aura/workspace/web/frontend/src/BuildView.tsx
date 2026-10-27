@@ -18,7 +18,7 @@ export function BuildView({api,projectId,firmware,serial}:{api:string;projectId:
  return <div className="code-canvas build-canvas" data-testid="build-view">
   <section className="build-main">
    <h2>Build on a board</h2>
-   <p className="build-evidence" data-testid="hardware-evidence">{evidenceText(state.running&&state.fake?null:state.evidence??firmware.hardwareEvidence,state.running&&state.fake)}</p>
+   <p className="build-evidence" data-testid="hardware-evidence">{evidenceText(state.running&&state.fake?null:state.evidence??firmware.hardwareEvidence,state.running&&state.fake,firmware.boardRevision??firmware.revisionId)}</p>
    {state.wrongRevision&&<p className="tone-warn" role="alert" data-testid="wrong-revision">Board runs revision {state.wrongRevision.board}, not the current design ({state.wrongRevision.current}). Upload to update it.</p>}
    <h3>Serial monitor (115200 baud)</h3>
    <ol className="serial-log" data-testid="serial-log">{log.map(line=><li key={line.seq} className={line.telemetry?"telemetry":""}><time>{line.time.slice(11,19)}</time>{line.text}</li>)}</ol>
@@ -39,7 +39,7 @@ export function BuildView({api,projectId,firmware,serial}:{api:string;projectId:
     {uploadError&&<p data-testid="upload-status" className="tone-warn" role="alert">{uploadError}</p>}
     <small>Upload needs a passing compile of this revision ({firmware.lastCompileCurrent&&firmware.lastCompile?.status==="passed"?"done":"compile in the Code space"}).</small></section>
    <section><h3>Monitor</h3>
-    {state.running?<button onClick={serial.stop}>Stop monitor</button>:<button disabled={!port} onClick={()=>serial.start(port)}>Start monitor</button>}
+    {state.running?<button onClick={serial.stop}>Stop monitor</button>:<button disabled={!port||serial.pending} onClick={()=>serial.start(port)}>{serial.pending?"Starting…":"Start monitor"}</button>}
     {serial.error&&<p className="tone-warn" role="alert">{serial.error}</p>}</section>
   </aside>
  </div>;

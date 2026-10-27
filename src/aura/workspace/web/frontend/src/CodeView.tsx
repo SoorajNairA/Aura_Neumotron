@@ -45,7 +45,7 @@ export function CodeView({firmware,compile,saveEdit,resetEdit}:{firmware:Firmwar
     {editError&&<p className="tone-warn" role="alert">{editError}</p>}</section>}
    <section><h3>Build</h3><button className="primary" onClick={run} disabled={compiling}>COMPILE</button>
     <p data-testid="fw-status" className={result?.status==="passed"&&current?"tone-pass":result?"tone-warn":""}>{status}</p>
-    <p data-testid="code-evidence">{evidenceText(firmware.hardwareEvidence)}</p></section>
+    <p data-testid="code-evidence">{evidenceText(firmware.hardwareEvidence,false,firmware.boardRevision??firmware.revisionId)}</p></section>
    <section><h3>Pins</h3><dl>{Object.entries(firmware.pins||{}).flatMap(([name,pin])=>[<dt key={`${name}-t`}>{PIN_LABEL[name]||name}</dt>,<dd key={`${name}-d`}>GPIO{pin}</dd>])}</dl></section>
    <section><h3>Board</h3><p className="mono">{firmware.fqbn||"esp32:esp32:esp32"}</p></section>
    <section><h3>Libraries</h3><ul>{(firmware.libraries||[]).map(library=><li className="mono" key={library}>{library}</li>)}</ul></section>

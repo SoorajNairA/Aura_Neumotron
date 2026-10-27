@@ -62,6 +62,7 @@ def test_fake_board_upload_and_busy_port(fan):
     client.post(f"/api/projects/{project_id}/firmware/compile")
     body = upload(client, project_id).json()
     assert body["status"] == "uploaded" and body["fake"] is True and body["port"] == "FAKE0"
-    client.app.state.hardware_busy_ports["FAKE0"] = "someone"
+    client.post(f"/api/projects/{project_id}/serial/start", json={"port": "FAKE0"})
     assert upload(client, project_id).json()["detail"]["code"] == "PORT_BUSY"
     assert upload(client, project_id, "-p evil").status_code == 422
+    client.post(f"/api/projects/{project_id}/serial/stop")

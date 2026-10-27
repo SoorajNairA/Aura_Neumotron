@@ -1210,15 +1210,26 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
                 meta={"rulesSource":stored.get("source","default"),"explanation":stored.get("explanation","")}
             return generate_generic_sketch(graph,rules),meta|{"droppedRules":dropped}
         edit=application.repository.get_firmware_edit(project_id)
-        return (replace(artifact,source=splice_control(artifact.source,edit["block"])) if edit else artifact),{}
+        if not edit: return artifact,{}
+        # An edited sketch reports its own revision, so a board still running the unedited code never counts as this one.
+        board=_board_revision(graph.current_revision_id,edit)
+        source=splice_control(artifact.source,edit["block"]).replace(f'REVISION_ID = "{graph.current_revision_id}"',f'REVISION_ID = "{board}"')
+        return replace(artifact,source=source,revision_id=board),{}
 
     @app.get("/api/hardware/ports")
     async def hardware_ports()->dict[str,Any]: return await run_in_threadpool(list_ports)
 
+    def _board_revision(revision_id:str|None,edit:dict[str,Any]|None)->str|None:
+        return f"{revision_id}+edit-{hashlib.sha256(edit['block'].encode()).hexdigest()[:6]}" if edit and revision_id else revision_id
+
+    def _expected_board_revision(project_id:str,graph:EngineeringGraph)->str|None:
+        try: artifact,_=_effective_firmware(project_id,graph);return artifact.revision_id
+        except FirmwareUnsupported: return graph.current_revision_id
+
     @app.get("/api/projects/{project_id}/firmware")
     def get_firmware(project_id:str)->dict[str,Any]:
         graph=_record(application,project_id).graph;last=firmware_compiles.get(project_id)
-        common={"hardwareEvidence":application.repository.get_hardware_evidence(project_id),"revisionId":graph.current_revision_id,"lastCompile":last.to_dict() if last else None,
+        common={"hardwareEvidence":application.repository.get_hardware_evidence(project_id),"boardRevision":_expected_board_revision(project_id,graph),"revisionId":graph.current_revision_id,"lastCompile":last.to_dict() if last else None,
                 "lastCompileCurrent":bool(last and last.revision_id==graph.current_revision_id),"addedWithoutDriver":_added_without_driver(graph)}
         try: artifact,meta=_effective_firmware(project_id,graph)
         except FirmwareUnsupported as exc: return {"supported":False,"reasons":list(exc.reasons),"edit":None,**common}
@@ -1248,7 +1259,16 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     # Ports held by a running serial monitor (port -> project id); upload refuses them instead of racing.
     busy_ports:dict[str,str]={};app.state.hardware_busy_ports=busy_ports
-    uploading:set[str]=set();firmware_uploads:dict[str,Any]={}
+    uploading:set[str]=set();uploading_ports:dict[str,str]={};app.state.hardware_uploading_ports=uploading_ports
+    serial_sessions:dict[str,SerialSession]={};app.state.serial_sessions=serial_sessions
+    serial_locks:dict[str,asyncio.Lock]={}
+
+    def _monitor_owner(port:str)->str|None:
+        # A monitor whose process already exited (unplugged, bad port) no longer holds the port.
+        owner=busy_ports.get(port);session=serial_sessions.get(owner) if owner else None
+        if owner and (session is None or not session.running):
+            busy_ports.pop(port,None);owner=None
+        return owner
 
     @app.post("/api/projects/{project_id}/firmware/upload")
     async def upload_firmware(project_id:str,body:UploadBody)->dict[str,Any]:
@@ -1257,15 +1277,13 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         except FirmwareUnsupported as exc: raise HTTPException(422,detail={"code":"FIRMWARE_UNSUPPORTED","reasons":list(exc.reasons)}) from exc
         if last is None or last.status!="passed" or last.revision_id!=graph.current_revision_id:
             raise HTTPException(409,detail={"code":"COMPILE_REQUIRED","message":"Compile this revision first."})
-        if body.port in busy_ports: raise HTTPException(409,detail={"code":"PORT_BUSY","message":"Stop the serial monitor on this port first."})
         if project_id in uploading: raise HTTPException(409,detail={"code":"UPLOAD_IN_PROGRESS"})
-        uploading.add(project_id)
+        if _monitor_owner(body.port): raise HTTPException(409,detail={"code":"PORT_BUSY","message":"Stop the serial monitor on this port first."})
+        if body.port in uploading_ports: raise HTTPException(409,detail={"code":"PORT_BUSY","message":"Another upload is using this port."})
+        uploading.add(project_id);uploading_ports[body.port]=project_id
         try: result=await run_in_threadpool(upload_sketch,artifact,body.port)
-        finally: uploading.discard(project_id)
-        firmware_uploads[project_id]=result
+        finally: uploading.discard(project_id);uploading_ports.pop(body.port,None)
         return result.to_dict()
-
-    serial_sessions:dict[str,SerialSession]={};app.state.serial_sessions=serial_sessions
 
     def _stop_serial(project_id:str)->None:
         session=serial_sessions.pop(project_id,None)
@@ -1275,16 +1293,19 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.post("/api/projects/{project_id}/serial/start")
     async def serial_start(project_id:str,body:UploadBody)->dict[str,Any]:
+        # Serialized per project: concurrent starts can never both register, so no monitor outlives its session.
+        async with serial_locks.setdefault(project_id,asyncio.Lock()): return await _serial_start(project_id,body)
+
+    async def _serial_start(project_id:str,body:UploadBody)->dict[str,Any]:
         graph=_record(application,project_id).graph
-        # A second start replaces the first session, so a monitor process never outlives its session.
         await run_in_threadpool(_stop_serial,project_id)
-        if busy_ports.get(body.port) not in (None,project_id): raise HTTPException(409,detail={"code":"PORT_BUSY","message":"Another project is monitoring this port."})
-        if project_id in uploading: raise HTTPException(409,detail={"code":"UPLOAD_IN_PROGRESS"})
+        if _monitor_owner(body.port) not in (None,project_id): raise HTTPException(409,detail={"code":"PORT_BUSY","message":"Another project is monitoring this port."})
+        if project_id in uploading or body.port in uploading_ports: raise HTTPException(409,detail={"code":"PORT_BUSY","message":"An upload is using this port."})
         fake=body.port==FAKE_PORT and fake_enabled()
         if fake:
             try: artifact,_=_effective_firmware(project_id,graph)
             except FirmwareUnsupported as exc: raise HTTPException(422,detail={"code":"FIRMWARE_UNSUPPORTED","reasons":list(exc.reasons)}) from exc
-            session=SerialSession(body.port,graph.current_revision_id,fake_source=lambda stop:fake_board(artifact,stop))
+            session=SerialSession(body.port,artifact.revision_id,fake_source=lambda stop:fake_board(artifact,stop))
         else:
             cli=find_cli()
             if cli is None: raise HTTPException(422,detail={"code":"TOOLCHAIN_MISSING","missing":"arduino-cli"})
@@ -1296,14 +1317,15 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.post("/api/projects/{project_id}/serial/stop")
     async def serial_stop(project_id:str)->dict[str,Any]:
-        await run_in_threadpool(_stop_serial,project_id);return {"running":False}
+        async with serial_locks.setdefault(project_id,asyncio.Lock()): await run_in_threadpool(_stop_serial,project_id)
+        return {"running":False}
 
     @app.get("/api/projects/{project_id}/serial")
     def serial_lines(project_id:str,after:int=0)->dict[str,Any]:
         graph=_record(application,project_id).graph;session=serial_sessions.get(project_id)
         stored=application.repository.get_hardware_evidence(project_id)
         if session is None: return {"running":False,"port":None,"fake":False,"lines":[],"wrongRevision":None,"evidence":stored}
-        every=session.lines(0);current=graph.current_revision_id
+        every=session.lines(0);current=_expected_board_revision(project_id,graph)
         latest=next((line["telemetry"] for line in reversed(every) if line["telemetry"]),None)
         wrong={"board":str(latest["rev"]),"current":current} if latest and latest["rev"]!=current else None
         found=evidence(every,current,port=session.port,fake=session.fake)
