@@ -1,13 +1,13 @@
 import {expect,test} from "@playwright/test";
 import {LABEL,graph,mock,parts,project,rows,supported} from "./fanFixture";
 
-test("studio top bar shows spaces, honest disabled features and the planning model",async({page})=>{
+test("studio top bar shows spaces, the device entry point and the planning model",async({page})=>{
  await mock(page);await page.goto("/?projectId=project-fan");
- for(const name of ["Design","Code","Simulation"])await expect(page.getByRole("button",{name,exact:true})).toBeEnabled();
- const build=page.getByRole("button",{name:"Build",exact:true});
- await expect(build).toBeDisabled();await expect(build).toHaveAttribute("title","Coming next: USB upload, live telemetry");
+ for(const name of ["Design","Code","Simulation","Build"])await expect(page.getByRole("button",{name,exact:true})).toBeEnabled();
+ await page.route("**/api/hardware/ports",r=>r.fulfill({json:{ports:[],toolchainMissing:null}}));
  const connect=page.getByRole("button",{name:"Connect device"});
- await expect(connect).toBeDisabled();await expect(connect).toHaveAttribute("title","Coming next: USB serial upload and telemetry");
+ await expect(connect).toBeEnabled();await connect.click();await expect(page.getByTestId("build-view")).toBeVisible();
+ await page.getByRole("button",{name:"Design",exact:true}).click();
  await expect(page.getByTestId("model-badge")).toHaveText("Nemotron · Nebius");
  await expect(page.getByTestId("breadcrumb")).toContainText("Workspace");
 });
