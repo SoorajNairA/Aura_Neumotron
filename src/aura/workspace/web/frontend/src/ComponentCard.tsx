@@ -1,5 +1,6 @@
 import {useEffect,useState} from "react";
 import {TestBench} from "./TestBench";
+import {hasStudioModel} from "./studioModels";
 import {CheckRow,GROUP_ROLE,PICKABLE_GPIOS,PinRef,checksForComponent,componentGroup,connectionRows,partDescription,partNumber} from "./studio";
 
 type Props={componentId:string;label:string;family?:string;graph:{entities:any[]}|undefined;findings:any[];thumbnail?:string;onShowConnections:()=>void;onChangePin?:(pin:PinRef,gpio:number)=>Promise<string|undefined>;onChangeParameter?:(componentId:string,key:string,value:string|number|boolean)=>Promise<string|undefined>;connectTools?:ConnectTools;benchApi?:string;settingsToken?:string};
@@ -16,6 +17,7 @@ export function ComponentCard({componentId,label,family,graph,findings,thumbnail
  const entity=graph?.entities?.find(item=>item.id===componentId);
  const kind=family||entity?.metadata?.family;
  const rows=connectionRows(componentId,graph);
+ const modelled=kind==="microcontroller_board"?entity?.metadata?.parameters?.component_definition_id==="esp32-devkit-v1":hasStudioModel(kind);
  const dims=entity?.metadata?.dimensions,sizeText=dims?.width&&dims?.length&&dims?.height
   ?`${[dims.width,dims.length,dims.height].map((d:any)=>d.value).join(" × ")} mm${entity?.metadata?.dimensions_qualifier?` (${entity.metadata.dimensions_qualifier})`:""}`:null;
  const [wire,setWire]=useState<string>(),wireRow=rows.find(row=>row.port===wire);
@@ -31,6 +33,7 @@ export function ComponentCard({componentId,label,family,graph,findings,thumbnail
    {thumbnail?<img src={thumbnail} alt=""/>:<span className={`card-icon icon-${componentGroup(kind).toLowerCase()}`} aria-hidden="true"/>}</header>
   {partDescription(entity)&&<p className="part-description">{partDescription(entity)}</p>}
   {sizeText&&<p className="part-size" data-testid="part-size">Size {sizeText}</p>}
+  {!modelled&&<p className="proxy-label" data-testid="proxy-label">Generic proxy — no detailed 3D model for this part yet</p>}
   <h3 className="card-heading">Connection</h3>
   {!graph?<p className="empty-copy" data-testid="connection-rows">Loading connections…</p>:rows.length?<ul className="connection-rows" data-testid="connection-rows">{rows.map(row=><li key={row.port}><span className={`pin-dot tone-${row.tone}`} aria-hidden="true"/><button className="wire-row" aria-pressed={wire===row.port} onClick={()=>setWire(wire===row.port?undefined:row.port)}>{row.label}{row.polarity&&row.polarity!=="signal"?` (${row.polarity})`:""}{row.header&&<small> {row.header}</small>}</button>{row.pin&&onChangePin?<select aria-label={`Change pin for ${row.label}`} value={String(row.pin.gpio)} disabled={pinBusy} onChange={event=>changePin(row.pin!,Number(event.target.value))}>{[...new Set([row.pin.gpio,...PICKABLE_GPIOS])].map(pin=><option key={pin} value={pin}>GPIO {pin}</option>)}</select>:<b>{row.value}</b>}</li>)}</ul>
    :<p className="empty-copy" data-testid="connection-rows">No electrical connections in the graph.</p>}

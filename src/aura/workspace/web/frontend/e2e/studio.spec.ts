@@ -226,3 +226,15 @@ test("wire rows show exact header pins, both endpoints, and selection highlights
  await expect(page.locator('.rail-part[data-highlighted="true"]')).toContainText("ESP32 DevKit");
  await expect(page.getByTestId("three-host")).toHaveAttribute("data-highlighted","component-controller");
 });
+
+test("a part without a detailed model is labelled a generic proxy",async({page})=>{
+ const pump={...parts[3],semanticId:"component-pump",label:"Water pump",family:"small_dc_pump",assembledTransform:{position:[400,0,20]}};
+ await mock(page);
+ await page.route("**/api/projects/project-fan/assembly",r=>r.fulfill({json:{parts:[...parts,pump],connectors:[],relationships:[]}}));
+ await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:{...graph,entities:[...graph.entities,{id:"component-pump",kind:"component",name:"Water pump",parent_id:"subsystem-actuator",metadata:{family:"small_dc_pump"}}]}}));
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:/Water pump component-pump/}).click();
+ await expect(page.getByTestId("proxy-label")).toHaveText("Generic proxy — no detailed 3D model for this part yet");
+ await page.getByRole("button",{name:/component-temperature-sensor/}).click();
+ await expect(page.getByTestId("proxy-label")).toHaveCount(0);
+});

@@ -1,5 +1,6 @@
 export type ComponentGroup="Controller"|"Sensors"|"Actuators"|"Power"|"Other";
 import {endpointLabel,headerLabel,polarity} from "./pinout";
+import {hasStudioModel} from "./studioModels";
 export const GROUP_ORDER:ComponentGroup[]=["Controller","Sensors","Actuators","Power","Other"];
 export type PinRef={controllerId:string;port:string;gpio:number};
 export type ConnectionRow={port:string;label:string;value:string;tone:"data"|"supply"|"ground"|"control";pin?:PinRef;header?:string;polarity?:"+"|"−"|"signal";endpoints?:[string,string]};
@@ -66,11 +67,13 @@ export function connectionRows(componentId:string,graph:{entities:Entity[]}|unde
 }
 
 const PASS=new Set(["passed","source_verified","tool_verified","cross_checked"]);
-// The realistic studio models apply only to the curated ESP32 fan workflow; every other design keeps proxies.
+// Detailed models wherever a builder exists; a controller only gets the ESP32 model when the graph says it is one.
 export function markStudioParts<T extends {parts:any[]}>(assembly:T,graph:{entities:Entity[]}|undefined):T{
- const ids=new Set((graph?.entities||[]).map(entity=>params(entity).component_definition_id));
- const studio=ids.has("dc-fan-5v")&&ids.has("ds18b20-module")&&ids.has("esp32-devkit-v1");
- return {...assembly,parts:assembly.parts.map(part=>({...part,studio:studio||part.family==="breadboard"}))};
+ const definition=new Map((graph?.entities||[]).map(entity=>[entity.id,params(entity).component_definition_id]));
+ return {...assembly,parts:assembly.parts.map(part=>{
+  const esp32=part.family==="microcontroller_board"&&(definition.get(part.semanticId)==="esp32-devkit-v1"||String(part.visualKind||"").includes("esp32"));
+  const visualKind=esp32&&!String(part.visualKind||"").includes("esp32")?"esp32_devkit":part.visualKind;
+  return {...part,visualKind,studio:part.family==="microcontroller_board"?esp32:hasStudioModel(part.family,part.visualKind)}})};
 }
 
 export function checksForComponent(componentId:string,findings:any[]|undefined):CheckRow[]{

@@ -225,6 +225,9 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .component-card header img,.card-icon{flex:0 0 96px;width:96px;height:80px;border-radius:var(--radius-sm);background:var(--surface-muted);object-fit:contain;position:relative}
 .card-icon:after{position:absolute;inset:24px 30px;border:2px solid var(--text-dim);border-radius:6px;content:""}
 .part-description{margin:6px 0 2px;color:var(--text-soft);font-size:13px;line-height:1.5}
+.part-size{margin:2px 0;color:var(--text-soft);font:12px "Cascadia Mono","JetBrains Mono",ui-monospace,Consolas,monospace}
+.proxy-label{margin:4px 0;padding:4px 8px;border-left:2px solid var(--warn);background:#fdf3ea;color:#7a4a22;font-size:12px}
+.breadboard-toggle{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0;font-size:13px}.breadboard-toggle small{flex-basis:100%;color:var(--text-soft)}
 .card-heading{margin:14px 0 6px!important;padding:12px 0 0!important;border-top:1px solid var(--line)!important;border-bottom:0!important;color:var(--text)!important;font:600 14px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif!important;letter-spacing:0!important}
 .connection-rows,.component-checks{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
 .connection-rows li{display:grid;grid-template-columns:10px 1fr auto;align-items:center;gap:10px;font-size:13px;color:var(--text-soft)}

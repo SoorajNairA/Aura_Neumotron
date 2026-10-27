@@ -82,12 +82,10 @@ describe("review fixes",()=>{
   expect(connectionRows("component-flyback-diode",g).map(row=>row.port)).toContain("cathode");
   expect(connectionRows("component-power",g).map(row=>row.port)).toContain("power");
  });
- it("marks studio parts only for the curated ESP32 fan workflow",()=>{
-  const assembly={parts:[{semanticId:"component-fan",family:"fan"},{semanticId:"component-power",family:"low_voltage_power_source"}]};
-  const fanGraph={entities:[...graph.entities,comp("component-fan","fan",{component_definition_id:"dc-fan-5v"})]};
-  expect(markStudioParts(assembly as any,fanGraph).parts.every((part:any)=>part.studio)).toBe(true);
-  const solar={entities:[comp("component-controller","microcontroller_board",{component_definition_id:"esp32-devkit-v1"}),comp("component-power","low_voltage_power_source")]};
-  expect(markStudioParts(assembly as any,solar).parts.some((part:any)=>part.studio)).toBe(false);
+ it("marks every part that has a detailed model, in any project",()=>{
+  const assembly={parts:[{semanticId:"component-pump",family:"small_dc_pump"},{semanticId:"component-relay",family:"relay_module"},{semanticId:"component-power",family:"low_voltage_power_source"}]};
+  const marked=markStudioParts(assembly as any,{entities:[]}).parts.map((part:any)=>part.studio);
+  expect(marked).toEqual([false,true,true]);
  });
  it("keeps text colours at 4.5:1 or better on white",()=>{
   const css=readFileSync(resolve(__dirname,"styles.css"),"utf8");

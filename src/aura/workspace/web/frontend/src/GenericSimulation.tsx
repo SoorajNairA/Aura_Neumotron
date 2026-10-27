@@ -8,7 +8,7 @@ const FAULT_LABEL:Record<Fault["kind"],string>={disconnected:"Sensor disconnecte
 const startValue=(io:Io):Value=>io.value==="bool"?false:io.value==="celsius"?20:Math.round((io.low+io.high)/2);
 export const outputText=(value:Value|undefined)=>typeof value==="number"?`${value}°`:value?"ON":"OFF";
 
-export function GenericSimulation({ios,rules,revisionId,onMoving}:{ios:Io[];rules:Rule[];revisionId?:string|null;onMoving?:(moving:Record<string,boolean>)=>void}){
+export function GenericSimulation({ios,rules,revisionId,onMoving,onOutputs}:{ios:Io[];rules:Rule[];revisionId?:string|null;onMoving?:(moving:Record<string,boolean>)=>void;onOutputs?:(values:Record<string,number>)=>void}){
  const inputs=ios.filter(io=>io.supported&&io.role==="input"),outputs=ios.filter(io=>io.supported&&io.role==="output");
  const names=useMemo(()=>Object.fromEntries(ios.map(io=>[io.id,io.name])),[ios]);
  const [values,setValues]=useState<Record<string,Value>>(()=>Object.fromEntries(inputs.map(io=>[io.id,startValue(io)])));
@@ -24,7 +24,9 @@ export function GenericSimulation({ios,rules,revisionId,onMoving}:{ios:Io[];rule
  const shown=applyFaults(sensed,result.outputs,list,names);
  const movingKey=JSON.stringify(shown.moving);
  useEffect(()=>{onMoving?.(shown.moving)},[movingKey]);
- useEffect(()=>()=>onMoving?.({}),[]);
+ const outputKey=JSON.stringify(shown.outputs);
+ useEffect(()=>{onOutputs?.(Object.fromEntries(Object.entries(shown.outputs).map(([id,value])=>[id,Number(value)])))},[outputKey]);
+ useEffect(()=>()=>{onMoving?.({});onOutputs?.({})},[]);
  const setFault=(io:Io,kind:string)=>setFaults(current=>{const next={...current};delete next[io.id];
   if(kind)next[io.id]={kind:kind as Fault["kind"],io:io.id,value:kind==="stuck"?Number(values[io.id]):undefined};return next});
  const faultSelect=(io:Io,kinds:readonly Fault["kind"][])=><select aria-label={`Fault for ${io.id}`} data-testid={`sim-fault-${io.id}`} value={faults[io.id]?.kind||""} onChange={event=>setFault(io,event.target.value)}>

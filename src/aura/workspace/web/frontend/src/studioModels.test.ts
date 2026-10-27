@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import {describe,expect,it} from "vitest";
-import {buildStudioModel} from "./studioModels";
+import {buildStudioModel,hasStudioModel} from "./studioModels";
 
 const part=(semanticId:string,family:string,dimensions:number[],visualKind?:string,studio=true)=>({semanticId,label:semanticId,family,visualKind,studio,subsystem:"s",parentAssembly:"a",representationSource:"x",dimensions,assembledTransform:{position:[0,0,0]},explodedTransform:{position:[0,0,0]},verificationState:"conceptual"});
 const size=(object:THREE.Object3D)=>new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3());
@@ -37,7 +37,7 @@ describe("studio models",()=>{
   expect(shared).toHaveLength(0);
  });
  it("leaves other families to the existing proxies",()=>{
-  expect(buildStudioModel(part("component-servo","servo",[23,12,29]))).toBeNull();
+  expect(buildStudioModel(part("component-pump","small_dc_pump",[40,30,30]))).toBeNull();
   expect(buildStudioModel(part("component-controller","microcontroller_board",[45,18,8],"arduino_nano"))).toBeNull();
  });
 });
@@ -57,5 +57,20 @@ describe("breadboard model",()=>{
   const a=new THREE.Matrix4(),b=new THREE.Matrix4();holes.getMatrixAt(0,a);holes.getMatrixAt(1,b);
   expect(new THREE.Vector3().setFromMatrixPosition(a).distanceTo(new THREE.Vector3().setFromMatrixPosition(b))).toBeCloseTo(2.54,5);
   const box=size(group);expect(box.x).toBeCloseTo(165.1,1);expect(box.y).toBeCloseTo(54.6,1);
+ });
+});
+
+describe("module models beyond the fan workflow",()=>{
+ const modules:[string,number[]][]=[["relay_module",[50,26,18]],["indicator",[5,5,8]],["switch",[12,12,8]],["servo",[23,12,29]],["motion_sensor",[32,24,24]],
+  ["soil_moisture_sensor",[98,23,4]],["light_sensor",[32,14,7]],["breadboard",[165.1,54.6,8.5]],["environmental_sensor",[10,10,3]],["distance_sensor",[45,20,15]]];
+ for(const [family,dims] of modules)it(`builds ${family} within 5% of its catalogue size`,()=>{
+  const group=buildStudioModel(part(`component-${family}`,family,dims))!;
+  expect(group).not.toBeNull();
+  const box=size(group);[box.x,box.y,box.z].forEach((value,axis)=>expect(Math.abs(value-dims[axis])/dims[axis],`${family} axis ${axis}`).toBeLessThan(.05));
+ });
+ it("has no model for unknown families",()=>{expect(buildStudioModel(part("component-x","small_dc_pump",[40,30,30]))).toBeNull();expect(hasStudioModel("tube")).toBe(false)});
+ it("names moving parts for the simulation",()=>{
+  expect(buildStudioModel(part("component-servo","servo",[23,12,29]))!.getObjectByName("servo-horn")).toBeDefined();
+  expect(buildStudioModel(part("component-led","indicator",[5,5,8]))!.getObjectByName("led-lens")).toBeDefined();
  });
 });

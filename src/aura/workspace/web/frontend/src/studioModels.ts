@@ -30,6 +30,8 @@ const FINISH:Record<string,THREE.MeshPhysicalMaterialParameters>={
  diodeBody:{color:0x18191b,roughness:.4},
  boardWhite:{color:0xf1eee6,roughness:.7},boardShade:{color:0xd9d4c8,roughness:.8},hole:{color:0x2b2b2b,roughness:.9},
  railRed:{color:0xc8372d,roughness:.5},railBlue:{color:0x2457b8,roughness:.5},
+ relayBlue:{color:0x1f5fbf,roughness:.35,clearcoat:.5},relayText:{color:0xe8eef6,roughness:.6},servoBlue:{color:0x2c5fb3,roughness:.45,transmission:.1},
+ fresnel:{color:0xf4f2ec,roughness:.35,transmission:.25,thickness:1},connectorWhite:{color:0xf2efe6,roughness:.5},ldr:{color:0xc9763a,roughness:.4},
  bandYellow:{color:0xe3b505,roughness:.5},bandViolet:{color:0x7b3fa0,roughness:.5},bandRed:{color:0xc8372d,roughness:.5},bandSilver:{color:0xc0c4c8,metalness:.8,roughness:.3},
 };
 
@@ -157,16 +159,82 @@ function breadboard(part:StudioPart){
  return b.group;
 }
 
+// Module models are drawn at typical proportions, then fitted to the catalogue size so layout and wiring stay exact.
+function fitted(group:THREE.Group,part:StudioPart){
+ const [w,l,h]=part.dimensions.map(x=>Math.max(Number(x)||10,1)),box=new THREE.Box3().setFromObject(group),size=box.getSize(new THREE.Vector3()),centre=box.getCenter(new THREE.Vector3());
+ group.scale.set(w/size.x,l/size.y,h/size.z);group.position.set(-centre.x*w/size.x,-centre.y*l/size.y,-centre.z*h/size.z);
+ const outer=new THREE.Group();outer.add(group);return outer;
+}
+const header=(b:Builder,x:number,top:number,pins=3)=>{b.box([2.5,2.54*pins,2.5],"plastic",[x,0,top+1.25]);for(let i=0;i<pins;i++)b.box([.64,.64,4],"gold",[x,(i-(pins-1)/2)*2.54,top+2])};
+
+function relayModule(part:StudioPart){
+ const b=new Builder();b.box([50,26,1.6],"pcbBlue",[0,0,.8],.5);
+ b.box([19,15.5,15.5],"relayBlue",[2,0,1.6+7.75],.6);b.box([12,1,1],"relayText",[2,-7.8,12],.2);
+ b.box([7.5,15,10],"terminal",[19,0,1.6+5],.5);for(const y of[-5,0,5])b.cyl(1.6,.6,"tin",[19,y,11.9]);
+ header(b,-22,1.6);b.box([3,2,1.2],"chip",[-13,6,2.2]);b.box([1.2,.8,.5],"ledRed",[-13,-7,1.85]);b.box([2,1.2,.6],"resistorBody",[-15,-3,1.9]);
+ b.box([2.5,1.4,1],"diodeBody",[-10,-2,2.1]);
+ return fitted(b.group,part);
+}
+function led(part:StudioPart){
+ const b=new Builder(),r=2.3;
+ b.cyl(.25,4,"tin",[-1.27,0,2]);b.cyl(.25,4.6,"tin",[1.27,0,2.3]);
+ b.cyl(r*1.08,.9,"ledRed",[0,0,4.45]);b.cyl(r,4.4,"ledRed",[0,0,4.9+2.2]);
+ const lens=b.mesh(new THREE.SphereGeometry(r,24,12,0,Math.PI*2,0,Math.PI/2),"ledRed",[0,0,9.3]);lens.rotation.x=Math.PI/2;lens.name="led-lens";
+ return fitted(b.group,part);
+}
+function pushButton(part:StudioPart){
+ const b=new Builder();for(const x of[-4.5,4.5])for(const y of[-3.2,3.2])b.box([.8,.4,3.5],"tin",[x,y,1.75]);
+ b.box([12,12,3.5],"plastic",[0,0,3.5+1.75],.6);b.box([12.2,12.2,.4],"shield",[0,0,7.2]);
+ b.cyl(3.5,3,"button",[0,0,7.4+1.5]);return fitted(b.group,part);
+}
+function servo(part:StudioPart){
+ const b=new Builder();b.box([22.5,12,22.7],"servoBlue",[0,0,11.35],.6);
+ b.box([32,12,2.5],"servoBlue",[0,0,15.9]);for(const x of[-14,14])b.cyl(1,2.6,"plastic",[x,0,15.9]);
+ b.cyl(5.9,4,"servoBlue",[-5.4,0,22.7+2]);b.cyl(2.4,3.2,"servoBlue",[1.5,0,22.7+1.6]);b.cyl(2.3,3,"heatsink",[-5.4,0,26.7+1.5]);
+ const horn=new THREE.Group();horn.name="servo-horn";horn.position.set(-5.4,0,29.7);b.group.add(horn);
+ b.box([24,3.6,1.6],"button",[0,0,.8],.8,horn);b.cyl(3.4,1.6,"button",[0,0,.8],"z",horn);
+ b.box([4,6,1],"plastic",[11.5,-6,3]);return fitted(b.group,part);
+}
+function pirSensor(part:StudioPart){
+ const b=new Builder();b.box([32,24,1.6],"pcbGreen",[0,0,.8],.5);
+ b.box([23,23,7],"button",[0,0,1.6+3.5],.4);
+ const dome=b.mesh(new THREE.SphereGeometry(11.5,32,16,0,Math.PI*2,0,Math.PI/2),"fresnel",[0,0,8.6]);dome.rotation.x=Math.PI/2;
+ for(const y of[-4,4])b.cyl(2,2,"terminal",[13,y,-1]);header(b,-14.5,-4.5);
+ return fitted(b.group,part);
+}
+function soilProbe(part:StudioPart){
+ const b=new Builder(),L=98;
+ b.box([L*.78,23,1.6],"pcbBlack",[-L*.11,0,.8],.6);
+ const tip=b.mesh(new THREE.CylinderGeometry(11.5,.6,L*.22,3),"pcbBlack",[L*.39,0,.8]);tip.rotation.z=Math.PI/2;tip.scale.set(1,1,.14);
+ b.box([L*.5,15,.12],"tin",[0,0,1.66]);b.box([5,5,1.2],"chip",[-L*.33,4,2.2]);b.box([2,1.2,.6],"resistorBody",[-L*.36,-5,1.9]);
+ b.box([6,8,4],"connectorWhite",[-L*.46,0,2]);return fitted(b.group,part);
+}
+function lightSensor(part:StudioPart){
+ const b=new Builder();b.box([32,14,1.6],"pcbBlack",[0,0,.8],.5);
+ for(const y of[-1.5,1.5])b.cyl(.25,3,"tin",[12,y,3.1]);b.cyl(2.6,1.6,"ldr",[12,0,5.4],"x");
+ b.box([6.5,6.5,4.5],"terminal",[2,0,1.6+2.25],.4);b.cyl(1.4,1,"shield",[2,0,6.6]);
+ b.box([4.5,4,1.4],"chip",[-6,2,2.3]);b.box([1.2,.8,.5],"ledRed",[-6,-4,1.85]);header(b,-14.5,1.6,4);
+ return fitted(b.group,part);
+}
+// Any other small sensor: a labelled breakout with a chip, header and mounting holes, not a model of the real board.
+function sensorBreakout(part:StudioPart){
+ const b=new Builder();b.box([20,16,1.6],"pcbBlue",[0,0,.8],.6);
+ b.box([4,4,1],"chip",[2,0,2.1]);b.box([1.6,.8,.5],"capacitor",[6,4,1.85]);b.box([2,1.2,.6],"resistorBody",[6,-4,1.9]);
+ for(const y of[-5.5,5.5])b.ring(1.2,.35,"tin",[7.5,y,1.65]);header(b,-8.5,1.6,4);
+ return fitted(b.group,part);
+}
+
+const SENSOR_BREAKOUTS=new Set(["environmental_sensor","distance_sensor","orientation_sensor","gas_sensor","humidity_sensor","pressure_sensor"]);
+function studioBuilder(family:string,kind:string):((part:StudioPart)=>THREE.Group)|null{
+ if(family==="microcontroller_board")return !kind||kind.includes("esp32")?esp32:null;
+ const builders:Record<string,(part:StudioPart)=>THREE.Group>={temperature_sensor:ds18b20,mosfet_driver:mosfetModule,fan:deskFan,low_voltage_power_source:powerModule,
+  resistor:part=>axial(part,"resistor"),flyback_diode:part=>axial(part,"diode"),breadboard,relay_module:relayModule,indicator:led,switch:pushButton,servo,
+  motion_sensor:pirSensor,soil_moisture_sensor:soilProbe,light_sensor:lightSensor};
+ return builders[family]??(SENSOR_BREAKOUTS.has(family)?sensorBreakout:null);
+}
+export const hasStudioModel=(family?:string,kind?:string)=>studioBuilder(family||"",kind||"")!==null;
+
 export function buildStudioModel(part:StudioPart):THREE.Group|null{
  if(!part.studio)return null;
- const family=part.family||"",kind=part.visualKind||"";
- if(family==="microcontroller_board"&&(!kind||kind.includes("esp32")))return esp32(part);
- if(family==="temperature_sensor")return ds18b20(part);
- if(family==="mosfet_driver")return mosfetModule(part);
- if(family==="fan")return deskFan(part);
- if(family==="low_voltage_power_source")return powerModule(part);
- if(family==="resistor")return axial(part,"resistor");
- if(family==="flyback_diode")return axial(part,"diode");
- if(family==="breadboard")return breadboard(part);
- return null;
+ return studioBuilder(part.family||"",part.visualKind||"")?.(part)??null;
 }
