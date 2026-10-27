@@ -1,0 +1,78 @@
+import {expect,test,Page} from "@playwright/test";
+
+const slots=(over:Record<string,any>={})=>Object.fromEntries(["function","budget","power","connectivity","dimensions","environment","experience"].map(name=>[name,{value:"",source:"assumption",status:"open",tradeoff:"",...(over[name]||{})}]));
+const base={sessionId:"idea-1",originalIdea:"a fan that turns on when my room is hot",families:["fan"],unsupportedNeeds:[],proposal:null,projectId:null,planningMode:"live_model"};
+const first={...base,requirements:slots({function:{value:"switch a fan on when the room is hot",source:"user",status:"agreed"}}),
+ openQuestions:[{slot:"power",question:"How will it be powered?",suggestedDefault:"USB 5 V",tradeoff:"Needs a cable but no batteries"}],
+ scope:{status:"IN_SCOPE",reasons:[],alternative:null},
+ messages:[{role:"user",text:"a fan that turns on when my room is hot"},{role:"assistant",text:"Got it. How will it be powered?"}]};
+const ready={...first,openQuestions:[],requirements:slots({function:{value:"switch a fan on when the room is hot",source:"user",status:"agreed"},power:{value:"USB 5 V",source:"default",status:"agreed"}}),
+ messages:[...first.messages,{role:"user",text:"Use the default for power: USB 5 V"},{role:"assistant",text:"Ready to propose a design."}]};
+const card={proposalId:"proposal-1",objective:"Build a low-voltage device",rankedBy:"power",
+ components:[{semanticId:"component-controller",name:"ESP32 DevKit",role:"controller",partNumber:"ESP32-DevKitC",price:{usd:15.02,source:"https://example.com",retrieved:"2026-10-27"},specs:{},evidence:[],alternatives:[{componentDefinitionId:"esp32-devkit-v1",partNumber:"ESP32-DevKitC",priceUsd:15.02,selected:true},{componentDefinitionId:"arduino-nano-v3",partNumber:"Arduino Nano V3",priceUsd:null,selected:false}]},
+  {semanticId:"component-fan",name:"Desk fan",role:"actuator",partNumber:"5 V brushless fan",price:null,specs:{},evidence:[],alternatives:[]}],
+ cost:{totalUsd:15.02,estimate:true,excluded:["dc-fan-5v"],items:[]},limitations:["Fan current is a curated estimate."],assumptions:["power: USB 5 V (default)"]};
+
+async function mockIdeas(page:Page,{firstStatus=201,firstBody=first as any}={}){
+ const posted:string[]=[];
+ await page.route("**/api/ideas",r=>r.fulfill({status:firstStatus,json:firstBody}));
+ await page.route("**/api/ideas/idea-1/messages",r=>{posted.push(r.request().postDataJSON().text);r.fulfill({json:ready})});
+ await page.route("**/api/ideas/idea-1/proposal",r=>r.fulfill({json:card}));
+ await page.route("**/api/ideas/idea-1/approve",r=>r.fulfill({status:201,json:{projectId:"project-new"}}));
+ return posted;
+}
+
+test("idea chat gathers requirements, proposes and approves",async({page})=>{
+ const posted=await mockIdeas(page);
+ await page.goto("/");
+ await page.getByLabel("Describe an engineering system").fill("a fan that turns on when my room is hot");
+ await page.getByRole("button",{name:"Design with AURA"}).click();
+ await expect(page.getByTestId("idea-chat")).toBeVisible();
+ await expect(page.getByTestId("idea-message").last()).toHaveText(/How will it be powered\?/);
+ await expect(page.getByTestId("slot-function")).toContainText("switch a fan on when the room is hot");
+ await expect(page.getByTestId("propose-design")).toBeDisabled();
+ await page.getByTestId("default-chip").click();
+ expect(posted).toEqual(["Use the default for power: USB 5 V"]);
+ await expect(page.getByTestId("slot-power")).toContainText("Default");
+ await page.getByTestId("propose-design").click();
+ await expect(page.getByTestId("proposal-card")).toBeVisible();
+ await expect(page.getByTestId("proposal-card")).toContainText("price unavailable");
+ await expect(page.getByTestId("cost-total")).toContainText("Estimate");
+ await expect(page.getByTestId("cost-total")).toContainText("1 part unpriced");
+ await expect(page.getByTestId("proposal-card")).toContainText("Fan current is a curated estimate.");
+ const approved=page.waitForRequest("**/api/ideas/idea-1/approve");
+ await page.getByTestId("approve-design").click();
+ expect((await approved).postDataJSON()).toEqual({proposalId:"proposal-1"});
+ await expect(page).toHaveURL(/projectId=project-new/);
+});
+
+test("out of scope idea explains why and offers an alternative",async({page})=>{
+ const outScope={...first,openQuestions:[],scope:{status:"OUT_OF_SCOPE",reasons:["Current capability excludes aircraft engineering."],alternative:"A small servo-driven model wing"}};
+ const posted=await mockIdeas(page,{firstBody:outScope});
+ await page.goto("/");
+ await page.getByLabel("Describe an engineering system").fill("a passenger aircraft");
+ await page.getByRole("button",{name:"Design with AURA"}).click();
+ await expect(page.getByTestId("idea-scope")).toContainText("excludes aircraft engineering");
+ await page.getByRole("button",{name:"Use this alternative"}).click();
+ expect(posted).toEqual(["Let's do the alternative: A small servo-driven model wing"]);
+});
+
+test("provider error is shown with its code and the idea can be retried",async({page})=>{
+ await mockIdeas(page,{firstStatus:503,firstBody:{detail:{code:"MODEL_AUTHENTICATION",message:"Nebius API key was rejected (401)"}}});
+ await page.goto("/");
+ await page.getByLabel("Describe an engineering system").fill("a fan for my room");
+ await page.getByRole("button",{name:"Design with AURA"}).click();
+ await expect(page.getByTestId("idea-error")).toContainText("MODEL_AUTHENTICATION");
+ await expect(page.getByTestId("idea-error")).toContainText("rejected (401)");
+ await expect(page.getByRole("button",{name:"Retry"})).toBeVisible();
+});
+
+test("BUILD on a vague idea opens the conversation instead of a dead end",async({page})=>{
+ await mockIdeas(page);
+ await page.route("**/api/projects",r=>r.request().method()==="POST"?r.fulfill({status:422,json:{detail:{status:"NEEDS_CLARIFICATION",reasons:["vague"],questions:["What should it do?"]}}}):r.fulfill({json:[]}));
+ await page.goto("/");
+ await page.getByLabel("Describe an engineering system").fill("something for my room");
+ await page.getByRole("button",{name:"BUILD",exact:true}).click();
+ await expect(page.getByTestId("idea-chat")).toBeVisible();
+ await expect(page.getByTestId("create-error")).toHaveCount(0);
+});

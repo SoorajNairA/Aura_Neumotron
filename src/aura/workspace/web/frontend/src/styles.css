@@ -295,3 +295,21 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .concept-badge:before{width:7px;height:7px;border-radius:50%;background:var(--pass);content:""}
 .view-switch{left:auto;right:16px;transform:none}
 .view-switch{right:44px}
+/* Design conversation */
+.welcome.idea-mode{place-items:stretch;padding:28px}.idea-chat{width:min(1180px,100%);margin:0 auto;display:flex;flex-direction:column;gap:14px;min-height:0}
+.idea-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}.idea-head small{color:var(--text-dim);font:11px "Cascadia Mono","JetBrains Mono",ui-monospace,Consolas,monospace;letter-spacing:.16em}.idea-head h2{margin:4px 0 0;color:var(--text);font-size:20px;font-weight:520;overflow-wrap:anywhere}
+.idea-body{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
+.idea-thread,.requirements-card,.proposal-card{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);padding:16px}
+.idea-thread{display:flex;flex-direction:column;gap:10px;min-height:420px}
+.idea-msg{max-width:78%;margin:0;padding:10px 12px;border-radius:var(--radius);font-size:14px;line-height:1.5;overflow-wrap:anywhere}.idea-msg.user{align-self:flex-end;background:var(--accent-soft);color:var(--text)}.idea-msg.assistant{align-self:flex-start;background:var(--surface-muted);color:var(--text)}.idea-msg.pending{align-self:flex-start;color:var(--text-dim);font-style:italic}
+.idea-question{padding:10px 12px;border-left:3px solid var(--accent);background:var(--surface-raised)}.idea-question p{margin:0 0 8px;color:var(--text);font-size:14px}.idea-question small{display:block;margin-top:6px;color:var(--text-dim);font-size:12px}
+.default-chip{padding:6px 10px;border:1px solid var(--accent);border-radius:999px;background:var(--surface);color:var(--accent);font-size:12px}
+.idea-scope{padding:12px;border:1px solid var(--warn);border-radius:var(--radius);background:var(--surface-raised)}.idea-scope b{color:var(--warn-text)}.idea-scope p{margin:6px 0;color:var(--text);font-size:13px}
+.idea-input{display:flex;gap:8px;margin-top:auto}.idea-input input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text)}
+.idea-side{display:flex;flex-direction:column;gap:14px}.requirements-card h3,.proposal-card h3{margin:0 0 10px;color:var(--text);font-size:14px}
+.req-row{display:grid;grid-template-columns:96px 1fr auto;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:13px}.req-row span{color:var(--text-dim)}.req-row b{color:var(--text);font-weight:520;overflow-wrap:anywhere}.req-row em{color:var(--accent);font-size:11px;font-style:normal}.req-row.open b{color:var(--text-dim)}.req-note{color:var(--warn-text);font-size:12px}
+.propose,.proposal-actions button:first-child{width:100%;margin-top:12px;padding:10px;border:0;border-radius:var(--radius-sm);background:var(--accent);color:#fff;font-weight:650}.propose:disabled{opacity:.5}
+.proposal-card ul{margin:0;padding:0;list-style:none}.proposal-card>ul>li{display:grid;gap:2px;padding:8px 0;border-top:1px solid var(--line);font-size:13px}.proposal-card li span{color:var(--text-dim)}.proposal-card details{margin-top:6px;font-size:12px}.proposal-card details li{padding:3px 0}
+.cost-total{margin:12px 0 4px;color:var(--text);font-weight:650}.proposal-actions{display:grid;grid-template-columns:2fr 1fr;gap:8px}.proposal-actions button{margin-top:12px}
+.design-with-aura{background:var(--accent)!important;color:#fff!important;border-radius:var(--radius-sm)}
+@media(max-width:900px){.idea-body{grid-template-columns:1fr}.idea-msg{max-width:100%}}
