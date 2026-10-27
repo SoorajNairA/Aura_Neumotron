@@ -436,7 +436,10 @@ def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: l
     params = dict(controller.metadata.get("parameters", {})) if controller else {}
     old_map = dict(params.get("gpio_map") or {}); gpio_map = dict(old_map)
     free = [g for g in ESP32_OUTPUT_GPIOS if g not in ESP32_STRAPPING_GPIOS and g not in gpio_map.values()]
-    if sum(d.family in SIGNAL_FAMILIES for d in definitions) > len(free):
+    # Only ports the controller declares can carry a net terminal.
+    ports = [i.name for i in component_interfaces(_family(controller), _dimensions(controller), params)
+             if i.kind == "control_output" and i.name not in gpio_map] if controller else []
+    if sum(d.family in SIGNAL_FAMILIES for d in definitions) > min(len(free), len(ports)):
         raise ModificationError("NO_FREE_PIN", "Not enough free safe ESP32 pins for these parts.", 409)
     patch_ops, operations, ids = [], [], []
     for definition in definitions:
@@ -451,8 +454,8 @@ def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: l
         operation = {"operation": "add_component", "targetId": entity_id, "componentDefinitionId": definition.component_definition_id,
                      "path": "components", "oldValue": None, "newValue": definition.part_number, "gpio": None}
         if definition.family in SIGNAL_FAMILIES:
-            gpio = free.pop(0); port = next(f"signal-{n}" for n in range(1, 64) if f"signal-{n}" not in gpio_map); gpio_map[port] = gpio
-            sensor = definition.family.endswith("_sensor")
+            gpio, port = free.pop(0), ports.pop(0); gpio_map[port] = gpio
+            sensor = definition.family.endswith("_sensor") or definition.family == "switch"
             source, target = (entity_id, controller.id) if sensor else (controller.id, entity_id)
             kind = "signal" if sensor else "control"
             connection_id = f"connection-user-wire-{suffix}"
@@ -469,12 +472,18 @@ def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: l
         operations.append({"operation": "replace_parameter", "targetId": controller.id, "path": "parameters.gpio_map", "oldValue": old_map, "newValue": gpio_map})
         affected += (controller.id,)
     summary = f"Add {', '.join(d.part_number for d in definitions)}"
-    checks = [{"state": "PASSED", "message": "Parts come from the verified catalogue; pins avoid strapping and used GPIOs"}]
+    checks = [{"state": "PASSED", "message": "Parts come from the catalogue; pins avoid strapping and used GPIOs"},
+              {"state": "WARNING", "message": "Power and ground are not wired for added parts; they are not electrically complete."}]
     if any(d.family.endswith("_sensor") for d in definitions):
         checks.append({"state": "WARNING", "message": "Single signal pin assigned; bus parts (I2C/SPI) need wiring review."})
     patch = GraphPatch(f"patch-{uuid4().hex}", tuple(patch_ops), summary, graph.current_revision_id)
     return ModificationProposal(f"proposal-{uuid4().hex}", base, affected, summary, "add_component", tuple(operations), affected,
                                 ("existing components",), ("firmware",), {"outcome": "pending_graph_verification", "checks": checks}, patch)
+
+
+# Settings users may change. Ratings, identity and safety claims come from the catalogue and are never editable.
+# threshold_c range: DS18B20 datasheet measuring range.
+CONFIGURABLE_PARAMETERS = {"threshold_c": (-55.0, 125.0)}
 
 
 def _decision(action: str, target_id: str, summary: str, **fields: Any) -> ModificationDecision:
@@ -488,6 +497,11 @@ def propose_parameter_change(graph: EngineeringGraph, base: int, component_id: s
     if base != len(graph.revisions): raise ValueError("stale_revision")
     if component_id not in graph.entities: raise ModificationError("UNKNOWN_COMPONENT", "That part is not in the current design.", 404)
     target = graph.get(component_id)
+    if key not in CONFIGURABLE_PARAMETERS:
+        raise ModificationError("PARAMETER_NOT_CONFIGURABLE", f"{key} is a rating, identity or safety fact, not a setting.", 422)
+    low, high = CONFIGURABLE_PARAMETERS[key]
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not low <= value <= high:
+        raise ModificationError("invalid_parameter_edit", f"{key} must be a number from {low:g} to {high:g}.", 422)
     decision = _decision("SET_PARAMETER", component_id, f"Set {target.name} {key} to {value}"[:240], parameterKey=key, parameterValueJson=json.dumps(value))
     return _set_parameter(graph, base, target, decision, "parameter_change")
 

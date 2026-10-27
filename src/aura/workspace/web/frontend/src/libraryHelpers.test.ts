@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {CatalogueItem,filterParts,priceLabel} from "./libraryHelpers";
+import {CatalogueItem,factLabel,filterParts,priceLabel} from "./libraryHelpers";
 
 const item=(id:string,family:string,partNumber:string,manufacturer="Generic",price:CatalogueItem["price"]=null):CatalogueItem=>
  ({componentDefinitionId:id,family,manufacturer,partNumber,properties:{},interfaces:[],evidenceIds:[],price});
@@ -19,5 +19,13 @@ describe("filterParts",()=>{
 
 describe("priceLabel",()=>{
  it("says price unavailable without a dated price",()=>expect(priceLabel(items[0])).toBe("price unavailable"));
- it("shows the price with its retrieval date",()=>expect(priceLabel({...items[0],price:{usd:3.95,source:"s",retrieved:"2026-10-27"}})).toBe("$3.95 (retrieved 2026-10-27)"));
+ it("shows the price with its retrieval date",()=>expect(priceLabel({...items[0],price:{usd:3.95,source:"https://example.com/x",retrieved:"2026-10-27"}})).toBe("$3.95 · example.com (retrieved 2026-10-27)"));
+});
+
+describe("labels keep qualifiers, assumptions and sources",()=>{
+ it("shows the qualifier and tags curated assumptions",()=>{
+  expect(factLabel({value:300,unit:"mA",evidenceId:"evidence-curated-component-assumptions",qualifier:"maximum"})).toBe("300 mA (maximum, assumption)");
+  expect(factLabel({value:[3,5.5],unit:"V",evidenceId:"evidence-espressif-esp32",qualifier:"rated"})).toBe("3–5.5 V");
+ });
+ it("names the price source",()=>expect(priceLabel({price:{usd:3.95,source:"https://www.adafruit.com/product/374",retrieved:"2026-10-27"}})).toBe("$3.95 · adafruit.com (retrieved 2026-10-27)"));
 });

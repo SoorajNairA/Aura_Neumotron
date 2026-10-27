@@ -381,7 +381,9 @@ class VerificationService:
                 operation=replace(operation,changes=dict(operation.changes)|{"source_refs":attached,"verification_status":VerificationState.SOURCE_VERIFIED.value})
             operations.append(operation)
         candidate_patch=replace(patch,operations=tuple(operations))
-        try: candidate=self._with_authoritative_nets(apply_patch(graph,candidate_patch))
+        rewired=any(op.operation in {PatchOperation.ADD_RELATIONSHIP,PatchOperation.REMOVE_RELATIONSHIP} for op in candidate_patch.operations)
+        # Wiring changes get fresh nets, exactly as commit will materialize them, so verification sees the new wire.
+        try: candidate=(materialize_electrical_nets if rewired else self._with_authoritative_nets)(apply_patch(graph,candidate_patch))
         except ValueError as exc: return VerificationResult(VerificationDecision.REJECT,VerificationState.FAILED,(str(exc),),None)
         verified=self.verify_graph(candidate)
         delta=compare_verification(before,verified)

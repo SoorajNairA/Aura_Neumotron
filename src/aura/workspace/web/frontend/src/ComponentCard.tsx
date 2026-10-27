@@ -2,22 +2,23 @@ import {useEffect,useState} from "react";
 import {TestBench} from "./TestBench";
 import {CheckRow,GROUP_ROLE,PICKABLE_GPIOS,PinRef,checksForComponent,componentGroup,connectionRows,partDescription,partNumber} from "./studio";
 
-type Props={componentId:string;label:string;family?:string;graph:{entities:any[]}|undefined;findings:any[];thumbnail?:string;onShowConnections:()=>void;onChangePin?:(pin:PinRef,gpio:number)=>Promise<string|undefined>;onChangeParameter?:(componentId:string,key:string,value:string|number|boolean)=>Promise<string|undefined>;connectTools?:ConnectTools;benchApi?:string};
+type Props={componentId:string;label:string;family?:string;graph:{entities:any[]}|undefined;findings:any[];thumbnail?:string;onShowConnections:()=>void;onChangePin?:(pin:PinRef,gpio:number)=>Promise<string|undefined>;onChangeParameter?:(componentId:string,key:string,value:string|number|boolean)=>Promise<string|undefined>;connectTools?:ConnectTools;benchApi?:string;settingsToken?:string};
 
 type Iface={name:string;kind:string;compatible:string[]};
 export type ConnectTools={interfaces:(componentId:string)=>Promise<Iface[]>;connect:(source:{id:string;iface:string},target:{id:string;iface:string})=>Promise<string|undefined>};
-const HIDDEN_PARAMETERS=new Set(["component_definition_id","component_definition_version","gpio_map"]);
+// Mirrors the server allowlist: ratings, identity and safety claims are catalogue facts, not settings.
+const CONFIGURABLE_PARAMETERS=new Set(["threshold_c"]);
 
-export function ComponentCard({componentId,label,family,graph,findings,thumbnail,onShowConnections,onChangePin,onChangeParameter,connectTools,benchApi}:Props){
+export function ComponentCard({componentId,label,family,graph,findings,thumbnail,onShowConnections,onChangePin,onChangeParameter,connectTools,benchApi,settingsToken}:Props){
  const [paramError,setParamError]=useState<string>();
  const [pinError,setPinError]=useState<string>(),[pinBusy,setPinBusy]=useState(false);
  const changePin=async(pin:PinRef,gpio:number)=>{if(!onChangePin||gpio===pin.gpio)return;setPinBusy(true);setPinError(undefined);try{setPinError(await onChangePin(pin,gpio))}finally{setPinBusy(false)}};
  const entity=graph?.entities?.find(item=>item.id===componentId);
  const kind=family||entity?.metadata?.family;
  const rows=connectionRows(componentId,graph);
- const settings=Object.entries(entity?.metadata?.parameters||{}).filter(([key,value])=>!HIDDEN_PARAMETERS.has(key)&&["string","number","boolean"].includes(typeof value)) as [string,string|number|boolean][];
- const changeParameter=async(key:string,old:string|number|boolean,raw:string|boolean)=>{
-  const value=typeof old==="number"?Number(raw):raw;if(!onChangeParameter||value===old||(typeof value==="number"&&!Number.isFinite(value)))return;
+ const settings=Object.entries(entity?.metadata?.parameters||{}).filter(([key,value])=>CONFIGURABLE_PARAMETERS.has(key)&&typeof value==="number") as [string,number][];
+ const changeParameter=async(key:string,old:number,raw:string)=>{
+  const value=Number(raw);if(!onChangeParameter||raw.trim()===""||!Number.isFinite(value)||value===old)return;
   setParamError(undefined);setParamError(await onChangeParameter(componentId,key,value))};
  const gpio=rows.find(row=>row.value.startsWith("GPIO"));
  // The only derived check: a pin assignment recorded in the graph. Everything else comes from verification findings.
@@ -31,8 +32,8 @@ export function ComponentCard({componentId,label,family,graph,findings,thumbnail
    :<p className="empty-copy" data-testid="connection-rows">No electrical connections in the graph.</p>}
   {pinError&&<p className="pin-error" role="alert" data-testid="pin-error">{pinError}</p>}
   {settings.length>0&&onChangeParameter&&<><h3 className="card-heading">Settings</h3><ul className="part-settings" data-testid="part-settings">{settings.map(([key,value])=><li key={key}><label>{key.replace(/_/g," ")}
-   {typeof value==="boolean"?<input type="checkbox" aria-label={key} defaultChecked={value} onChange={e=>changeParameter(key,value,e.target.checked)}/>
-   :<input aria-label={key} type={typeof value==="number"?"number":"text"} defaultValue={String(value)} onBlur={e=>changeParameter(key,value,e.target.value)} onKeyDown={e=>{if(e.key==="Enter")changeParameter(key,value,(e.target as HTMLInputElement).value)}}/>}</label></li>)}</ul>
+   {/* Re-seeded from the graph whenever the value or the pending proposal changes; Enter is the only submit. */}
+   <input key={`${value}-${settingsToken}`} aria-label={key} type="number" defaultValue={String(value)} onKeyDown={e=>{if(e.key==="Enter")changeParameter(key,value,(e.target as HTMLInputElement).value)}}/></label></li>)}</ul>
    {paramError&&<p className="pin-error" role="alert" data-testid="param-error">{paramError}</p>}</>}
   <h3 className="card-heading">Design checks</h3>
   {checks.length?<ul className="component-checks" data-testid="component-checks">{checks.slice(0,6).map(check=><li key={check.id} className={`check-${check.tone}`}><span className="check-mark" aria-hidden="true">{check.tone==="pass"?"✓":check.tone==="fail"?"✕":"!"}</span><div><b>{check.title}</b><small>{check.detail}</small></div></li>)}</ul>

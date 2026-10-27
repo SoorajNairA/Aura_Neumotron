@@ -27,6 +27,6 @@ function FanBench({api,definitionId}:{api:string;definitionId?:string}){
  return <div className="bench-body">
   <label><input type="checkbox" aria-label="Gate on" checked={on} onChange={e=>setOn(e.target.checked)}/> Gate on</label>
   <p>Fan <b>{on?"Running":"Stopped"}</b></p>
-  <p>{current?`Current ${factLabel(current)} (curated estimate)`:"current not in catalogue"}</p>
+  {on&&<p>{current?`Current ${factLabel(current)} — catalogue value, not measured`:"current not in catalogue"}</p>}
  </div>;
 }

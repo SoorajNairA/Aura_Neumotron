@@ -123,3 +123,26 @@ def test_firmware_lists_added_parts_without_driver(fan):
     added = next(op for op in proposal["operations"] if op["operation"] == "add_component" and op["gpio"] is not None)
     assert client.get(f"/api/projects/{project_id}/firmware").json()["addedWithoutDriver"] == [
         {"semanticId": added["targetId"], "name": added["newValue"], "port": added["port"], "gpio": added["gpio"]}]
+
+
+def test_adds_stay_within_declared_controller_ports_and_later_edits_still_verify(fan):
+    client, project_id = fan
+    # The ESP32 declares signal-1..signal-8; the fan uses two, so six more fit.
+    too_many = add(client, project_id, ["ds18b20-module"] * 7)
+    assert too_many.status_code == 409 and too_many.json()["detail"]["code"] == "NO_FREE_PIN"
+    assert commit(client, project_id, add(client, project_id, ["ds18b20-module"] * 6).json()).status_code == 200
+    edit = client.post(f"/api/projects/{project_id}/parameter-proposals",
+                       json={"baseRevision": 2, "componentId": "component-temperature-sensor", "key": "threshold_c", "value": 30.0}).json()
+    assert client.post(f"/api/projects/{project_id}/modification-proposals/{edit['proposalId']}/commit").status_code == 200
+
+
+def test_every_add_warns_power_and_ground_are_unwired_and_switch_is_an_input(fan):
+    client, project_id = fan
+    relay = add(client, project_id, ["relay-module-5v"]).json()
+    assert any(c["state"] == "WARNING" and "Power and ground" in c["message"] for c in relay["verification"]["checks"])
+    switch_id = next(d for d in __import__("aura.verification.catalogue", fromlist=["BY_ID"]).BY_ID.values() if d.family == "switch").component_definition_id
+    proposal = add(client, project_id, [switch_id]).json()
+    assert commit(client, project_id, proposal).status_code == 200
+    part = next(op["targetId"] for op in proposal["operations"] if op["operation"] == "add_component")
+    wire = next(e for e in client.get(f"/api/projects/{project_id}/graph").json()["entities"] if e["kind"] == "connection" and part in (e["metadata"].get("source_id"), e["metadata"].get("target_id")))
+    assert wire["metadata"]["source_id"] == part and wire["metadata"]["connection_type"] == "signal"

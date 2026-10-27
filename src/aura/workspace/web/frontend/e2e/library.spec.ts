@@ -20,7 +20,7 @@ test("library opens, searches, filters and labels unpriced parts",async({page})=
  await expect(page.getByTestId("library-row")).toHaveCount(3);
  await page.getByLabel("Search parts").fill("ds18");
  await expect(page.getByTestId("library-row")).toHaveCount(1);
- await expect(page.getByTestId("library-row")).toContainText("$3.95 (retrieved 2026-10-27)");
+ await expect(page.getByTestId("library-row")).toContainText("$3.95 · example.com (retrieved 2026-10-27)");
  await page.getByLabel("Search parts").fill("");
  await page.getByRole("group",{name:"Filter by family"}).getByRole("button",{name:"fan",exact:true}).click();
  await expect(page.getByTestId("library-row")).toHaveCount(1);
@@ -143,7 +143,28 @@ test("fan test bench toggles the gate and never invents a current",async({page})
  await page.getByRole("button",{name:/component-fan/}).click();
  const bench=page.getByTestId("test-bench");
  await expect(bench).toContainText("Stopped");
+ await expect(bench).not.toContainText("current");
  await bench.getByLabel("Gate on").check();
  await expect(bench).toContainText("Running");
  await expect(bench).toContainText("current not in catalogue");
+});
+
+test("settings show only configurable keys, submit once, and reset after cancel",async({page})=>{
+ await mock(page);
+ await page.route("**/api/projects/project-fan/graph",r=>r.fulfill({json:{...graph,entities:graph.entities.map((e:any)=>e.id==="component-temperature-sensor"?{...e,metadata:{family:"temperature_sensor",parameters:{threshold_c:26,max_current_a:3,flyback_protection:false,component_definition_id:"ds18b20-module"}}}:e)}}));
+ let posts=0;
+ await page.route("**/api/projects/project-fan/parameter-proposals",r=>{posts++;r.fulfill({json:{proposalId:"proposal-param",summary:"Set threshold",mode:"parameter_change",affectedSemanticIds:[],unaffectedAreas:[],artifactsToRegenerate:[],operations:[{path:"parameters.threshold_c",oldValue:26,newValue:30}],verification:{checks:[]}}})});
+ await page.route("**/api/projects/project-fan/modification-proposals/proposal-param",r=>r.fulfill({status:204,body:""}));
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:/component-temperature-sensor/}).click();
+ const settings=page.getByTestId("part-settings");
+ await expect(settings.getByLabel("max_current_a")).toHaveCount(0);
+ await expect(settings.getByLabel("flyback_protection")).toHaveCount(0);
+ await settings.getByLabel("threshold_c").fill("30");
+ await settings.getByLabel("threshold_c").press("Enter");
+ await expect(page.getByTestId("proposal-preview")).toBeVisible();
+ await page.getByTestId("cancel-change").click();
+ await expect(page.getByTestId("proposal-preview")).toHaveCount(0);
+ await expect(settings.getByLabel("threshold_c")).toHaveValue("26");
+ expect(posts).toBe(1);
 });
