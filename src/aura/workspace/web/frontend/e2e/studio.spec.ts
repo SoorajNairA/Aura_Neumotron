@@ -39,6 +39,14 @@ test("design view switch and code space",async({page})=>{
  await expect(page.getByTestId("work-view")).toBeVisible();
 });
 
+test("settings menu starts a new design from an open project",async({page})=>{
+ await mock(page);await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:"Settings"}).click();await page.getByRole("menuitem",{name:"New design"}).click();
+ await expect(page.getByRole("heading",{name:"What do you want to build?"})).toBeVisible();
+ await expect(page.getByLabel("Describe an engineering system")).toBeVisible();
+ expect(new URL(page.url()).searchParams.get("projectId")).toBeNull();
+});
+
 test("component rail groups parts, searches and links to checks",async({page})=>{
  await mock(page);
  await page.route("**/api/projects/project-fan/verification",r=>r.fulfill({json:{state:"warning",summary:{},findings:[{findingId:"w1",check:"assembly",status:"estimated",severity:"WARN",summary:"Physical wiring unverified",semanticIds:["component-fan"]},{findingId:"w2",check:"catalogue",status:"source_verified",severity:"INFO",summary:"Datasheet",semanticIds:["component-temperature-sensor"]}]}}));
@@ -151,7 +159,7 @@ test("simulation starts below the design's own thresholds and resets per revisio
 test("settings menu closes with Escape and returns focus",async({page})=>{
  await mock(page);await page.goto("/?projectId=project-fan");
  const trigger=page.getByRole("button",{name:"Settings"});await trigger.click();
- await expect(page.getByRole("menuitem",{name:"Work items"})).toBeFocused();
+ await expect(page.getByRole("menuitem",{name:"New design"})).toBeFocused();
  await page.keyboard.press("Escape");
  await expect(page.getByRole("menu")).toHaveCount(0);await expect(trigger).toBeFocused();
  await trigger.click();await page.mouse.click(800,600);await expect(page.getByRole("menu")).toHaveCount(0);
