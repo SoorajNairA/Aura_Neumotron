@@ -48,7 +48,7 @@ from .assembly import engineering_assembly
 from .events import WorkspaceEvent
 from .representation_service import RepresentationService, initial_records, representation_specs
 from .representations import RepresentationRecord, RepresentationStatus, RepresentationType
-from .modifications import LiveModificationPlanner,ModificationError,ModificationProposal,inverse_proposal,propose,propose_add_components,propose_parameter_change,propose_pin_change
+from .modifications import LiveModificationPlanner,ModificationError,ModificationProposal,inverse_proposal,propose,propose_add_components,part_interfaces,propose_connection,propose_parameter_change,propose_pin_change
 from .narration import NarrationService
 from .work_items import EngineeringWorkService, WorkDomainError
 from .scenarios import EngineeringScenario,LiveScenarioAnalyzer,ScenarioError,analyze as analyze_scenario
@@ -128,6 +128,15 @@ class ParameterProposalBody(BaseModel):
     componentId:str
     key:str
     value:Union[bool,int,float,str]
+
+
+class ConnectionProposalBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    baseRevision:int
+    sourceId:str
+    sourceInterface:str
+    targetId:str
+    targetInterface:str
 
 
 class ComponentProposalBody(BaseModel):
@@ -1042,6 +1051,22 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     def create_parameter_proposal(project_id:str,body:ParameterProposalBody)->dict[str,Any]:
         record=_record(application,project_id)
         try: proposal=propose_parameter_change(record.graph,body.baseRevision,body.componentId,body.key,body.value)
+        except ModificationError as exc:
+            raise HTTPException(exc.status,detail={"code":exc.code,"message":exc.message,"currentRevision":len(record.graph.revisions)}) from exc
+        except ValueError as exc:
+            raise HTTPException(409,detail={"code":str(exc),"currentRevision":len(record.graph.revisions)}) from exc
+        _remember_bounded(application.modification_proposals,proposal.proposal_id,proposal)
+        return proposal.to_dict()
+
+    @app.get("/api/projects/{project_id}/components/{component_id}/interfaces")
+    def get_part_interfaces(project_id:str,component_id:str)->list[dict[str,Any]]:
+        try: return part_interfaces(_record(application,project_id).graph,component_id)
+        except ModificationError as exc: raise HTTPException(exc.status,detail={"code":exc.code,"message":exc.message}) from exc
+
+    @app.post("/api/projects/{project_id}/connection-proposals")
+    def create_connection_proposal(project_id:str,body:ConnectionProposalBody)->dict[str,Any]:
+        record=_record(application,project_id)
+        try: proposal=propose_connection(record.graph,body.baseRevision,body.sourceId,body.sourceInterface,body.targetId,body.targetInterface)
         except ModificationError as exc:
             raise HTTPException(exc.status,detail={"code":exc.code,"message":exc.message,"currentRevision":len(record.graph.revisions)}) from exc
         except ValueError as exc:

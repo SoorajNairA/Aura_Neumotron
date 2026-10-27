@@ -1,11 +1,13 @@
-import {useState} from "react";
+import {useEffect,useState} from "react";
 import {CheckRow,GROUP_ROLE,PICKABLE_GPIOS,PinRef,checksForComponent,componentGroup,connectionRows,partDescription,partNumber} from "./studio";
 
-type Props={componentId:string;label:string;family?:string;graph:{entities:any[]}|undefined;findings:any[];thumbnail?:string;onShowConnections:()=>void;onChangePin?:(pin:PinRef,gpio:number)=>Promise<string|undefined>;onChangeParameter?:(componentId:string,key:string,value:string|number|boolean)=>Promise<string|undefined>};
+type Props={componentId:string;label:string;family?:string;graph:{entities:any[]}|undefined;findings:any[];thumbnail?:string;onShowConnections:()=>void;onChangePin?:(pin:PinRef,gpio:number)=>Promise<string|undefined>;onChangeParameter?:(componentId:string,key:string,value:string|number|boolean)=>Promise<string|undefined>;connectTools?:ConnectTools};
 
+type Iface={name:string;kind:string;compatible:string[]};
+export type ConnectTools={interfaces:(componentId:string)=>Promise<Iface[]>;connect:(source:{id:string;iface:string},target:{id:string;iface:string})=>Promise<string|undefined>};
 const HIDDEN_PARAMETERS=new Set(["component_definition_id","component_definition_version","gpio_map"]);
 
-export function ComponentCard({componentId,label,family,graph,findings,thumbnail,onShowConnections,onChangePin,onChangeParameter}:Props){
+export function ComponentCard({componentId,label,family,graph,findings,thumbnail,onShowConnections,onChangePin,onChangeParameter,connectTools}:Props){
  const [paramError,setParamError]=useState<string>();
  const [pinError,setPinError]=useState<string>(),[pinBusy,setPinBusy]=useState(false);
  const changePin=async(pin:PinRef,gpio:number)=>{if(!onChangePin||gpio===pin.gpio)return;setPinBusy(true);setPinError(undefined);try{setPinError(await onChangePin(pin,gpio))}finally{setPinBusy(false)}};
@@ -34,6 +36,28 @@ export function ComponentCard({componentId,label,family,graph,findings,thumbnail
   <h3 className="card-heading">Design checks</h3>
   {checks.length?<ul className="component-checks" data-testid="component-checks">{checks.slice(0,6).map(check=><li key={check.id} className={`check-${check.tone}`}><span className="check-mark" aria-hidden="true">{check.tone==="pass"?"✓":check.tone==="fail"?"✕":"!"}</span><div><b>{check.title}</b><small>{check.detail}</small></div></li>)}</ul>
    :<p className="empty-copy" data-testid="component-checks">No checks reference this component.</p>}
+  {connectTools&&graph&&<ConnectForm key={componentId} componentId={componentId} graph={graph} tools={connectTools}/>}
   <button className="show-connections" onClick={onShowConnections}>Show connections</button>
+ </div>;
+}
+
+// Mount this part onto another part's compatible interface; the backend's attachment rules decide.
+function ConnectForm({componentId,graph,tools}:{componentId:string;graph:{entities:any[]};tools:ConnectTools}){
+ const [open,setOpen]=useState(false),[mine,setMine]=useState<Iface[]>([]),[theirs,setTheirs]=useState<Iface[]>([]);
+ const [from,setFrom]=useState(""),[other,setOther]=useState(""),[to,setTo]=useState(""),[error,setError]=useState<string>(),[busy,setBusy]=useState(false);
+ useEffect(()=>{if(open)tools.interfaces(componentId).then(setMine).catch(()=>setError("Interfaces could not load."))},[open,componentId]);
+ useEffect(()=>{setTheirs([]);setTo("");if(other)tools.interfaces(other).then(setTheirs).catch(()=>setError("Interfaces could not load."))},[other]);
+ const fromKind=mine.find(item=>item.name===from)?.kind;
+ const matches=theirs.filter(item=>fromKind&&item.compatible.includes(fromKind));
+ useEffect(()=>{setTo(matches[0]?.name||"")},[from,theirs]);
+ const parts=graph.entities.filter(item=>item.kind==="component"&&item.id!==componentId);
+ if(!open)return <button className="connect-open" onClick={()=>setOpen(true)}>Connect…</button>;
+ return <div className="connect-form" data-testid="connect-form">
+  <label>From<select aria-label="Connect from interface" value={from} onChange={e=>setFrom(e.target.value)}><option value="">Choose…</option>{mine.map(item=><option key={item.name} value={item.name}>{item.name}</option>)}</select></label>
+  <label>To part<select aria-label="Connect to component" value={other} onChange={e=>setOther(e.target.value)}><option value="">Choose…</option>{parts.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+  <label>To interface<select aria-label="Connect to interface" value={to} onChange={e=>setTo(e.target.value)} disabled={!matches.length}>{matches.map(item=><option key={item.name} value={item.name}>{item.name}</option>)}</select></label>
+  {from&&other&&theirs.length>0&&!matches.length&&<p className="empty-copy">No compatible interface on that part.</p>}
+  <button className="primary" disabled={!from||!other||!to||busy} onClick={async()=>{setBusy(true);setError(undefined);try{setError(await tools.connect({id:other,iface:to},{id:componentId,iface:from}))}finally{setBusy(false)}}}>Propose connection</button>
+  {error&&<p className="pin-error" role="alert" data-testid="connect-error">{error}</p>}
  </div>;
 }

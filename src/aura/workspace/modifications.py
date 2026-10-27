@@ -490,3 +490,21 @@ def propose_parameter_change(graph: EngineeringGraph, base: int, component_id: s
     target = graph.get(component_id)
     decision = _decision("SET_PARAMETER", component_id, f"Set {target.name} {key} to {value}"[:240], parameterKey=key, parameterValueJson=json.dumps(value))
     return _set_parameter(graph, base, target, decision, "parameter_change")
+
+
+def part_interfaces(graph: EngineeringGraph, component_id: str) -> list[dict[str, Any]]:
+    if component_id not in graph.entities: raise ModificationError("UNKNOWN_COMPONENT", "That part is not in the current design.", 404)
+    entity = graph.get(component_id)
+    return [{"name": item.name, "kind": item.kind, "compatible": list(item.compatible)}
+            for item in component_interfaces(_family(entity), _dimensions(entity), entity.metadata.get("parameters", {}))]
+
+
+def propose_connection(graph: EngineeringGraph, base: int, source_id: str, source_interface: str, target_id: str, target_interface: str) -> ModificationProposal:
+    """Mount target onto source using the same interface-compatibility rules as attachment edits."""
+    if base != len(graph.revisions): raise ValueError("stale_revision")
+    for item in (source_id, target_id):
+        if item not in graph.entities: raise ModificationError("UNKNOWN_COMPONENT", "That part is not in the current design.", 404)
+    target = graph.get(target_id)
+    decision = _decision("ATTACH_TO_INTERFACE", target_id, f"Mount {target.name} on {graph.get(source_id).name}"[:240],
+                         referenceSemanticId=source_id, referenceInterface=source_interface, targetInterface=target_interface)
+    return _attach(graph, base, target, decision, "connection")

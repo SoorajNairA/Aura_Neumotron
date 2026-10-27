@@ -89,3 +89,32 @@ test("part settings propose a parameter change through the proposal card",async(
  expect((await posted).postDataJSON()).toEqual({baseRevision:1,componentId:"component-temperature-sensor",key:"threshold_c",value:30});
  await expect(page.getByTestId("proposal-preview")).toContainText("26 → 30");
 });
+
+async function connectSetup(page:Page,status=200,json:any={proposalId:"proposal-mount",summary:"Mount DS18B20 on ESP32 DevKit",mode:"connection",affectedSemanticIds:["component-temperature-sensor"],unaffectedAreas:[],artifactsToRegenerate:[],
+  operations:[{operation:"add_mechanical_attachment",path:"mechanical attachment",oldValue:null,newValue:{sourceInterface:"mount-face-3"}}],verification:{checks:[]}}){
+ await mock(page);
+ await page.route("**/api/projects/project-fan/components/component-temperature-sensor/interfaces",r=>r.fulfill({json:[{name:"signal",kind:"signal_output",compatible:["electrical_connector"]},{name:"body-mount",kind:"fixed_mount",compatible:["structural_face"]}]}));
+ await page.route("**/api/projects/project-fan/components/component-controller/interfaces",r=>r.fulfill({json:[{name:"mount-face-3",kind:"structural_face",compatible:["fixed_mount"]},{name:"power",kind:"electrical_power_in",compatible:["electrical_connector"]}]}));
+ await page.route("**/api/projects/project-fan/connection-proposals",r=>r.fulfill({status,json}));
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:/component-temperature-sensor/}).click();
+ await page.getByRole("button",{name:"Connect…"}).click();
+ await page.getByLabel("Connect from interface").selectOption("body-mount");
+ await page.getByLabel("Connect to component").selectOption("component-controller");
+}
+
+test("connection tool offers only compatible interfaces and proposes the mount",async({page})=>{
+ await connectSetup(page);
+ const to=page.getByLabel("Connect to interface");
+ await expect(to.locator("option")).toHaveText(["mount-face-3"]);
+ const posted=page.waitForRequest("**/api/projects/project-fan/connection-proposals");
+ await page.getByRole("button",{name:"Propose connection"}).click();
+ expect((await posted).postDataJSON()).toEqual({baseRevision:1,sourceId:"component-controller",sourceInterface:"mount-face-3",targetId:"component-temperature-sensor",targetInterface:"body-mount"});
+ await expect(page.getByTestId("proposal-preview")).toContainText("Mount DS18B20");
+});
+
+test("connection rejection is shown on the card",async({page})=>{
+ await connectSetup(page,422,{detail:{code:"attachment_interface_in_use",message:"The selected mounting interface is already occupied by another component."}});
+ await page.getByRole("button",{name:"Propose connection"}).click();
+ await expect(page.getByTestId("connect-error")).toContainText("already occupied");
+});
