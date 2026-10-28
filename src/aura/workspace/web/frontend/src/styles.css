@@ -390,7 +390,7 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .app-menu-entry>button:hover,.app-menu-entry>button[aria-expanded="true"]{background:var(--accent-soft)}
 .app-menu-entry .caret{font-size:11px;color:var(--text-soft);transform:translateY(-2px)}
 .app-menu-popover{position:absolute;z-index:60;top:calc(100% + 4px);left:0;display:flex;flex-direction:column;min-width:220px;padding:6px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:0 18px 50px rgba(30,39,34,.14)}
-.app-menu-popover button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text);font-size:13px;text-align:left;cursor:pointer}
+.app-menu-popover button{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:24px;row-gap:2px;padding:8px 10px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text);font-size:13px;text-align:left;cursor:pointer}
 .app-menu-popover button:hover,.app-menu-popover button:focus-visible{background:var(--accent-soft)}
 .app-menu-popover button:disabled{opacity:.45;cursor:default}
 .app-menu-popover small{color:var(--text-soft);font-size:11px}
@@ -449,3 +449,28 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .systems-rail,.contextual-inspector{bottom:0;height:calc(100vh - var(--top-height))}
 .rail-content,.inspector-content{overflow-y:auto;overflow-x:hidden}
 .inspector-content{padding-bottom:24px}
+
+/* File menu: rows with right-aligned shortcut hints, separators and submenus; Open / Unsaved dialogs. */
+.app-menu-popover .mi-label{grid-column:1}
+.app-menu-popover .mi-hint{grid-column:1;grid-row:2}
+.app-menu-popover .mi-shortcut,.app-menu-popover .mi-caret{grid-column:2;grid-row:1;justify-self:end;color:var(--text-soft);font:12px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+.app-menu-popover .mi-caret{font-size:10px}
+.menu-sep{height:1px;margin:5px 4px;background:var(--line)}
+.menu-sub{position:relative;display:flex;flex-direction:column}
+.menu-sub>button[aria-expanded="true"]{background:var(--accent-soft)}
+.menu-submenu{top:-7px;left:calc(100% - 4px);min-width:180px}
+.file-scrim{position:fixed;z-index:80}
+.file-dialog{display:flex;flex-direction:column;gap:10px;width:min(480px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:20px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
+.file-dialog h2{margin:0;font:600 18px var(--serif);color:var(--text)}
+.file-dialog p{margin:0;color:var(--text-soft)}
+.file-dialog input[type=search]{min-height:34px;padding:6px 10px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:14px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+.open-list{display:flex;flex-direction:column;gap:2px;min-height:60px;max-height:min(320px,50vh);overflow-y:auto}
+.open-row{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;padding:8px 10px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text);text-align:left;cursor:pointer}
+.open-row b{font-weight:600;font-size:13px;overflow-wrap:anywhere}
+.open-row span{color:var(--text-soft);font-size:11px}
+.open-row:hover,.open-row:focus-visible{background:var(--accent-soft)}
+.open-row[aria-current="true"]{box-shadow:inset 3px 0 0 var(--accent)}
+.open-new{border-top:1px solid var(--line);border-radius:0 0 var(--radius-sm) var(--radius-sm)}
+.open-empty{padding:12px 10px}
+.file-dialog .preview-actions button{font:600 13px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;padding:6px 14px}
+@media(max-width:600px){.menu-submenu{top:100%;left:8px}}

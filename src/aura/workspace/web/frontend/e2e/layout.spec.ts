@@ -89,7 +89,7 @@ test("File > New design shows a clean welcome screen",async({page})=>{
  await page.goto("/?projectId=project-fan");
  await expect(page.getByTestId("three-host")).toBeVisible();
  await page.getByRole("navigation",{name:"Application menu"}).getByRole("button",{name:"File",exact:true}).click();
- await page.getByRole("menuitem",{name:"New design"}).click();
+ await page.getByRole("menuitem",{name:"New",exact:true}).click();
  await expect(page.getByRole("heading",{name:"What do you want to build?"})).toBeVisible();
  await expect(page.getByText(/BUILDING/i)).toHaveCount(0);
 });
@@ -147,7 +147,7 @@ test("keyboard focus survives FAB toggles and menu selections",async({page})=>{
  await page.getByRole("button",{name:"View controls"}).click();
  await page.getByRole("button",{name:"Explode",exact:true}).focus();await page.keyboard.press("Enter");
  await expect(page.getByRole("button",{name:"Assemble",exact:true})).toBeFocused();
- const file=page.getByRole("navigation",{name:"Application menu"}).getByRole("button",{name:"File",exact:true});
- await file.click();await page.getByRole("menuitem",{name:"Switch project"}).click();
+ const file=page.getByRole("navigation",{name:"Application menu"}).getByRole("button",{name:"Help",exact:true});
+ await file.click();await page.getByRole("menuitem",{name:"About AURA"}).click();
  await expect(file).toBeFocused();
 });

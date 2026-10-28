@@ -1,7 +1,34 @@
 import {KeyboardEvent,useEffect,useRef,useState} from "react";
 
-export type MenuItem={label:string;hint?:string;disabled?:boolean;checked?:boolean;onSelect:()=>void};
+// `shortcut` is a right-aligned hint (the key binding itself lives in the app); `separatorBefore` draws a rule above the row;
+// `items` turns the row into a submenu (opens on hover, click or ArrowRight; closes on ArrowLeft or Escape); `title` is a tooltip.
+export type MenuItem={label:string;hint?:string;shortcut?:string;title?:string;separatorBefore?:boolean;disabled?:boolean;checked?:boolean;items?:MenuItem[];onSelect?:()=>void};
 export type Menu={label:string;items:MenuItem[];ariaLabel?:string};
+
+const ownItems=(list:HTMLElement)=>[...list.querySelectorAll<HTMLButtonElement>("[role^=menuitem]:not(:disabled)")].filter(node=>node.closest("[role=menu]")===list);
+
+function aria(shortcut?:string){return shortcut?shortcut.replace(/Ctrl/,"Control"):undefined}
+
+function MenuRow({item,pick}:{item:MenuItem;pick:(item:MenuItem)=>void}){
+ const [sub,setSub]=useState(false),wrap=useRef<HTMLDivElement>(null),button=useRef<HTMLButtonElement>(null),focusChild=useRef(false);
+ useEffect(()=>{if(sub&&focusChild.current){focusChild.current=false;const list=wrap.current?.querySelector<HTMLElement>(":scope > [role=menu]");if(list)ownItems(list)[0]?.focus()}},[sub]);
+ const content=<><span className="mi-label">{item.label}</span>{item.hint&&<small className="mi-hint">{item.hint}</small>}{item.shortcut&&<kbd className="mi-shortcut" aria-hidden="true">{item.shortcut}</kbd>}{item.items&&<span className="mi-caret" aria-hidden="true">▸</span>}</>;
+ const separator=item.separatorBefore?<div role="separator" className="menu-sep"/>:null;
+ if(!item.items)return <>{separator}<button role={item.checked===undefined?"menuitem":"menuitemcheckbox"} aria-checked={item.checked} aria-keyshortcuts={aria(item.shortcut)} disabled={item.disabled} title={item.title} onClick={()=>pick(item)}>{content}</button></>;
+ const closeSub=()=>{setSub(false);button.current?.focus()};
+ const keys=(event:KeyboardEvent<HTMLDivElement>)=>{
+  // Everything inside a submenu is handled here so the parent menu's own key handling stays out of it.
+  event.stopPropagation();
+  const items=ownItems(event.currentTarget),index=items.indexOf(document.activeElement as HTMLButtonElement);
+  if(event.key==="Escape"||event.key==="ArrowLeft"){event.preventDefault();closeSub()}
+  else if(event.key==="ArrowDown"||event.key==="ArrowUp"){event.preventDefault();items[(index+(event.key==="ArrowDown"?1:-1)+items.length)%items.length]?.focus()}
+ };
+ return <>{separator}<div ref={wrap} className="menu-sub" onMouseEnter={()=>{if(!item.disabled)setSub(true)}} onMouseLeave={()=>{if(!wrap.current?.contains(document.activeElement))setSub(false)}}>
+  <button ref={button} role="menuitem" aria-haspopup="menu" aria-expanded={sub} disabled={item.disabled} title={item.title} onClick={()=>{focusChild.current=true;setSub(true)}}
+   onKeyDown={event=>{if(event.key==="ArrowRight"||event.key==="Enter"||event.key===" "){event.preventDefault();event.stopPropagation();focusChild.current=true;setSub(true)}}}>{content}</button>
+  {sub&&<div className="app-menu-popover menu-submenu" role="menu" aria-label={item.label} onKeyDown={keys}>{item.items.map(child=><MenuRow key={child.label} item={child} pick={pick}/>)}</div>}
+ </div></>;
+}
 
 // Application menu: each menu opens on click or ArrowDown, closes on selection, outside click or Escape
 // (focus returns to its trigger); arrow keys move between items.
@@ -13,7 +40,7 @@ export function MenuBar({menus,leading}:{menus:Menu[];leading?:Menu}){
   document.addEventListener("pointerdown",away);return()=>document.removeEventListener("pointerdown",away)},[open]);
  useEffect(()=>{if(open)root.current?.querySelector<HTMLButtonElement>(`[data-menu="${open}"] [role^=menuitem]:not(:disabled)`)?.focus()},[open]);
  const keys=(event:KeyboardEvent<HTMLDivElement>)=>{
-  const items=[...event.currentTarget.querySelectorAll<HTMLButtonElement>("[role^=menuitem]:not(:disabled)")],index=items.indexOf(document.activeElement as HTMLButtonElement);
+  const items=ownItems(event.currentTarget),index=items.indexOf(document.activeElement as HTMLButtonElement);
   if(event.key==="Escape"){event.preventDefault();close(true)}
   else if(event.key==="ArrowDown"||event.key==="ArrowUp"){event.preventDefault();items[(index+(event.key==="ArrowDown"?1:-1)+items.length)%items.length]?.focus()}
  };
@@ -22,9 +49,9 @@ export function MenuBar({menus,leading}:{menus:Menu[];leading?:Menu}){
    <button ref={node=>{triggers.current[menu.label]=node}} aria-haspopup="menu" aria-expanded={open===menu.label} aria-label={menu.ariaLabel} onClick={()=>setOpen(open===menu.label?null:menu.label)}
     onKeyDown={event=>{if(event.key==="ArrowDown"){event.preventDefault();setOpen(menu.label)}if(event.key==="Escape")close(true)}}>{menu.label}{menu.ariaLabel?null:<span className="caret" aria-hidden="true">⌄</span>}</button>
    {open===menu.label&&<div className="app-menu-popover" role="menu" aria-label={menu.ariaLabel?"Main menu":menu.label} onKeyDown={keys}>
-    {menu.items.map(item=><button key={item.label} role={item.checked===undefined?"menuitem":"menuitemcheckbox"} aria-checked={item.checked} disabled={item.disabled} onClick={()=>{setOpen(null);item.onSelect();
+    {menu.items.map(item=><MenuRow key={item.label} item={item} pick={chosen=>{setOpen(null);chosen.onSelect?.();
      // Keep keyboard users in place: if the action moved focus nowhere, return it to this menu's trigger.
-     requestAnimationFrame(()=>{if(document.activeElement===document.body)triggers.current[menu.label]?.focus()})}}>{item.label}{item.hint&&<small>{item.hint}</small>}</button>)}
+     requestAnimationFrame(()=>{if(document.activeElement===document.body)triggers.current[menu.label]?.focus()})}}/>)}
    </div>}
   </div>)}
  </nav>;

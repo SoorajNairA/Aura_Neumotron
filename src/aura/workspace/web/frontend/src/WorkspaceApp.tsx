@@ -17,6 +17,9 @@ import {GenericSimulation} from "./GenericSimulation";
 import {Menu,MenuBar} from "./MenuBar";
 import {ViewFab} from "./ViewFab";
 import {Toast} from "./Toast";
+import {fileMenu,OpenDialog,UnsavedDialog} from "./FileMenu";
+import {useWiringLayout} from "./wiringLayoutStore";
+import {exportName,importErrorMessage,localCopyName,saveBlob} from "./projectFiles";
 import {BuildView} from "./BuildView";
 import {useSerial} from "./hardware";
 import {LiveBoard} from "./LiveBoard";
@@ -258,8 +261,13 @@ class HolographicScene{
 export function WorkspaceApp(){
  const [libraryOpen,setLibraryOpen]=useState(false);
  const [toast,setToast]=useState<string>();
+ // File menu state: Open dialog, the Save/Discard/Cancel guard, and the wiring layout it protects.
+ const [openDialog,setOpenDialog]=useState(false),[guard,setGuard]=useState<{run:()=>void|Promise<void>}|null>(null),[guardBusy,setGuardBusy]=useState(false),importInput=useRef<HTMLInputElement>(null);
  const host=useRef<HTMLDivElement>(null),scene=useRef<HolographicScene>(),session=useRef(new WorkspaceSession()),creatingLock=useRef(false),mutationLock=useRef(false),store=useMemo(()=>new SelectionStore(),[]);
  const [projectId,setProjectId]=useState<string|null>(initialProject);
+ const wiring=useWiringLayout(projectId,API);
+ // Test-only: the production bundle exposes window.__auraSetLayout (to dirty the layout) only when the page URL has ?e2e=1.
+ useEffect(()=>{if(query.get("e2e")==="1")(window as any).__auraSetLayout=wiring.setLayout},[wiring.setLayout]);
  const [project,setProject]=useState<Project>(),[projects,setProjects]=useState<Project[]>([]),[revisions,setRevisions]=useState<any[]>([]);
  const [panel,setPanel]=useState<"projects"|"history"|null>(null),[assembly,setAssembly]=useState<Assembly>(),[graph,setGraph]=useState<Graph>();
  const [verification,setVerification]=useState<any>(),[narrations,setNarrations]=useState<any[]>([]),[selected,setSelected]=useState<string|null>(null),[selectedKind,setSelectedKind]=useState<SelectionKind>("component");
@@ -301,8 +309,46 @@ export function WorkspaceApp(){
   const toggleXray=()=>{setXray(!xray);scene.current?.setXray(!xray)};
   const showAll=()=>{setIsolated("all");scene.current?.isolate("all")};
   const noFirmware=!firmware?.supported;
+  // Anything that leaves this project (New, Open, Import, Make a copy) first asks about unsaved layout edits.
+  const guarded=(run:()=>void|Promise<void>)=>{if(wiring.dirty)setGuard({run});else void run()};
+  const resolveGuard=async(save:boolean)=>{const pending=guard;if(!pending)return;
+   if(save){setGuardBusy(true);const saved=await wiring.flush();setGuardBusy(false);if(!saved){setToast("Could not save the layout. Your changes are still here.");return}}
+   setGuard(null);void pending.run()};
+  const newDesign=()=>guarded(resetWorkspace);
+  const saveProject=async()=>{if(!projectId)return;const saved=await wiring.flush();setToast(saved?"Saved":"Could not save the layout.")};
+  const openProject=(id:string)=>{setOpenDialog(false);guarded(()=>{if(id!==projectId)switchProject(id)})};
+  const makeCopy=()=>guarded(async()=>{
+   if(!projectId)return;
+   try{const response=await fetch(`${API}/api/projects/${projectId}/copy`,{method:"POST"});if(!response.ok)throw new Error(String(response.status));
+    const copy=await response.json();switchProject(copy.projectId);setToast("Copy created")}
+   catch{setToast("Could not make a copy of this project.")}});
+  const downloadZip=async(local:boolean)=>{
+   if(!projectId)return;
+   try{if(wiring.dirty)await wiring.flush();
+    const response=await fetch(`${API}/api/projects/${projectId}/export`);if(!response.ok)throw new Error(String(response.status));
+    const name=exportName(response.headers.get("content-disposition"),project?.objective||projectId);
+    saveBlob(await response.blob(),local?localCopyName(name):name);setToast(local?"Local copy downloaded":"Project ZIP downloaded")}
+   catch{setToast("Could not export the project.")}};
+  const chooseImport=()=>guarded(()=>importInput.current?.click());
+  const importFile=async(file:File)=>{
+   const trigger=()=>document.querySelector<HTMLElement>('[data-menu="File"] > button')?.focus();
+   try{const response=await fetch(`${API}/api/projects/import`,{method:"POST",headers:{"content-type":"application/zip"},body:file});
+    if(!response.ok){setToast(importErrorMessage(await response.json().catch(()=>undefined),response.status));trigger();return}
+    const imported=await response.json();switchProject(imported.projectId);setToast("Project imported")}
+   catch{setToast("Could not import that file. Check your connection and try again.");trigger()}};
+  // Ctrl/Cmd+O and +S always belong to AURA while it is open; the handler reads the latest closures through a ref.
+  const shortcuts=useRef({open:()=>{},save:()=>{}});shortcuts.current={open:()=>{if(!openDialog&&!guard)setOpenDialog(true)},save:()=>{if(!guard)void saveProject()}};
+  useEffect(()=>{const onKey=(event:KeyboardEvent)=>{
+   if(!(event.ctrlKey||event.metaKey)||event.altKey||event.shiftKey)return;
+   const key=event.key.toLowerCase();if(key!=="o"&&key!=="s")return;
+   event.preventDefault();if(key==="o")shortcuts.current.open();else shortcuts.current.save()};
+   window.addEventListener("keydown",onKey);return()=>window.removeEventListener("keydown",onKey)},[]);
+  const fileDialogs=<>
+   {openDialog&&<OpenDialog apiBase={API} initial={projects} currentId={projectId} onOpen={openProject} onNew={()=>{setOpenDialog(false);newDesign()}} onClose={()=>setOpenDialog(false)}/>}
+   {guard&&<UnsavedDialog busy={guardBusy} onSave={()=>void resolveGuard(true)} onDiscard={()=>void resolveGuard(false)} onCancel={()=>setGuard(null)}/>}
+  </>;
   const menus:Menu[]=[
-   {label:"File",items:[{label:"New design",hint:"Start another project",onSelect:()=>resetWorkspace()},{label:"Switch project",onSelect:()=>setPanel("projects")},{label:"Revision history",onSelect:()=>setPanel("history")}]},
+   fileMenu({onNew:newDesign,onOpen:()=>setOpenDialog(true),onSave:saveProject,onCopy:makeCopy,onExport:()=>downloadZip(false),onImport:chooseImport,onLocalCopy:()=>downloadZip(true)}),
    {label:"Edit",items:[{label:"Undo last change",hint:"Restores the previous revision",onSelect:()=>{undo()}}]},
    {label:"Project",items:[{label:"Design checks",hint:"Verification and assessment",onSelect:()=>setOverlay(true)},{label:"Work items",onSelect:()=>setMode("work")}]},
    {label:"Help",items:[{label:"About AURA",hint:"Concept preview · AI proposes, deterministic checks decide",onSelect:()=>{}}]},
@@ -419,7 +465,7 @@ export function WorkspaceApp(){
  const applyScenario=async()=>{if(!project||!scenario?.scenarioId||scenario.stale||!scenario.applicable)return;setScenarioStatus("loading");try{const init={method:"POST",headers:{"Idempotency-Key":crypto.randomUUID()}};let payload=await optionalJson(`/api/projects/${project.projectId}/scenarios/${scenario.scenarioId}/apply`,init);if(!payload)payload=await optionalJson(`/api/projects/${project.projectId}/scenarios/${scenario.scenarioId}/commit`,init);if(!payload){setScenarioStatus("unavailable");return}discardScenario();await load(project.projectId);setStatus("Candidate change committed as a new revision")}catch(error){setScenarioError(sanitizeDisplayText(error instanceof Error?error.message:"Apply could not complete; reopen the project to check its revision."));setScenarioStatus("error")}};
  const createScenarioWork=async()=>{if(!project||!scenario?.scenarioId)return;try{const payload=await optionalJson(`/api/projects/${project.projectId}/scenarios/${scenario.scenarioId}/work`,{method:"POST"});if(!payload)return;const created=workItemPresentation(payload.item||payload);setWorkItems(items=>items.some(item=>item.workItemId===created.workItemId)?items:[...items,created]);setWorkStatus("ready");setSelectedWorkId(created.workItemId);setScenarioOpen(false);setMode("work");setStatus("Scenario follow-up added to engineering work")}catch{setStatus("Scenario work item could not be created")}};
  if(!projectId&&ideaSeed!==null)return <main className="aura-shell welcome idea-mode"><IdeaChat apiBase={API} idea={ideaSeed} onApproved={id=>{setIdeaSeed(null);setProjectId(id);history.replaceState({},"",`?projectId=${id}`)}} onClose={()=>setIdeaSeed(null)}/></main>;
- if(!projectId)return <main className="aura-shell welcome"><div className="ambient-grid"/><motion.section initial={false} animate={false} className="welcome-core"><div className="aura-mark">AURA</div><p>AI-NATIVE ENGINEERING WORKSPACE</p><h1>What do you want to build?</h1><div className="command large"><span className="command-prefix">AURA &gt;</span><input aria-label="Describe an engineering system" value={objective} onChange={event=>setObjective(event.target.value)} onKeyDown={event=>event.key==="Enter"&&create()} placeholder="Describe an engineering idea..."/><button className="design-with-aura" onClick={()=>setIdeaSeed(objective.trim())} disabled={creating||objective.trim().length<3}>Design with AURA</button><button onClick={create} disabled={creating||objective.trim().length<8}>BUILD</button></div><span className="quiet-status">{simpleStatus(status,creating)}</span>{createError&&<section className="provider-error" role="alert" data-testid="create-error"><b>{createError.title}</b><code>{createError.code}</code><p>{createError.message}</p>{createError.details&&<details><summary>Error details</summary><p>{createError.details}</p></details>}<p>Your request is retained. Use BUILD to retry, or reopen a saved project.</p></section>}<div className="examples">{["Make a robotic arm","Design a temperature-controlled desk fan","Build a weather station"].map(example=><button key={example} onClick={()=>setObjective(example)}>{example}</button>)}</div></motion.section></main>;
+ if(!projectId)return <main className="aura-shell welcome"><div className="ambient-grid"/><motion.section initial={false} animate={false} className="welcome-core"><div className="aura-mark">AURA</div><p>AI-NATIVE ENGINEERING WORKSPACE</p><h1>What do you want to build?</h1><div className="command large"><span className="command-prefix">AURA &gt;</span><input aria-label="Describe an engineering system" value={objective} onChange={event=>setObjective(event.target.value)} onKeyDown={event=>event.key==="Enter"&&create()} placeholder="Describe an engineering idea..."/><button className="design-with-aura" onClick={()=>setIdeaSeed(objective.trim())} disabled={creating||objective.trim().length<3}>Design with AURA</button><button onClick={create} disabled={creating||objective.trim().length<8}>BUILD</button></div><span className="quiet-status">{simpleStatus(status,creating)}</span>{createError&&<section className="provider-error" role="alert" data-testid="create-error"><b>{createError.title}</b><code>{createError.code}</code><p>{createError.message}</p>{createError.details&&<details><summary>Error details</summary><p>{createError.details}</p></details>}<p>Your request is retained. Use BUILD to retry, or reopen a saved project.</p></section>}<div className="examples">{["Make a robotic arm","Design a temperature-controlled desk fan","Build a weather station"].map(example=><button key={example} onClick={()=>setObjective(example)}>{example}</button>)}</div></motion.section>{fileDialogs}</main>;
  return <main className={`aura-shell workspace ${railCollapsed?"rail-collapsed":""} ${inspectorCollapsed?"inspector-collapsed":""}`}>
   <div className="ambient-grid"/>
   <header className="topbar">
@@ -468,6 +514,7 @@ export function WorkspaceApp(){
    {pinWireCount>0&&(space==="design"&&mode!=="work"&&mode!=="schematic"||mode==="simulation")&&<p className="wire-note" data-testid="wire-note" title="Illustrative routing — not a measured cable layout">Illustrative routing — not a measured cable layout · {pinWireCount} wires</p>}
    {hoveredPart&&(space==="design"&&mode!=="work"||mode==="simulation")&&<div className="hover-label"><b>{hoveredPart.label}</b><span>{statusLabel(hoveredPart.verificationState)}</span></div>}
    <Toast message={toast} onDismiss={()=>setToast(undefined)}/>
+   <input ref={importInput} type="file" accept=".zip,application/zip" hidden tabIndex={-1} aria-hidden="true" data-testid="import-file" onChange={event=>{const file=event.target.files?.[0];event.target.value="";if(file)void importFile(file)}}/>
    {!project&&<div className="loading-curtain"><div className="loading-mark"/><b>AURA // LOADING PROJECT</b><span>Clearing the previous workspace and reading authoritative state.</span></div>}
    </div>
   </section>
@@ -500,6 +547,7 @@ export function WorkspaceApp(){
   <AnimatePresence>{transition&&<motion.div className="dialog-scrim" initial={false} animate={false} exit={undefined}><section className="reason-dialog" role="dialog" aria-modal="true" aria-labelledby="transition-title"><small>{statusLabel(transition.state)} WORK</small><h2 id="transition-title">{transition.item.title}</h2><label>Reason *<textarea autoFocus value={transitionReason} onChange={event=>setTransitionReason(event.target.value)} placeholder="Explain why this engineering work is changing state."/></label><div className="preview-actions"><button onClick={()=>{setTransition(undefined);setTransitionReason("")}}>CANCEL</button><button className="primary" disabled={!transitionReason.trim()} onClick={()=>submitTransition(transition.item,transition.state,transitionReason.trim())}>{statusLabel(transition.state)}</button></div></section></motion.div>}</AnimatePresence>
   <AnimatePresence>{workCreateOpen&&<motion.div className="dialog-scrim" initial={false} animate={false} exit={undefined}><section className="reason-dialog work-create-dialog" role="dialog" aria-modal="true" aria-labelledby="work-create-title"><small>ENGINEERING WORK</small><h2 id="work-create-title">Create work item</h2><label>Title *<input autoFocus aria-label="Work item title" value={workTitle} onChange={event=>setWorkTitle(event.target.value)} placeholder="Verify component capability"/></label><label>Description<textarea aria-label="Work item description" value={workDescription} onChange={event=>setWorkDescription(event.target.value)} placeholder="Describe the engineering question and acceptance criteria."/></label>{selectedPart&&<p className="work-related">RELATED COMPONENT <b>{selectedPart.label}</b></p>}<div className="preview-actions"><button onClick={()=>setWorkCreateOpen(false)}>CANCEL</button><button className="primary" disabled={!workTitle.trim()} onClick={createWork}>CREATE</button></div></section></motion.div>}</AnimatePresence>
 
+  {fileDialogs}
   {developer&&<aside className="developer-panel"><button className="close" aria-label="Close developer mode" onClick={()=>setDeveloper(false)}>×</button><h3>DEVELOPER MODE</h3><p>Provider: {project?.planningMode}</p><p>Project: {project?.projectId}</p><p>Revision: {project?.revision}</p><p>Selection: {selectedKind} / {selected||"none"}</p><p>Selection subscribers: {store.subscriberCount}</p><p>Selection events: {store.eventCount}</p><p>Scene: {JSON.stringify(scene.current?.metrics())}</p><p>WebSocket: {connection}</p><button data-testid="undo-change" disabled={(project?.revision||0)<2} onClick={undo}>UNDO REVISION</button></aside>}
  </main>
 }
