@@ -383,3 +383,47 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .part-settings{list-style:none;margin:0;padding:0;display:grid;gap:6px}.part-settings label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px}.part-settings input:not([type=checkbox]){width:110px;padding:4px 6px;border-radius:6px;border:1px solid var(--line,#d9d6cc);font:inherit}
 .connect-open{margin:8px 0}.connect-form{display:grid;gap:6px;margin:8px 0;padding:8px;border:1px solid var(--line,#d9d6cc);border-radius:10px}.connect-form label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px}.connect-form select{max-width:160px}
 .test-bench{margin:8px 0}.bench-body{display:grid;gap:6px;font-size:12px}.bench-body label{display:flex;align-items:center;gap:8px}.bench-body input[type=number]{width:90px}.bench-body p{margin:0}.bench-label{display:block;margin-top:6px;font-size:11px;color:#8a5a00}
+
+/* Reference layout: application menu in the top bar, toolbar card above the viewport, round view FAB. */
+.app-menu{order:20;flex-basis:100%;display:flex;flex-wrap:wrap;gap:2px;padding:0 0 6px;align-items:center}
+.app-menu-entry{position:relative}
+.app-menu-entry>button{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:4px 12px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text);font:500 14px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;cursor:pointer}
+.app-menu-entry>button:hover,.app-menu-entry>button[aria-expanded="true"]{background:var(--accent-soft)}
+.app-menu-entry .caret{font-size:11px;color:var(--text-soft);transform:translateY(-2px)}
+.app-menu-popover{position:absolute;z-index:60;top:calc(100% + 4px);left:0;display:flex;flex-direction:column;min-width:220px;padding:6px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:0 18px 50px rgba(30,39,34,.14)}
+.app-menu-popover button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text);font-size:13px;text-align:left;cursor:pointer}
+.app-menu-popover button:hover,.app-menu-popover button:focus-visible{background:var(--accent-soft)}
+.app-menu-popover button:disabled{opacity:.45;cursor:default}
+.app-menu-popover small{color:var(--text-soft);font-size:11px}
+.space-toolbar{position:absolute;z-index:12;top:10px;left:12px;right:12px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:0 8px 24px rgba(30,39,34,.06);overflow-x:auto;overflow-y:hidden}
+.space-toolbar .space-tabs{order:0;flex-basis:auto;flex-shrink:0;padding:0;margin:0}
+.toolbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0;padding-left:12px;border-left:1px solid var(--line)}
+.toolbar-right select{min-height:36px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-weight:600}
+.viewport{position:absolute;inset:76px 12px 12px;overflow:hidden;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface-muted)}
+.viewport .sim-column{top:68px}
+.view-fab{position:absolute;z-index:11;top:12px;right:12px;display:flex;flex-direction:row-reverse;align-items:center;gap:8px}
+.view-fab .fab{display:grid;place-items:center;width:46px;height:46px;border:0;border-radius:50%;background:var(--accent);color:#fff;font-size:22px;line-height:1;cursor:pointer;box-shadow:0 8px 22px rgba(30,64,48,.28)}
+.view-fab .fab:focus-visible,.fab-actions button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.fab-actions{display:flex;flex-direction:row;gap:8px;animation:fab-in .14s ease-out}
+.fab-actions button{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);color:var(--text);font-weight:600;white-space:nowrap;cursor:pointer;box-shadow:0 6px 18px rgba(30,39,34,.08)}
+.fab-actions button:hover{background:var(--accent-soft)}
+.fab-icon{font-size:15px;color:var(--text-soft)}
+@keyframes fab-in{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.fab-actions{animation:none}}
+@media(max-width:900px){.space-toolbar{left:6px;right:6px}.viewport{left:6px;right:6px}.fab-actions{max-width:calc(100vw - 120px);overflow-x:auto}}
+@media(max-width:820px){.space-toolbar{height:auto;min-height:56px;flex-wrap:wrap;overflow:visible;padding:6px}.space-toolbar .space-tabs{flex-wrap:wrap;gap:2px}.space-toolbar .space-tabs button{padding:6px 8px;font-size:12px}.space-toolbar .space-icon{display:none}.toolbar-right{padding-left:0;border-left:0}.viewport{top:118px}}
+/* Clear the rail collapse handles; 3D/Wiring/Split back at the viewport's bottom centre; status note below the toolbar. */
+@media(min-width:901px){.space-toolbar,.viewport{left:30px;right:30px}}
+.viewport .view-switch{top:auto;bottom:14px;left:50%;right:auto;transform:translateX(-50%)}
+.workspace .narration-card{top:calc(var(--top-height) + 98px);left:calc(var(--rail-width) + 96px);bottom:auto;max-width:min(520px,36vw)}
+@media(max-width:900px){.workspace .narration-card{left:12px;right:12px;top:auto;bottom:calc(var(--dock-height) + 7px);max-width:none}}
+.viewport .view-fab{z-index:25}
+.workspace .narration-card{max-width:min(440px,26vw)}
+.viewport .wire-note{max-width:calc(50% - 160px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(min-width:901px){.workspace .narration-card{top:auto;bottom:calc(var(--dock-height) + 58px);left:calc(var(--rail-width) + 44px)}}
+@media(max-width:1500px){.space-toolbar .space-tabs button{padding:8px 10px;gap:6px}.space-toolbar{gap:8px}}
+@media(max-width:1360px){.space-toolbar .space-icon{display:none}.toolbar-right select{max-width:170px}}
+@media(min-width:901px){.workspace .narration-card{max-width:min(440px,calc((100vw - var(--rail-width) - var(--inspector-width))/2 - 160px))}.workspace .narration-card span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+/* The library panel sits above the view switch; in Wiring/Split the switch moves to the top so schematic net buttons stay clickable. */
+.viewport .component-library{z-index:10}
+.mode-schematic .viewport .view-switch,.mode-split .viewport .view-switch{top:12px;bottom:auto}

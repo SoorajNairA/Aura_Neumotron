@@ -249,7 +249,7 @@ test("cables run pin to pin, stay on their pins when exploded, and share numbers
  expect(list.map((w:any)=>`${w.from}>${w.to}`)).toContain("component-controller.IO16>component-driver.IN");
  for(const w of list){expect(w.startError,w.label).toBeLessThan(.5);expect(w.endError,w.label).toBeLessThan(.5)}
  await expect(page.getByTestId("wire-note")).toContainText("Illustrative routing — not a measured cable layout");
- await page.getByRole("button",{name:"EXPLODE"}).click();
+ await page.getByRole("button",{name:"View controls"}).click();await page.getByRole("button",{name:"Explode",exact:true}).click();
  list=await wires();for(const w of list){expect(w.startError).toBeLessThan(.5);expect(w.endError).toBeLessThan(.5)}
  const dat=list.find((w:any)=>w.from==="component-temperature-sensor.DAT");
  expect(dat.label).toBe(`${dat.number} · DS18B20 · DAT ↔ ESP32 DevKit · IO4 (GPIO4, J3 pin 13)`);
