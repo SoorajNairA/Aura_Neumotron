@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import {describe,expect,it} from "vitest";
-import {jumperCurve,resolveWires,WIRE_COLORS} from "./wiring3d";
+import {assignLanes,harnessPath,resolveWires,WIRE_COLORS} from "./wiring3d";
 
 const comp=(id:string,name:string,family:string,parameters:any={})=>({id,kind:"component",name,metadata:{family,parameters}});
 const conn=(id:string,s:string,si:string,t:string,ti:string,type:string)=>({id,kind:"connection",name:id,metadata:{source_id:s,source_interface:si,target_id:t,target_interface:ti,connection_type:type}});
@@ -27,11 +27,7 @@ describe("pin-to-pin wires",()=>{
   expect(resolveWires(graph).some(w=>w.to.part==="k")).toBe(false);
   expect(resolveWires.unresolved(graph).map(u=>u.connectionId)).toEqual(["w7"]);
  });
- it("draws a jumper that leaves and lands exactly on the pins and arcs above them",()=>{
-  const a=new THREE.Vector3(0,0,10),b=new THREE.Vector3(60,20,4),curve=jumperCurve(a,b);
-  expect(curve.getPoint(0).distanceTo(a)).toBeLessThan(1e-6);expect(curve.getPoint(1).distanceTo(b)).toBeLessThan(1e-6);
-  expect(Math.max(...curve.getPoints(40).map(p=>p.z))).toBeGreaterThan(10+10);
- });
+
 });
 
 describe("wire label review",()=>{
@@ -39,10 +35,7 @@ describe("wire label review",()=>{
   const graph={entities:[comp("c","ESP32 DevKit","microcontroller_board",{gpio_map:{}}),comp("t","DS18B20","temperature_sensor"),conn("w","c","ground","t","ground","ground")]};
   expect(resolveWires(graph)[0].label).toBe("1 · ESP32 DevKit · GND (J2 pin 14) ↔ DS18B20 · GND");
  });
- it("keeps short jumpers low",()=>{
-  const curve=jumperCurve(new THREE.Vector3(0,0,0),new THREE.Vector3(150,0,0));
-  expect(Math.max(...curve.getPoints(40).map(p=>p.z))).toBeLessThan(40);
- });
+
 });
 
 describe("review: switched-load polarity",()=>{
@@ -50,4 +43,17 @@ describe("review: switched-load polarity",()=>{
   const wire=resolveWires(fan()).find(w=>w.from.pin==="OUT+")!;
   expect(wire.label).toContain("check module polarity: low-side modules switch the load's − side");
  });
+});
+
+describe("clean harness routing",()=>{
+ it("rises from a pin, runs flat at its lane height in straight X then Y legs, and drops onto the other pin",()=>{
+  const a=new THREE.Vector3(0,0,5),b=new THREE.Vector3(60,30,2),h=20,path=harnessPath(a,b,h);
+  expect(path.getPoint(0).distanceTo(a)).toBeLessThan(1e-6);expect(path.getPoint(1).distanceTo(b)).toBeLessThan(1e-6);
+  for(const p of path.getSpacedPoints(400)){
+   const onRiseA=Math.abs(p.x-a.x)<1e-3&&Math.abs(p.y-a.y)<1e-3,onDropB=Math.abs(p.x-b.x)<1e-3&&Math.abs(p.y-b.y)<1e-3;
+   const flat=Math.abs(p.z-h)<1e-3,nearCorner=[[a.x,a.y],[b.x,a.y],[b.x,b.y]].some(([x,y])=>Math.hypot(p.x-x,p.y-y)<2.01)&&p.z>h-2.01;
+   expect(onRiseA||onDropB||nearCorner||(flat&&(Math.abs(p.y-a.y)<1e-3||Math.abs(p.x-b.x)<1e-3)),`${p.toArray()}`).toBe(true);
+  }
+ });
+ it("gives every wire its own lane, shortest lowest",()=>{expect(assignLanes([30,5,12])).toEqual([2,0,1])});
 });

@@ -62,10 +62,25 @@ export function resolveWires(graph:{entities:Entity[]}|undefined):Wire[]{
 resolveWires.unresolved=(graph:{entities:Entity[]}|undefined)=>graph?ends(graph).filter(item=>!item.fromPin||!item.toPin)
  .map(item=>({connectionId:item.entity.id,from:item.m.source_id,to:item.m.target_id,role:ROLE[item.m.connection_type]})):[];
 
-// A jumper: straight up from each pin, then a smooth arc over the parts whose height grows with distance.
-export function jumperCurve(a:THREE.Vector3,b:THREE.Vector3):THREE.CatmullRomCurve3{
- const rise=5,arc=THREE.MathUtils.clamp(a.distanceTo(b)*.22,8,32),top=Math.max(a.z,b.z)+arc;
- const lift=(p:THREE.Vector3)=>new THREE.Vector3(p.x,p.y,p.z+rise);
- const mid=new THREE.Vector3((a.x+b.x)/2,(a.y+b.y)/2,top);
- return new THREE.CatmullRomCurve3([a.clone(),lift(a),mid,lift(b),b.clone()],false,"centripetal");
+// A tidy harness route: straight up from the pin to this wire's lane height, along X, then along Y, straight down
+// onto the other pin. Corners are rounded so the tube reads as a real cable; every leg is axis-aligned.
+export function harnessPath(a:THREE.Vector3,b:THREE.Vector3,height:number,radius=2):THREE.CurvePath<THREE.Vector3>{
+ const raw=[a.clone(),new THREE.Vector3(a.x,a.y,height),new THREE.Vector3(b.x,a.y,height),new THREE.Vector3(b.x,b.y,height),b.clone()];
+ const points=raw.filter((point,index)=>index===0||point.distanceTo(raw[index-1])>1e-6);
+ const path=new THREE.CurvePath<THREE.Vector3>();let cursor=points[0];
+ for(let i=1;i<points.length-1;i++){
+  const corner=points[i],before=points[i-1],after=points[i+1];
+  const r=Math.min(radius,corner.distanceTo(before)/2,corner.distanceTo(after)/2);
+  const entry=corner.clone().add(before.clone().sub(corner).setLength(r)),exit=corner.clone().add(after.clone().sub(corner).setLength(r));
+  if(cursor.distanceTo(entry)>1e-6)path.add(new THREE.LineCurve3(cursor,entry));
+  path.add(new THREE.QuadraticBezierCurve3(entry,corner.clone(),exit));cursor=exit;
+ }
+ path.add(new THREE.LineCurve3(cursor,points[points.length-1]));
+ return path;
+}
+
+// Lane index per wire: shortest horizontal run lowest, so long wires pass over short ones and no two share a height.
+export function assignLanes(lengths:number[]):number[]{
+ const order=lengths.map((length,index)=>({length,index})).sort((p,q)=>p.length-q.length||p.index-q.index);
+ const lanes=new Array<number>(lengths.length);order.forEach((item,lane)=>{lanes[item.index]=lane});return lanes;
 }

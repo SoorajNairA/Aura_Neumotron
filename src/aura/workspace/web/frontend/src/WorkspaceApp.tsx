@@ -19,7 +19,7 @@ import {useSerial} from "./hardware";
 import {LiveBoard} from "./LiveBoard";
 import {telemetryOutputs} from "./live";
 import {connectedParts,pinLabel,polarity} from "./pinout";
-import {jumperCurve,resolveWires,Wire as PinWire} from "./wiring3d";
+import {assignLanes,harnessPath,resolveWires,Wire as PinWire} from "./wiring3d";
 import {pinAnchors} from "./silkscreen";
 import {ComponentCard} from "./ComponentCard";
 import {CodeView} from "./CodeView";
@@ -55,7 +55,7 @@ const SchematicViewer=lazy(()=>import("@tscircuit/schematic-viewer").then(module
 function numberSprite(n:number,color:number){const canvas=document.createElement("canvas");canvas.width=canvas.height=64;const c=canvas.getContext("2d")!;
  c.fillStyle="#ffffff";c.beginPath();c.arc(32,32,27,0,Math.PI*2);c.fill();c.lineWidth=6;c.strokeStyle=`#${color.toString(16).padStart(6,"0")}`;c.stroke();
  c.fillStyle="#1d2124";c.font="700 32px system-ui,sans-serif";c.textAlign="center";c.textBaseline="middle";c.fillText(String(n),32,34);
- const map=new THREE.CanvasTexture(canvas);map.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map,depthTest:false,sizeAttenuation:false}));sprite.scale.set(.03,.03,1);sprite.renderOrder=10;sprite.name="wire-tag";return sprite}
+ const map=new THREE.CanvasTexture(canvas);map.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map,depthTest:false,sizeAttenuation:false}));sprite.scale.set(.024,.024,1);sprite.renderOrder=10;sprite.name="wire-tag";return sprite}
 function textSprite(text:string,height:number){const canvas=document.createElement("canvas"),c=canvas.getContext("2d")!;c.font="700 40px Cascadia Mono,Consolas,monospace";const width=Math.ceil(c.measureText(text).width)+24;canvas.width=width;canvas.height=56;
  c.fillStyle="rgba(255,255,255,.92)";c.beginPath();c.roundRect(0,0,width,56,12);c.fill();c.fillStyle="#1d2124";c.font="700 40px Cascadia Mono,Consolas,monospace";c.textBaseline="middle";c.fillText(text,12,30);
  const map=new THREE.CanvasTexture(canvas);map.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map,depthTest:false,sizeAttenuation:false}));sprite.scale.set(height*width/56,height,1);sprite.renderOrder=9;sprite.name="pin-label";return sprite}
@@ -129,6 +129,8 @@ class HolographicScene{
   const resize=()=>{this.camera.aspect=host.clientWidth/Math.max(host.clientHeight,1);this.camera.updateProjectionMatrix();this.renderer.setSize(host.clientWidth,host.clientHeight);this.composer?.setSize(host.clientWidth,host.clientHeight);this.render()};this.resizeObserver=new ResizeObserver(resize);this.resizeObserver.observe(host);this.controls.addEventListener("change",this.render);this.render();
  }
  render=()=>{this.renderCount++;
+  // Pin names appear only close enough to read; the overview keeps just the wire numbers.
+  const eye=this.camera.position,at=new THREE.Vector3();for(const child of this.pinWires.children)if(child.name==="pin-label")child.visible=child.getWorldPosition(at).distanceTo(eye)<320;
   if(!this.composer){this.renderer.render(this.scene,this.camera);return}
   const started=performance.now();this.composer.render();this.frames.add(performance.now()-started);
   if(this.frames.slow){this.ao?.dispose();this.ao=undefined;this.composer.dispose();this.composer=undefined;this.quality="basic";(window as any).__auraRenderQuality="basic"}};
@@ -190,18 +192,30 @@ class HolographicScene{
   const top=(part:string)=>{const node=this.nodes.get(part);if(!node?.visible)return null;const box=new THREE.Box3().setFromObject(node);return box.isEmpty()?null:this.activeProjectRoot.worldToLocal(new THREE.Vector3((box.min.x+box.max.x)/2,(box.min.y+box.max.y)/2,box.max.z))};
   const drawn:{wire:PinWire;start:THREE.Vector3;end:THREE.Vector3}[]=[],approximate:{from:string;to:string}[]=[...resolveWires.unresolved(this.graph)];
   const labelled=new Map<string,{part:string;pin:string;at:THREE.Vector3}>();
+  const placed:{wire:PinWire;a:THREE.Vector3;b:THREE.Vector3}[]=[];
   for(const wire of resolveWires(this.graph)){
    const a=end(wire.from.part,wire.from.pin),b=end(wire.to.part,wire.to.pin);
    if(!a||!b){approximate.push({from:wire.from.part,to:wire.to.part});continue}
+   placed.push({wire,a,b});
+  }
+  // Harness lanes: each wire runs flat at its own height (short wires low), clear of any other part it passes over.
+  const boxes=[...this.nodes].filter(([,node])=>node.visible).map(([id,node])=>{const box=new THREE.Box3().setFromObject(node);return {id,min:this.activeProjectRoot.worldToLocal(box.min.clone()),max:this.activeProjectRoot.worldToLocal(box.max.clone())}});
+  const crosses=(box:{min:THREE.Vector3;max:THREE.Vector3},x0:number,x1:number,y0:number,y1:number)=>Math.max(x0,x1)>=box.min.x-1&&Math.min(x0,x1)<=box.max.x+1&&Math.max(y0,y1)>=box.min.y-1&&Math.min(y0,y1)<=box.max.y+1;
+  const lanes=assignLanes(placed.map(({a,b})=>Math.abs(b.x-a.x)+Math.abs(b.y-a.y)));
+  placed.forEach(({wire,a,b},index)=>{
+   const over=boxes.filter(box=>box.id!==wire.from.part&&box.id!==wire.to.part&&(crosses(box,a.x,b.x,a.y,a.y)||crosses(box,b.x,b.x,a.y,b.y)));
+   const height=Math.max(a.z,b.z,...over.map(box=>box.max.z-2))+8+lanes[index]*2.5;
    const group=new THREE.Group();group.userData.wire=wire;group.name=`wire-${wire.number}`;
-   const curve=jumperCurve(a,b),tube=new THREE.Mesh(new THREE.TubeGeometry(curve,72,.6,8,false),new THREE.MeshStandardMaterial({color:wire.color,roughness:.42,metalness:.05}));tube.castShadow=true;group.add(tube);
+   const curve=harnessPath(a,b,height),tube=new THREE.Mesh(new THREE.TubeGeometry(curve,160,.6,8,false),new THREE.MeshStandardMaterial({color:wire.color,roughness:.42,metalness:.05}));tube.castShadow=true;group.add(tube);
    for(const [p,pin] of [[a,wire.from.pin],[b,wire.to.pin]] as [THREE.Vector3,string][]){
     const sleeve=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.05,3.2,12),new THREE.MeshStandardMaterial({color:0x1a1c1e,roughness:.6}));sleeve.rotation.x=Math.PI/2;sleeve.position.set(p.x,p.y,p.z+2);group.add(sleeve);
     labelled.set(`${p===a?wire.from.part:wire.to.part}:${pin}`,{part:p===a?wire.from.part:wire.to.part,pin,at:p});
    }
-   const tag=numberSprite(wire.number,wire.color);tag.position.copy(curve.getPoint(.5)).add(new THREE.Vector3(0,0,4));group.add(tag);
+   // Tags spread along the flat run (by lane) so wires leaving the same pin never stack their numbers.
+   const spread=placed.length>1?.15+.7*lanes[index]/(placed.length-1):.5,run=Math.abs(b.x-a.x)>Math.abs(b.y-a.y);
+   const tag=numberSprite(wire.number,wire.color);tag.position.set(run?a.x+(b.x-a.x)*spread:b.x,run?a.y:a.y+(b.y-a.y)*spread,height+2.5);group.add(tag);
    this.pinWires.add(group);drawn.push({wire,start:a,end:b});
-  }
+  });
   // One label per used pin; neighbours on the same part alternate height so 2.54 mm-spaced labels stay readable.
   const byPart=new Map<string,{pin:string;at:THREE.Vector3}[]>();
   for(const item of labelled.values())byPart.set(item.part,[...(byPart.get(item.part)||[]),item]);
