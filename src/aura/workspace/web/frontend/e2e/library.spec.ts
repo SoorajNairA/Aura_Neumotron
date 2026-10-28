@@ -11,7 +11,7 @@ export async function openLibrary(page:Page){
  await mock(page);
  await page.route("**/api/catalogue",r=>r.fulfill({json:catalogue}));
  await page.goto("/?projectId=project-fan");
- await page.getByRole("button",{name:"Open component library"}).click();await page.getByRole("menuitem",{name:"Component library"}).click();
+ await page.getByRole("button",{name:"Open component library"}).click();await page.getByRole("menuitemcheckbox",{name:"Component library"}).click();
  await expect(page.getByRole("dialog",{name:"Component library"})).toBeVisible();
 }
 

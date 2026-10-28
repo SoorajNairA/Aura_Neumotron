@@ -314,7 +314,7 @@ export function WorkspaceApp(){
   useEffect(()=>{const seen=seenToast.current,narrationChanged=newestKey!==seen.key&&Boolean(newest?.text),statusChanged=status!==seen.status;seen.key=newestKey;seen.status=status;
    if(narrationChanged)setToast(newest.text);else if(statusChanged){const text=simpleStatus(status);if(text&&text!=="Ready")setToast(text)}},[newestKey,status]);
   const hamburger:Menu={label:"☰",ariaLabel:"Open component library",items:[
-   {label:"Component library",hint:"Search and add catalogue parts",onSelect:()=>{if(space!=="design"){setMode(designView);setLibraryOpen(true)}else setLibraryOpen(open=>!open)}},
+   {label:"Component library",hint:"Search and add catalogue parts",checked:space==="design"&&libraryOpen,onSelect:()=>{if(space!=="design"){setMode(designView);setLibraryOpen(true)}else setLibraryOpen(open=>!open)}},
    {label:"Fit",onSelect:fit},{label:exploded?"Assemble":"Explode",onSelect:toggleExplode},{label:xray?"Solid":"X-ray",onSelect:toggleXray},{label:"Show all",onSelect:showAll},
    {label:developer?"Hide developer panel":"Developer panel",onSelect:()=>setDeveloper(!developer)},
    {label:"Model settings",onSelect:()=>setModelSettingsOpen(true)},{label:"Code and compile",disabled:!firmware,onSelect:()=>setMode("code")},{label:"Connect device",disabled:noFirmware,onSelect:()=>setMode("build")}]};

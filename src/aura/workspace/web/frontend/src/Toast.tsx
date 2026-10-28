@@ -7,5 +7,5 @@ export const TOAST_MS=6000;
 export function Toast({message,onDismiss}:{message:string|undefined;onDismiss:()=>void}){
  useEffect(()=>{if(!message)return;const timer=window.setTimeout(onDismiss,TOAST_MS);return()=>window.clearTimeout(timer)},[message]);
  if(!message)return null;
- return <div className="toast" role="status" data-testid="toast"><b>AURA</b><span>{message}</span><button aria-label="Dismiss" onClick={onDismiss}>×</button></div>;
+ return <div className="toast" role="status" data-testid="toast"><b>AURA</b><span>{message}</span><button aria-label="Dismiss notification" onClick={onDismiss}>×</button></div>;
 }

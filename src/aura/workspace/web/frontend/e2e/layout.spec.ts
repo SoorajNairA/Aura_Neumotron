@@ -14,7 +14,7 @@ test("hamburger leads the menu bar and holds the view and tool actions",async({p
  for(const name of ["View","Components","Tools"])await expect(menubar.getByRole("button",{name,exact:true})).toHaveCount(0);
  const burger=buttons.first();
  await burger.click();await expect(burger).toHaveAttribute("aria-expanded","true");
- const items=await page.getByRole("menu").getByRole("menuitem").allInnerTexts();
+ const items=await page.getByRole("menu").locator("[role^=menuitem]").allInnerTexts();
  expect(items.map(text=>text.split("\n")[0].trim())).toEqual(["Component library","Fit","Explode","Solid","Show all","Developer panel","Model settings","Code and compile","Connect device"]);
  await page.keyboard.press("Escape");await expect(burger).toHaveAttribute("aria-expanded","false");await expect(burger).toBeFocused();
  await burger.click();await page.getByRole("menuitem",{name:"Explode",exact:true}).click();
@@ -26,14 +26,20 @@ test("hamburger leads the menu bar and holds the view and tool actions",async({p
  await expect(page.getByRole("menu")).toHaveCount(0);
 });
 
-test("the Component library item toggles the library panel",async({page})=>{
+test("the Component library item is a checkbox that toggles the library panel",async({page})=>{
  await page.route("**/api/catalogue",r=>r.fulfill({json:[]}));
  await page.goto("/?projectId=project-fan");
  const burger=page.getByRole("button",{name:"Open component library"});
- await burger.click();await page.getByRole("menuitem",{name:"Component library"}).click();
+ await burger.click();
+ const item=page.getByRole("menuitemcheckbox",{name:"Component library"});
+ await expect(item).toHaveAttribute("aria-checked","false");
+ await item.click();
  await expect(page.getByRole("dialog",{name:"Component library"})).toBeVisible();
- await burger.click();await page.getByRole("menuitem",{name:"Component library"}).click();
+ await burger.click();await expect(item).toHaveAttribute("aria-checked","true");
+ await page.keyboard.press("ArrowDown");await page.keyboard.press("ArrowUp");await expect(item).toBeFocused();
+ await item.click();
  await expect(page.getByRole("dialog",{name:"Component library"})).toHaveCount(0);
+ await burger.click();await expect(item).toHaveAttribute("aria-checked","false");
 });
 
 test("the view switch sits at the top-left of the viewport and the old status card is gone",async({page})=>{
@@ -53,7 +59,7 @@ test("narration shows as a dismissible toast that clears itself",async({page})=>
  await page.goto("/?projectId=project-fan");
  const toast=page.getByRole("status").filter({hasText:"Routing the fan supply"});
  await expect(toast).toBeVisible();
- await toast.getByRole("button",{name:"Dismiss"}).click();await expect(toast).toHaveCount(0);
+ await toast.getByRole("button",{name:"Dismiss notification",exact:true}).click();await expect(toast).toHaveCount(0);
  await page.reload();await expect(toast).toBeVisible();
  await expect(toast).toHaveCount(0,{timeout:6500});
 });
