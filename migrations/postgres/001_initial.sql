@@ -50,3 +50,8 @@ CREATE TABLE IF NOT EXISTS control_rules (
     project_id TEXT PRIMARY KEY REFERENCES projects(project_id) ON DELETE CASCADE,
     payload JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS schematic_layouts (
+    project_id TEXT PRIMARY KEY REFERENCES projects(project_id) ON DELETE CASCADE,
+    payload JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL
+);

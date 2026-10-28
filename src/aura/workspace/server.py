@@ -25,8 +25,8 @@ from starlette.concurrency import run_in_threadpool
 from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
 from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation, apply_patch
 from aura.capabilities import CAPABILITY_MANIFEST, classify_objective
-from aura.engineering_graph.serialization import graph_to_dict
-from aura.engineering_graph.serialization import patch_to_dict
+from aura.engineering_graph.serialization import graph_from_dict, graph_to_dict
+from aura.engineering_graph.serialization import patch_from_dict, patch_to_dict
 from aura.infrastructure.persistence.project_repository import (
     CorruptProjectData, PersistenceFailure, ProjectRepository, SQLiteProjectRepository,
     StoredEvent, StoredProject, UnsupportedSchemaVersion,
@@ -50,6 +50,7 @@ from .representation_service import RepresentationService, initial_records, repr
 from .representations import RepresentationRecord, RepresentationStatus, RepresentationType
 from .modifications import LiveModificationPlanner,ModificationError,ModificationProposal,inverse_proposal,propose,propose_add_components,part_interfaces,propose_connection,propose_parameter_change,propose_pin_change
 from .narration import NarrationService
+from .project_package import EMPTY_LAYOUT, MAX_PACKAGE_BYTES, PackageContents, PackageError, build_zip, read_zip, rewrite_project_id, slug, validate_layout
 from .work_items import EngineeringWorkService, WorkDomainError
 from .scenarios import EngineeringScenario,LiveScenarioAnalyzer,ScenarioError,analyze as analyze_scenario
 from aura.firmware import FirmwareUnsupported, generate_fan_sketch
@@ -128,6 +129,11 @@ class UploadBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     # A port name never starts with "-", so it cannot be read as an arduino-cli option.
     port: str = Field(min_length=1,max_length=64,pattern=r"^[A-Za-z0-9/][A-Za-z0-9_./-]*$")
+
+
+class LayoutBody(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    layout: dict[str, Any]
 
 
 class FirmwareEditBody(BaseModel):
@@ -268,6 +274,8 @@ class WorkspaceApplication:
         self.active_representation_operations:set[str]=set()
         self.work_service=EngineeringWorkService(self.repository)
         self.scenarios:dict[str,EngineeringScenario]={}
+        # Set by create_app: (project_id, graph) -> the firmware source a download would use, or None when unsupported.
+        self.firmware_source:Any=None
 
     def try_modification_lock(self, project_id: str) -> threading.Lock | None:
         with self.modification_locks_guard:
@@ -665,6 +673,55 @@ class WorkspaceApplication:
         await self.publish_with_narration(ready_event,graph,record.representations)
         return record
 
+    async def restore(self, contents: PackageContents, origin: Literal["imported","copied"]) -> StoredProject:
+        """Create a new project from validated package contents (shared by Import and Make a copy)."""
+        old_id=contents.graph.project_id;new_id=f"project-{uuid4().hex}"
+        try:
+            graph=graph_from_dict(rewrite_project_id(graph_to_dict(contents.graph),old_id,new_id))
+            verification=rewrite_project_id(contents.latest_verification,old_id,new_id) if contents.latest_verification is not None else {"kind":"restore"}
+            if contents.latest_patch is not None:
+                patch=patch_from_dict(rewrite_project_id(patch_to_dict(contents.latest_patch),old_id,new_id))
+            else:
+                patch=GraphPatch(graph.revisions[-1].patch_id,(GraphOperation(PatchOperation.ADD_ENTITY,entity=graph.get(new_id)),),f"Project {origin}")
+            if contents.firmware_edit:
+                try: splice_control(generate_fan_sketch(graph).source,contents.firmware_edit["block"])
+                except (FirmwareUnsupported,ValueError) as exc: raise PackageError("CORRUPT_GRAPH","firmware/edit.json does not fit this design") from exc
+            specs=[]
+            if contents.had_representations:
+                try: specs=representation_specs(graph)
+                except (ValueError,TypeError,KeyError,OverflowError): specs=[]
+        except PackageError: raise
+        except (ValueError,TypeError,KeyError,RecursionError) as exc: raise PackageError("CORRUPT_GRAPH",f"The project could not be restored: {str(exc)[:120]}") from exc
+        now=datetime.now(timezone.utc).isoformat()
+        representations=initial_records(new_id,len(graph.revisions),specs)
+        record=StoredProject(new_id,contents.objective,contents.planning_mode,contents.fallback_reason,"building",graph,
+            [item.to_dict() for item in representations],now,now)
+        source=contents.manifest.get("projectId")
+        provenance={"origin":origin,"sourceProjectId":source if isinstance(source,str) and len(source)<=128 else None,"exportedAt":str(contents.manifest.get("exportedAt",""))[:64]}
+        drafts=[{"type":f"project.{origin}","semantic_ids":[new_id],"payload":provenance}]
+        try:
+            committed=self.repository.save_commit(record,patch,verification,drafts)
+        except PersistenceFailure as exc:
+            raise HTTPException(503,detail={"code":"persistence_failure","message":str(exc)}) from exc
+        if contents.layout is not None: self.repository.save_layout(new_id,contents.layout)
+        if contents.control_rules is not None: self.repository.save_control_rules(new_id,contents.control_rules)
+        if contents.hardware_evidence is not None: self.repository.save_hardware_evidence(new_id,contents.hardware_evidence)
+        if contents.firmware_edit: self.repository.save_firmware_edit(new_id,contents.firmware_edit["block"],contents.firmware_edit["revisionId"])
+        self.broker.reset(new_id)
+        await self.publish_with_narration(committed,graph,record.representations)
+        completed=await run_in_threadpool(self.representation_service.persist_specs,new_id,len(graph.revisions),representations,specs)
+        record.representations=[item.to_dict() for item in completed]
+        self.repository.update_representations(new_id,record.representations)
+        failed=any(item.status is not RepresentationStatus.READY for item in completed)
+        record.status="build_incomplete" if failed else (contents.status if contents.status in {"ready","ready_with_limitations","build_incomplete"} else "ready_with_limitations")
+        self.repository.update_project_status(new_id,record.status)
+        events=[{"type":"representation.requested","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id,"type":item.type.value}} for item in completed]
+        events+=[{"type":f"representation.{item.status.value}","semantic_ids":list(item.semantic_ids),"payload":{"representationId":item.representation_id,"artifactId":item.artifact_id,"error":item.error}}
+            for item in completed if item.type.value=="circuit_schematic"]
+        events.append({"type":"project.build_incomplete" if record.status=="build_incomplete" else "project.ready","semantic_ids":[new_id],"payload":{"status":record.status,"origin":origin}})
+        await self.publish_with_narration(self.repository.append_events(new_id,len(graph.revisions),events),graph,record.representations)
+        return record
+
     async def publish_with_narration(self,committed:list[StoredEvent],graph:EngineeringGraph,
                                      representations:list[dict[str,Any]])->None:
         for event in committed: await self.broker.publish_committed(event)
@@ -886,6 +943,59 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.post("/api/capabilities/classify")
     def classify(body:CreateProjectBody)->dict[str,Any]: return classify_objective(body.objective)
+
+    def _package_http(exc: PackageError, status: int = 400) -> HTTPException:
+        return HTTPException(status, detail=exc.to_dict())
+
+    @app.post("/api/projects/import", status_code=201)
+    async def import_project(request: Request) -> dict[str, Any]:
+        too_large = PackageError("TOO_LARGE", "Project file is larger than the 20 MB limit")
+        declared = request.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > MAX_PACKAGE_BYTES:
+            raise _package_http(too_large)
+        body = bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body) > MAX_PACKAGE_BYTES:
+                raise _package_http(too_large)
+        try:
+            contents = await run_in_threadpool(read_zip, bytes(body))
+            record = await application.restore(contents, "imported")
+        except PackageError as exc:
+            raise _package_http(exc) from exc
+        return _project_payload(record, assessment=application.assessment(record))
+
+    @app.get("/api/projects/{project_id}/layout")
+    def get_layout(project_id: str) -> dict[str, Any]:
+        _record(application, project_id)
+        stored = application.repository.get_layout(project_id)
+        return {"layout": validate_layout(stored["layout"]) if stored else json.loads(json.dumps(EMPTY_LAYOUT)),
+                "updatedAt": stored["updatedAt"] if stored else None}
+
+    @app.put("/api/projects/{project_id}/layout")
+    def put_layout(project_id: str, body: LayoutBody) -> dict[str, Any]:
+        _record(application, project_id)
+        try: layout = validate_layout(body.layout)
+        except PackageError as exc: raise _package_http(exc, 422) from exc
+        return {"updatedAt": application.repository.save_layout(project_id, layout)}
+
+    @app.get("/api/projects/{project_id}/export")
+    def export_project(project_id: str) -> Response:
+        record = _record(application, project_id)
+        root = record.graph.entities.get(record.graph.project_id)
+        data = build_zip(application, project_id)
+        return Response(data, media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="aura-{slug(root.name if root else "")}.zip"'})
+
+    @app.post("/api/projects/{project_id}/copy", status_code=201)
+    async def copy_project(project_id: str) -> dict[str, Any]:
+        _record(application, project_id)
+        try:
+            contents = await run_in_threadpool(lambda: read_zip(build_zip(application, project_id)))
+            record = await application.restore(contents, "copied")
+        except PackageError as exc:
+            raise _package_http(exc) from exc
+        return _project_payload(record, assessment=application.assessment(record))
 
     @app.get("/api/projects/{project_id}")
     def get_project(project_id: str) -> dict[str, Any]:
@@ -1215,6 +1325,11 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         board=_board_revision(graph.current_revision_id,edit)
         source=splice_control(artifact.source,edit["block"]).replace(f'REVISION_ID = "{graph.current_revision_id}"',f'REVISION_ID = "{board}"')
         return replace(artifact,source=source,revision_id=board),{}
+
+    def _firmware_source(project_id:str,graph:EngineeringGraph)->str|None:
+        try: return _effective_firmware(project_id,graph)[0].source
+        except FirmwareUnsupported: return None
+    application.firmware_source=_firmware_source
 
     @app.get("/api/hardware/ports")
     async def hardware_ports()->dict[str,Any]: return await run_in_threadpool(list_ports)

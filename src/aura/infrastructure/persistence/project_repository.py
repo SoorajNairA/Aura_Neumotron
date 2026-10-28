@@ -92,6 +92,8 @@ class ProjectRepository(Protocol):
     def delete_firmware_edit(self, project_id: str) -> None: ...
     def save_control_rules(self, project_id: str, payload: dict[str, Any]) -> None: ...
     def get_control_rules(self, project_id: str) -> dict[str, Any] | None: ...
+    def save_layout(self, project_id: str, payload: dict[str, Any]) -> str: ...
+    def get_layout(self, project_id: str) -> dict[str, Any] | None: ...
     def save_hardware_evidence(self, project_id: str, payload: dict[str, Any]) -> None: ...
     def get_hardware_evidence(self, project_id: str) -> dict[str, Any] | None: ...
 
@@ -123,6 +125,7 @@ class SQLiteProjectRepository:
                 self._connection.execute("CREATE TABLE IF NOT EXISTS firmware_edits(project_id TEXT PRIMARY KEY, block TEXT NOT NULL, revision_id TEXT NOT NULL, updated_at TEXT NOT NULL)")
                 self._connection.execute("CREATE TABLE IF NOT EXISTS idea_sessions(session_id TEXT PRIMARY KEY, session_json TEXT NOT NULL, updated_at TEXT NOT NULL)")
                 self._connection.execute("CREATE TABLE IF NOT EXISTS control_rules(project_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL)")
+                self._connection.execute("CREATE TABLE IF NOT EXISTS schematic_layouts(project_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL)")
                 self._connection.execute("CREATE TABLE IF NOT EXISTS hardware_evidence(project_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL)")
                 self._connection.commit()
                 return
@@ -151,6 +154,7 @@ class SQLiteProjectRepository:
                 CREATE TABLE IF NOT EXISTS firmware_edits(project_id TEXT PRIMARY KEY, block TEXT NOT NULL, revision_id TEXT NOT NULL, updated_at TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS idea_sessions(session_id TEXT PRIMARY KEY, session_json TEXT NOT NULL, updated_at TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS control_rules(project_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS schematic_layouts(project_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS hardware_evidence(project_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL);
                 """)
 
@@ -197,6 +201,17 @@ class SQLiteProjectRepository:
     def get_control_rules(self, project_id: str) -> dict[str, Any] | None:
         with self._lock: row=self._connection.execute("SELECT payload FROM control_rules WHERE project_id=?",(project_id,)).fetchone()
         return json.loads(row[0]) if row else None
+
+    def save_layout(self, project_id: str, payload: dict[str, Any]) -> str:
+        updated = datetime.now(timezone.utc).isoformat()
+        with self._lock, self._connection:
+            self._connection.execute("INSERT INTO schematic_layouts VALUES(?,?,?) ON CONFLICT(project_id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at",
+                (project_id,json.dumps(payload,separators=(",",":")),updated))
+        return updated
+
+    def get_layout(self, project_id: str) -> dict[str, Any] | None:
+        with self._lock: row=self._connection.execute("SELECT payload,updated_at FROM schematic_layouts WHERE project_id=?",(project_id,)).fetchone()
+        return {"layout":json.loads(row[0]),"updatedAt":row[1]} if row else None
 
     def save_hardware_evidence(self, project_id: str, payload: dict[str, Any]) -> None:
         with self._lock, self._connection:

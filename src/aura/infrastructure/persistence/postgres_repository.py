@@ -99,6 +99,7 @@ class PostgresProjectRepository:
             cursor.execute("DELETE FROM firmware_edits WHERE project_id=%s",(project_id,))
 
     def save_control_rules(self, project_id: str, payload: dict[str, Any]) -> None:
+        from psycopg.types.json import Jsonb
         with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:
             cursor.execute("INSERT INTO control_rules VALUES(%s,%s,CURRENT_TIMESTAMP) ON CONFLICT(project_id) DO UPDATE SET payload=EXCLUDED.payload,updated_at=EXCLUDED.updated_at",
                 (project_id,Jsonb(payload)))
@@ -108,7 +109,20 @@ class PostgresProjectRepository:
             cursor.execute("SELECT payload FROM control_rules WHERE project_id=%s",(project_id,)); row=cursor.fetchone()
         return dict(row[0]) if row else None
 
+    def save_layout(self, project_id: str, payload: dict[str, Any]) -> str:
+        from psycopg.types.json import Jsonb
+        with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:
+            cursor.execute("INSERT INTO schematic_layouts VALUES(%s,%s,CURRENT_TIMESTAMP) ON CONFLICT(project_id) DO UPDATE SET payload=EXCLUDED.payload,updated_at=EXCLUDED.updated_at RETURNING updated_at",
+                (project_id,Jsonb(payload)))
+            return cursor.fetchone()[0].isoformat()
+
+    def get_layout(self, project_id: str) -> dict[str, Any] | None:
+        with self._pool.connection() as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT payload,updated_at FROM schematic_layouts WHERE project_id=%s",(project_id,)); row=cursor.fetchone()
+        return {"layout":dict(row[0]),"updatedAt":row[1].isoformat()} if row else None
+
     def save_hardware_evidence(self, project_id: str, payload: dict[str, Any]) -> None:
+        from psycopg.types.json import Jsonb
         with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:
             cursor.execute("INSERT INTO hardware_evidence VALUES(%s,%s,CURRENT_TIMESTAMP) ON CONFLICT(project_id) DO UPDATE SET payload=EXCLUDED.payload,updated_at=EXCLUDED.updated_at",
                 (project_id,Jsonb(payload)))
