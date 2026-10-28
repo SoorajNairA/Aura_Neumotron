@@ -16,6 +16,8 @@ from typing import Any
 
 from aura.engineering_graph.model import EngineeringGraph
 from aura.engineering_graph.patches import GraphPatch
+from aura.firmware import FirmwareUnsupported, generate_fan_sketch
+from aura.firmware.sketch import splice_control
 from aura.engineering_graph.serialization import graph_from_dict, graph_to_dict, patch_from_dict, patch_to_dict
 
 from .representations import RepresentationRecord
@@ -29,6 +31,8 @@ KNOWN_MEMBERS = frozenset({
     "manifest.json", "graph.json", "project.json", "layout.json", "control-rules.json",
     "hardware-evidence.json", "firmware/main.ino", "firmware/edit.json",
 })
+ARTIFACT_MEMBER = re.compile(r"artifacts/[A-Za-z0-9_-]{1,100}\.[a-z0-9]{1,8}")
+ARTIFACT_EXTENSIONS = {"representation-spec": "json", "circuit-json": "json"}
 EMPTY_LAYOUT: dict[str, Any] = {"parts": {}, "wires": {}, "labels": {}}
 
 
@@ -86,9 +90,22 @@ def rewrite_project_id(value: Any, old: str, new: str) -> Any:
     return value
 
 
+def edit_fits(graph: EngineeringGraph, block: str) -> bool:
+    """True when a saved fanControl edit still splices into the sketch generated for this graph."""
+    try:
+        splice_control(generate_fan_sketch(graph).source, block)
+        return True
+    except (FirmwareUnsupported, ValueError):
+        return False
+
+
 def slug(name: str) -> str:
     text = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:40].strip("-")
     return text or "project"
+
+
+def representations_raw(record: Any) -> list[dict[str, Any]]:
+    return [item for item in record.representations if isinstance(item, dict)]
 
 
 def _dump(value: Any) -> bytes:
@@ -134,8 +151,19 @@ def build_zip(application: Any, project_id: str) -> bytes:
     if source:
         members["firmware/main.ino"] = source.encode("utf-8")
     edit = repository.get_firmware_edit(project_id)
-    if edit:
+    if edit and edit_fits(record.graph, edit["block"]):
         members["firmware/edit.json"] = _dump({"block": edit["block"], "revisionId": edit["revisionId"]})
+    for item in representations_raw(record):
+        artifact_id = item.get("artifactId")
+        if item.get("status") != "ready" or not isinstance(artifact_id, str):
+            continue
+        try:
+            metadata = repository.get_artifact(artifact_id)
+            name = f"artifacts/{artifact_id}.{ARTIFACT_EXTENSIONS.get(metadata.format, 'bin') if metadata else 'bin'}"
+            if ARTIFACT_MEMBER.fullmatch(name):
+                members[name] = repository.read_artifact(artifact_id)
+        except Exception:  # missing, failed or unverifiable artifacts are left out; import regenerates them
+            continue
     buffer = io.BytesIO()
     stamp = now.timetuple()[:6]
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -165,7 +193,7 @@ def _object(name: str, value: Any, error_code: str = "CORRUPT_GRAPH") -> dict[st
 
 
 def _unsafe(name: str) -> bool:
-    return (name not in KNOWN_MEMBERS or "\\" in name or name.startswith("/") or ":" in name
+    return ((name not in KNOWN_MEMBERS and not ARTIFACT_MEMBER.fullmatch(name)) or "\\" in name or name.startswith("/") or ":" in name
             or any(part in {"", ".", ".."} for part in name.split("/")))
 
 

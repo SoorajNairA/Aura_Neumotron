@@ -50,7 +50,7 @@ from .representation_service import RepresentationService, initial_records, repr
 from .representations import RepresentationRecord, RepresentationStatus, RepresentationType
 from .modifications import LiveModificationPlanner,ModificationError,ModificationProposal,inverse_proposal,propose,propose_add_components,part_interfaces,propose_connection,propose_parameter_change,propose_pin_change
 from .narration import NarrationService
-from .project_package import EMPTY_LAYOUT, MAX_PACKAGE_BYTES, PackageContents, PackageError, build_zip, read_zip, rewrite_project_id, slug, validate_layout
+from .project_package import EMPTY_LAYOUT, MAX_PACKAGE_BYTES, PackageContents, PackageError, build_zip, edit_fits, read_zip, rewrite_project_id, slug, validate_layout
 from .work_items import EngineeringWorkService, WorkDomainError
 from .scenarios import EngineeringScenario,LiveScenarioAnalyzer,ScenarioError,analyze as analyze_scenario
 from aura.firmware import FirmwareUnsupported, generate_fan_sketch
@@ -683,13 +683,12 @@ class WorkspaceApplication:
                 patch=patch_from_dict(rewrite_project_id(patch_to_dict(contents.latest_patch),old_id,new_id))
             else:
                 patch=GraphPatch(graph.revisions[-1].patch_id,(GraphOperation(PatchOperation.ADD_ENTITY,entity=graph.get(new_id)),),f"Project {origin}")
-            if contents.firmware_edit:
-                try: splice_control(generate_fan_sketch(graph).source,contents.firmware_edit["block"])
-                except (FirmwareUnsupported,ValueError) as exc: raise PackageError("CORRUPT_GRAPH","firmware/edit.json does not fit this design") from exc
+            # An edit that no longer fits the regenerated sketch is dropped; the rest of the project is still valid.
+            firmware_edit=contents.firmware_edit if contents.firmware_edit and edit_fits(graph,contents.firmware_edit["block"]) else None
             specs=[]
             if contents.had_representations:
                 try: specs=representation_specs(graph)
-                except (ValueError,TypeError,KeyError,OverflowError): specs=[]
+                except (ValueError,TypeError,KeyError,OverflowError) as exc: raise PackageError("CORRUPT_GRAPH",f"The design could not be turned into representations: {str(exc)[:120]}") from exc
         except PackageError: raise
         except (ValueError,TypeError,KeyError,RecursionError) as exc: raise PackageError("CORRUPT_GRAPH",f"The project could not be restored: {str(exc)[:120]}") from exc
         now=datetime.now(timezone.utc).isoformat()
@@ -706,7 +705,7 @@ class WorkspaceApplication:
         if contents.layout is not None: self.repository.save_layout(new_id,contents.layout)
         if contents.control_rules is not None: self.repository.save_control_rules(new_id,contents.control_rules)
         if contents.hardware_evidence is not None: self.repository.save_hardware_evidence(new_id,contents.hardware_evidence)
-        if contents.firmware_edit: self.repository.save_firmware_edit(new_id,contents.firmware_edit["block"],contents.firmware_edit["revisionId"])
+        if firmware_edit: self.repository.save_firmware_edit(new_id,firmware_edit["block"],firmware_edit["revisionId"])
         self.broker.reset(new_id)
         await self.publish_with_narration(committed,graph,record.representations)
         completed=await run_in_threadpool(self.representation_service.persist_specs,new_id,len(graph.revisions),representations,specs)

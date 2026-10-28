@@ -187,7 +187,7 @@ def test_bad_zips_each_code(api, fan):
     assert case({"manifest.json": json.dumps([1, 2])}) == "NOT_AN_AURA_PROJECT"
     assert case(good | {"manifest.json": json.dumps(MANIFEST | {"version": 2})}) == "UNSUPPORTED_VERSION"
     assert case(good | {"manifest.json": json.dumps(MANIFEST | {"version": "1"})}) == "UNSUPPORTED_VERSION"
-    for name in ("../evil.txt", "/etc/passwd", "firmware\\other.ino", "..\\evil.txt", "C:/x.txt", "extra.txt", "artifacts/x.bin", "firmware/../graph.json", "firmware/"):
+    for name in ("../evil.txt", "/etc/passwd", "firmware\\other.ino", "..\\evil.txt", "C:/x.txt", "extra.txt", "artifacts/x", "artifacts/../graph.json", "artifacts/a/b.json", "artifacts/", "firmware/../graph.json", "firmware/"):
         assert case(good | {name: "x"}) == "UNSAFE_PATH", name
     dup = io.BytesIO()
     with zipfile.ZipFile(dup, "w") as archive:
@@ -234,3 +234,48 @@ def test_path_rules_reject_backslash_and_traversal_directly():
     for name in ("firmware" + chr(92) + "main.ino", ".." + chr(92) + "x", "../x", "/abs", "firmware//main.ino", "./graph.json", "C:graph.json", "unknown.txt"):
         assert _unsafe(name), name
     assert not _unsafe("firmware/main.ino") and not _unsafe("manifest.json")
+
+
+def test_export_contains_design_assets(api, fan):
+    record = api.application.repository.get_project(fan)
+    ready = [item for item in record.representations if item["status"] == "ready" and item.get("artifactId")]
+    assert ready
+    members = good_members(api, fan)
+    for item in ready:
+        assert members[f"artifacts/{item['artifactId']}.json"] == api.application.repository.read_artifact(item["artifactId"])
+    schematic = next(item for item in ready if item["type"] == "circuit_schematic")
+    assert f"artifacts/{schematic['artifactId']}.json" in members
+
+
+def test_import_accepts_and_ignores_artifacts_but_counts_their_size(api, fan):
+    good = good_members(api, fan)
+    response = post_import(api, zip_bytes(good | {"artifacts/forged.json": b"[1,2,3]"}))
+    assert response.status_code == 201, response.text
+    new_id = response.json()["projectId"]
+    stored = {item["artifactId"] for item in response.json()["representations"]}
+    assert "forged" not in stored and all(a and a != "forged" for a in stored)
+    assert code_of(post_import(api, zip_bytes(good | {"artifacts/big.json": b" " * (MAX_PACKAGE_BYTES + 1)}))) == "TOO_LARGE"
+    assert new_id != fan
+
+
+def test_edit_that_no_longer_fits_is_skipped_on_export_and_dropped_on_import(api, fan):
+    generic = api.post("/api/projects", json={"objective": "Design a plant watering pump with a soil moisture sensor", "planningMode": "deterministic_test"}).json()["projectId"]
+    api.application.repository.save_firmware_edit(generic, EDITED, "stale")
+    members = good_members(api, generic)
+    assert "firmware/edit.json" not in members
+    forged = zip_bytes(members | {"firmware/edit.json": json.dumps({"block": EDITED, "revisionId": "stale"})})
+    response = post_import(api, forged)
+    assert response.status_code == 201, response.text
+    assert api.application.repository.get_firmware_edit(response.json()["projectId"]) is None
+    assert api.get(f"/api/projects/{response.json()['projectId']}/firmware").json()["supported"] is True
+
+
+def test_representation_spec_failure_rejects_before_any_write(api, fan, monkeypatch):
+    import aura.workspace.server as server
+    monkeypatch.setattr(server, "representation_specs", lambda graph: (_ for _ in ()).throw(ValueError("boom")))
+    exported = api.get(f"/api/projects/{fan}/export").content
+    before = len(api.get("/api/projects").json())
+    assert code_of(post_import(api, exported)) == "CORRUPT_GRAPH"
+    response = api.post(f"/api/projects/{fan}/copy")
+    assert response.status_code == 400 and response.json()["detail"]["code"] == "CORRUPT_GRAPH"
+    assert len(api.get("/api/projects").json()) == before
