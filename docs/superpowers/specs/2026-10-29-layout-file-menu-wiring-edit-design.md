@@ -42,7 +42,10 @@ Dropdown styled like the reference: plain rows, shortcut hints on the right, sep
 `graph.json` (Engineering Graph), `project.json` (status, planning mode, representations metadata),
 `artifacts/<id>.<ext>` (schematic, CAD specs), `firmware/` (generated source + user edit block when present),
 `layout.json` (wiring layout), `control-rules.json`, `hardware-evidence.json` when present.
-Never included: API keys, model profiles, environment, logs. Import trusts nothing: size limit 20 MB, only known paths,
+Never included: API keys, model profiles, environment, logs. Import and Make a copy share one server path: `graph_from_dict` → rewrite project id → `save_commit` as a new project
+→ `RepresentationService.persist_specs` regenerates the 3D and schematic artifacts (artifacts are not copied byte-for-byte).
+Layout lives in a new `schematic_layouts(project_id, payload, updated_at)` table (SQLite and Postgres), same pattern as
+`control_rules`. Import trusts nothing: size limit 20 MB, only known paths,
 JSON parsed and graph validated by the existing graph validation, new project id assigned, provenance marks it "imported".
 
 ## 3. Editable Wiring view
