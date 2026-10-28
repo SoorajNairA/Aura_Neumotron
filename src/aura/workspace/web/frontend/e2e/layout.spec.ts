@@ -5,7 +5,7 @@ test.beforeEach(async({page})=>{await mock(page);await page.route("**/api/hardwa
 
 test("application menu replaces the space tabs and its items run existing actions",async({page})=>{
  await page.goto("/?projectId=project-fan");
- const menubar=page.getByRole("menubar",{name:"Application menu"});
+ const menubar=page.getByRole("navigation",{name:"Application menu"});
  for(const name of ["File","Edit","View","Project","Components","Tools","Help"])await expect(menubar.getByRole("button",{name,exact:true})).toBeVisible();
  const view=menubar.getByRole("button",{name:"View",exact:true});
  await view.click();await expect(view).toHaveAttribute("aria-expanded","true");
@@ -47,4 +47,40 @@ for(const width of [1280,900])test(`no horizontal overflow at ${width}px`,async(
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1)).toBe(true);
  const box=await page.getByTestId("space-toolbar").boundingBox(),fab=await page.getByRole("button",{name:"View controls"}).boundingBox();
  expect(fab!.y).toBeGreaterThan(box!.y+box!.height-1);
+});
+
+const covered=async(page:any,locator:any)=>{const box=await locator.boundingBox();return page.evaluate(([x,y,el]:any)=>{const hit=document.elementFromPoint(x,y);return !(el===hit||el.contains(hit))},[box.x+box.width/2,box.y+box.height/2,await locator.elementHandle()])};
+
+for(const width of [1280,1000])test(`the open view FAB never covers the view switch or library toggle at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:860});await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:"View controls"}).click();
+ expect(await covered(page,page.getByRole("button",{name:"Open component library"}))).toBe(false);
+ await page.getByRole("button",{name:"View controls"}).click();
+ await page.getByRole("button",{name:"Wiring",exact:true}).click();await page.getByRole("button",{name:"View controls"}).click();
+ expect(await covered(page,page.getByRole("group",{name:"Design view"}).getByRole("button",{name:"3D view"}))).toBe(false);
+});
+
+test("phone width keeps the menu off the space toolbar",async({page})=>{
+ await page.setViewportSize({width:390,height:820});await page.goto("/?projectId=project-fan");
+ expect(await covered(page,page.getByTestId("space-toolbar").getByRole("button",{name:"Simulation",exact:true}))).toBe(false);
+ expect(await covered(page,page.getByTestId("space-toolbar").getByRole("button",{name:"Code",exact:true}))).toBe(false);
+});
+
+for(const width of [920,1280])test(`status and routing notes stay readable and clear of the view switch at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:860});await page.goto("/?projectId=project-fan");
+ const note=await page.locator(".narration-card").boundingBox(),sw=await page.getByRole("group",{name:"Design view"}).boundingBox();
+ // Where the viewport is too narrow for both, the status note is hidden rather than squeezed.
+ if(!note)return;
+ expect(note.width).toBeGreaterThan(200);
+ expect(note.y+note.height<=sw!.y||note.x+note.width<=sw!.x).toBe(true);
+});
+
+test("keyboard focus survives FAB toggles and menu selections",async({page})=>{
+ await page.goto("/?projectId=project-fan");
+ await page.getByRole("button",{name:"View controls"}).click();
+ await page.getByRole("button",{name:"Explode",exact:true}).focus();await page.keyboard.press("Enter");
+ await expect(page.getByRole("button",{name:"Assemble",exact:true})).toBeFocused();
+ const file=page.getByRole("navigation",{name:"Application menu"}).getByRole("button",{name:"File",exact:true});
+ await file.click();await page.getByRole("menuitem",{name:"Switch project"}).click();
+ await expect(file).toBeFocused();
 });

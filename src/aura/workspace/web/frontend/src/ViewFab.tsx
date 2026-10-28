@@ -14,7 +14,7 @@ export function ViewFab({actions}:{actions:FabAction[]}){
  return <div ref={root} className={`view-fab${open?" open":""}`}>
   <button ref={button} className="fab" aria-label="View controls" aria-expanded={open} onClick={()=>setOpen(!open)}><span aria-hidden="true">{open?"×":"⋯"}</span></button>
   {open&&<div className="fab-actions" role="group" aria-label="View actions">
-   {actions.map(action=><button key={action.label} aria-pressed={action.pressed} onClick={action.onClick}><span className="fab-icon" aria-hidden="true">{action.icon}</span>{action.label}</button>)}
+   {actions.map((action,index)=><button key={index} aria-pressed={action.pressed} onClick={action.onClick}><span className="fab-icon" aria-hidden="true">{action.icon}</span>{action.label}</button>)}
   </div>}
  </div>;
 }

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import {describe,expect,it} from "vitest";
-import {assignLanes,harnessPath,resolveWires,WIRE_COLORS} from "./wiring3d";
+import {assignLanes,harnessPath,laneHeights,resolveWires,WIRE_COLORS} from "./wiring3d";
 
 const comp=(id:string,name:string,family:string,parameters:any={})=>({id,kind:"component",name,metadata:{family,parameters}});
 const conn=(id:string,s:string,si:string,t:string,ti:string,type:string)=>({id,kind:"connection",name:id,metadata:{source_id:s,source_interface:si,target_id:t,target_interface:ti,connection_type:type}});
@@ -56,4 +56,13 @@ describe("clean harness routing",()=>{
   }
  });
  it("gives every wire its own lane, shortest lowest",()=>{expect(assignLanes([30,5,12])).toEqual([2,0,1])});
+});
+
+describe("review: lane heights",()=>{
+ it("keeps every flat run at least one lane above the previous, in lane order",()=>{
+  const heights=laneHeights([10,7.5,30,10],[5,20,12,40]);
+  const order=[0,2,1,3];
+  for(let i=1;i<order.length;i++)expect(heights[order[i]]-heights[order[i-1]]).toBeGreaterThanOrEqual(2.5-1e-9);
+  expect(heights[0]).toBe(18);expect(heights[2]).toBe(38);
+ });
 });

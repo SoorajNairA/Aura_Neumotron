@@ -84,3 +84,12 @@ export function assignLanes(lengths:number[]):number[]{
  const order=lengths.map((length,index)=>({length,index})).sort((p,q)=>p.length-q.length||p.index-q.index);
  const lanes=new Array<number>(lengths.length);order.forEach((item,lane)=>{lanes[item.index]=lane});return lanes;
 }
+
+// Flat-run height per wire: in lane order, each wire sits at least one lane (2.5 mm) above the previous one and
+// 8 mm above its own base (pins and any part it crosses), so no two runs share a height and long wires pass over.
+export function laneHeights(bases:number[],lengths:number[],clearance=8,step=2.5):number[]{
+ const lanes=assignLanes(lengths),order=lanes.map((lane,index)=>({lane,index})).sort((p,q)=>p.lane-q.lane);
+ const heights=new Array<number>(bases.length);let previous=-Infinity;
+ for(const {index} of order){heights[index]=Math.max(bases[index]+clearance,previous+step);previous=heights[index]}
+ return heights;
+}

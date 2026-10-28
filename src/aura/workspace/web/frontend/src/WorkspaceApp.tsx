@@ -21,7 +21,7 @@ import {useSerial} from "./hardware";
 import {LiveBoard} from "./LiveBoard";
 import {telemetryOutputs} from "./live";
 import {connectedParts,pinLabel,polarity} from "./pinout";
-import {assignLanes,harnessPath,resolveWires,Wire as PinWire} from "./wiring3d";
+import {assignLanes,harnessPath,laneHeights,resolveWires,Wire as PinWire} from "./wiring3d";
 import {pinAnchors} from "./silkscreen";
 import {ComponentCard} from "./ComponentCard";
 import {CodeView} from "./CodeView";
@@ -203,10 +203,10 @@ class HolographicScene{
   // Harness lanes: each wire runs flat at its own height (short wires low), clear of any other part it passes over.
   const boxes=[...this.nodes].filter(([,node])=>node.visible).map(([id,node])=>{const box=new THREE.Box3().setFromObject(node);return {id,min:this.activeProjectRoot.worldToLocal(box.min.clone()),max:this.activeProjectRoot.worldToLocal(box.max.clone())}});
   const crosses=(box:{min:THREE.Vector3;max:THREE.Vector3},x0:number,x1:number,y0:number,y1:number)=>Math.max(x0,x1)>=box.min.x-1&&Math.min(x0,x1)<=box.max.x+1&&Math.max(y0,y1)>=box.min.y-1&&Math.min(y0,y1)<=box.max.y+1;
-  const lanes=assignLanes(placed.map(({a,b})=>Math.abs(b.x-a.x)+Math.abs(b.y-a.y)));
+  const lengths=placed.map(({a,b})=>Math.abs(b.x-a.x)+Math.abs(b.y-a.y)),lanes=assignLanes(lengths);
+  const heights=laneHeights(placed.map(({wire,a,b})=>Math.max(a.z,b.z,...boxes.filter(box=>box.id!==wire.from.part&&box.id!==wire.to.part&&(crosses(box,a.x,b.x,a.y,a.y)||crosses(box,b.x,b.x,a.y,b.y))).map(box=>box.max.z-2))),lengths);
   placed.forEach(({wire,a,b},index)=>{
-   const over=boxes.filter(box=>box.id!==wire.from.part&&box.id!==wire.to.part&&(crosses(box,a.x,b.x,a.y,a.y)||crosses(box,b.x,b.x,a.y,b.y)));
-   const height=Math.max(a.z,b.z,...over.map(box=>box.max.z-2))+8+lanes[index]*2.5;
+   const height=heights[index];
    const group=new THREE.Group();group.userData.wire=wire;group.name=`wire-${wire.number}`;
    const curve=harnessPath(a,b,height),tube=new THREE.Mesh(new THREE.TubeGeometry(curve,160,.6,8,false),new THREE.MeshStandardMaterial({color:wire.color,roughness:.42,metalness:.05}));tube.castShadow=true;group.add(tube);
    for(const [p,pin] of [[a,wire.from.pin],[b,wire.to.pin]] as [THREE.Vector3,string][]){
@@ -458,7 +458,7 @@ export function WorkspaceApp(){
     {mode==="code"&&(firmware?<CodeView key={firmware.revisionId||"none"} firmware={firmware} saveEdit={block=>firmwareEdit("PUT",block)} resetEdit={()=>firmwareEdit("DELETE")} compile={()=>fetch(`${API}/api/projects/${project?.projectId}/firmware/compile`,{method:"POST"}).then(async response=>{const body=await response.json().catch(()=>undefined);if(!response.ok)throw new Error(body?.detail?.code||`HTTP ${response.status}`);return body})}/>:firmwareError?<div className="code-canvas" data-testid="code-view"><section className="code-unsupported" role="alert" data-testid="firmware-error"><h2>Firmware could not be loaded</h2><p>{firmwareError}</p><button onClick={()=>setFirmwareReload(value=>value+1)}>Retry</button></section></div>:<div className="code-canvas" data-testid="code-view"><p>Loading firmware…</p></div>)}
     {(space==="design"&&mode!=="work"||mode==="simulation")&&<ViewFab actions={[{label:"Fit",icon:"⤢",onClick:fit},{label:exploded?"Assemble":"Explode",icon:"◫",onClick:toggleExplode},
      {label:xray?"Solid":"X-ray",icon:"▣",onClick:toggleXray},{label:"Show all",icon:"◉",onClick:showAll}]}/>}
-   {pinWireCount>0&&(space==="design"&&mode!=="work"&&mode!=="schematic"||mode==="simulation")&&<p className="wire-note" data-testid="wire-note" title="Illustrative routing — not a measured cable layout">Illustrative routing — not a measured cable layout · {pinWireCount} wires, numbered as in the part card</p>}
+   {pinWireCount>0&&(space==="design"&&mode!=="work"&&mode!=="schematic"||mode==="simulation")&&<p className="wire-note" data-testid="wire-note" title="Illustrative routing — not a measured cable layout">Illustrative routing — not a measured cable layout · {pinWireCount} wires</p>}
    {hoveredPart&&(space==="design"&&mode!=="work"||mode==="simulation")&&<div className="hover-label"><b>{hoveredPart.label}</b><span>{statusLabel(hoveredPart.verificationState)}</span></div>}
    {!project&&<div className="loading-curtain"><div className="loading-mark"/><b>AURA // LOADING PROJECT</b><span>Clearing the previous workspace and reading authoritative state.</span></div>}
    </div>

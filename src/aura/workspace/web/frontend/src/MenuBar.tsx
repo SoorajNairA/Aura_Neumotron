@@ -16,12 +16,14 @@ export function MenuBar({menus}:{menus:Menu[]}){
   if(event.key==="Escape"){event.preventDefault();close(true)}
   else if(event.key==="ArrowDown"||event.key==="ArrowUp"){event.preventDefault();items[(index+(event.key==="ArrowDown"?1:-1)+items.length)%items.length]?.focus()}
  };
- return <nav ref={root} className="app-menu" role="menubar" aria-label="Application menu">
+ return <nav ref={root} className="app-menu" aria-label="Application menu">
   {menus.map(menu=><div className="app-menu-entry" key={menu.label} data-menu={menu.label}>
    <button ref={node=>{triggers.current[menu.label]=node}} aria-haspopup="menu" aria-expanded={open===menu.label} onClick={()=>setOpen(open===menu.label?null:menu.label)}
     onKeyDown={event=>{if(event.key==="ArrowDown"){event.preventDefault();setOpen(menu.label)}if(event.key==="Escape")close(true)}}>{menu.label}<span className="caret" aria-hidden="true">⌄</span></button>
    {open===menu.label&&<div className="app-menu-popover" role="menu" aria-label={menu.label} onKeyDown={keys}>
-    {menu.items.map(item=><button key={item.label} role="menuitem" disabled={item.disabled} onClick={()=>{setOpen(null);item.onSelect()}}>{item.label}{item.hint&&<small>{item.hint}</small>}</button>)}
+    {menu.items.map(item=><button key={item.label} role="menuitem" disabled={item.disabled} onClick={()=>{setOpen(null);item.onSelect();
+     // Keep keyboard users in place: if the action moved focus nowhere, return it to this menu's trigger.
+     requestAnimationFrame(()=>{if(document.activeElement===document.body)triggers.current[menu.label]?.focus()})}}>{item.label}{item.hint&&<small>{item.hint}</small>}</button>)}
    </div>}
   </div>)}
  </nav>;
