@@ -75,8 +75,8 @@ test("an old-project reconnect timer cannot reopen its socket after a switch",as
 
 test("WebGL context loss is visible and restoration is reported",async({page})=>{
  await projectRoutes(page,0);await page.goto("/?projectId=project-a");await expect(page.getByRole("button",{name:/PROJECT project-a/i})).toBeVisible();
- await page.locator("canvas").dispatchEvent("webglcontextlost");await expect(page.locator(".narration-card")).toContainText("3D representation interrupted");
- await page.locator("canvas").dispatchEvent("webglcontextrestored");await expect(page.locator(".narration-card")).toContainText("3D renderer restored");
+ await page.locator("canvas").dispatchEvent("webglcontextlost");await expect(page.getByTestId("toast")).toContainText("3D representation interrupted");
+ await page.locator("canvas").dispatchEvent("webglcontextrestored");await expect(page.getByTestId("toast")).toContainText("3D renderer restored");
 });
 
 test("a missing restored project recovers to the launcher without a blank renderer",async({page})=>{

@@ -16,6 +16,7 @@ import {FirmwareInfo,SimulationPanel,SimulationPreview,useFanSimulation} from ".
 import {GenericSimulation} from "./GenericSimulation";
 import {Menu,MenuBar} from "./MenuBar";
 import {ViewFab} from "./ViewFab";
+import {Toast} from "./Toast";
 import {BuildView} from "./BuildView";
 import {useSerial} from "./hardware";
 import {LiveBoard} from "./LiveBoard";
@@ -255,7 +256,8 @@ class HolographicScene{
 }
 
 export function WorkspaceApp(){
- const [libraryOpen,setLibraryOpen]=useState(false),libraryButton=useRef<HTMLButtonElement>(null);
+ const [libraryOpen,setLibraryOpen]=useState(false);
+ const [toast,setToast]=useState<string>();
  const host=useRef<HTMLDivElement>(null),scene=useRef<HolographicScene>(),session=useRef(new WorkspaceSession()),creatingLock=useRef(false),mutationLock=useRef(false),store=useMemo(()=>new SelectionStore(),[]);
  const [projectId,setProjectId]=useState<string|null>(initialProject);
  const [project,setProject]=useState<Project>(),[projects,setProjects]=useState<Project[]>([]),[revisions,setRevisions]=useState<any[]>([]);
@@ -302,14 +304,20 @@ export function WorkspaceApp(){
   const menus:Menu[]=[
    {label:"File",items:[{label:"New design",hint:"Start another project",onSelect:()=>resetWorkspace()},{label:"Switch project",onSelect:()=>setPanel("projects")},{label:"Revision history",onSelect:()=>setPanel("history")}]},
    {label:"Edit",items:[{label:"Undo last change",hint:"Restores the previous revision",onSelect:()=>{undo()}}]},
-   {label:"View",items:[{label:"3D view",onSelect:()=>setMode("assembly")},{label:"Wiring",onSelect:()=>setMode("schematic")},{label:"Split",onSelect:()=>setMode("split")},
-    {label:"Fit",onSelect:fit},{label:exploded?"Assemble":"Explode",onSelect:toggleExplode},{label:xray?"Solid":"X-ray",onSelect:toggleXray},{label:"Show all",onSelect:showAll},
-    {label:developer?"Hide developer panel":"Developer panel",onSelect:()=>setDeveloper(!developer)}]},
    {label:"Project",items:[{label:"Design checks",hint:"Verification and assessment",onSelect:()=>setOverlay(true)},{label:"Work items",onSelect:()=>setMode("work")}]},
-   {label:"Components",items:[{label:"Component library",hint:"Search and add catalogue parts",onSelect:()=>{setMode(designView);setLibraryOpen(true)}}]},
-   {label:"Tools",items:[{label:"Model settings",onSelect:()=>setModelSettingsOpen(true)},{label:"Code and compile",disabled:!firmware,onSelect:()=>setMode("code")},{label:"Connect device",disabled:noFirmware,onSelect:()=>setMode("build")}]},
    {label:"Help",items:[{label:"About AURA",hint:"Concept preview · AI proposes, deterministic checks decide",onSelect:()=>{}}]},
   ];
+  // Toasts follow the newest narration and any status change; "Ready" is not worth announcing.
+  const newest=narrations.at(-1),newestKey=newest?(newest.narrationId??newest.id??newest.text):undefined;
+  // When both change in the same render the narration wins, as the old status card preferred it.
+  const seenToast=useRef<{key?:string;status?:string}>({});
+  useEffect(()=>{const seen=seenToast.current,narrationChanged=newestKey!==seen.key&&Boolean(newest?.text),statusChanged=status!==seen.status;seen.key=newestKey;seen.status=status;
+   if(narrationChanged)setToast(newest.text);else if(statusChanged){const text=simpleStatus(status);if(text&&text!=="Ready")setToast(text)}},[newestKey,status]);
+  const hamburger:Menu={label:"☰",ariaLabel:"Open component library",items:[
+   {label:"Component library",hint:"Search and add catalogue parts",onSelect:()=>{if(space!=="design"){setMode(designView);setLibraryOpen(true)}else setLibraryOpen(open=>!open)}},
+   {label:"Fit",onSelect:fit},{label:exploded?"Assemble":"Explode",onSelect:toggleExplode},{label:xray?"Solid":"X-ray",onSelect:toggleXray},{label:"Show all",onSelect:showAll},
+   {label:developer?"Hide developer panel":"Developer panel",onSelect:()=>setDeveloper(!developer)},
+   {label:"Model settings",onSelect:()=>setModelSettingsOpen(true)},{label:"Code and compile",disabled:!firmware,onSelect:()=>setMode("code")},{label:"Connect device",disabled:noFirmware,onSelect:()=>setMode("build")}]};
   const fanPartId=assembly?.parts.find(part=>part.family==="fan"||part.semanticId.includes("fan"))?.semanticId??null;
   // The 3D rotor follows the shared simulated output in every space; it is an animation, not a measurement.
   // Live board: the 3D follows the latest reported outputs instead of the simulation.
@@ -396,7 +404,7 @@ export function WorkspaceApp(){
   const committed=await fetch(`${API}/api/projects/${target.projectId}/modification-proposals/${proposal.proposalId}/commit`,{method:"POST",headers:{"Idempotency-Key":crypto.randomUUID()}});
   const result=await committed.json().catch(()=>({}));if(!committed.ok)return sanitizeDisplayText((result?.detail?.reasons||[]).join(" ")||result?.detail?.code||`Pin change rejected (${committed.status})`);
   setStatus(sanitizeDisplayText(proposal.summary||"Pin changed"));await load(target.projectId).catch(()=>undefined);return undefined};
- const resetWorkspace=()=>{session.current.clear();store.reset();scene.current?.clearProject();setProjectId(null);setProject(undefined);setAssembly(undefined);setGraph(undefined);setCircuit([]);setProposal(undefined);setWorkItems([]);setSelectedFinding(undefined);setEvidence(undefined);setScenario(undefined);setScenarioOpen(false);history.replaceState({},"","/")};
+ const resetWorkspace=()=>{setStatus("Ready");setNarrations([]);setToast(undefined);session.current.clear();store.reset();scene.current?.clearProject();setProjectId(null);setProject(undefined);setAssembly(undefined);setGraph(undefined);setCircuit([]);setProposal(undefined);setWorkItems([]);setSelectedFinding(undefined);setEvidence(undefined);setScenario(undefined);setScenarioOpen(false);history.replaceState({},"","/")};
  const switchProject=(id:string)=>{session.current.clear();store.reset();scene.current?.clearProject();setPanel(null);setProject(undefined);setAssembly(undefined);setGraph(undefined);setVerification(undefined);setCircuit([]);setWorkItems([]);setSelected(null);setProjectId(id);history.replaceState({},"",`?projectId=${id}`)};
  const openFinding=(raw:VerificationFindingPresentation)=>{setEvidence(undefined);setSelectedWorkId(undefined);setScenarioOpen(false);if(raw.semanticTargets[0])store.select(raw.semanticTargets[0],"evidence");setSelectedFinding(raw);setOverlay(false)};
  const openEvidence=async(id:string)=>{if(!project)return;setEvidence(undefined);setEvidenceStatus("loading");const current=project.projectId;try{const payload=await optionalJson(`/api/projects/${current}/evidence/${id}`);if(session.current.identity?.projectId!==current)return;if(!payload){setEvidenceStatus("unavailable");return}setEvidence(evidencePresentation(payload,id));setEvidenceStatus("ready")}catch{if(session.current.identity?.projectId===current)setEvidenceStatus("error")}};
@@ -427,7 +435,7 @@ export function WorkspaceApp(){
     {settingsOpen&&<div ref={settingsMenu} role="menu" className="menu-popover"><button role="menuitem" onClick={()=>{setSettingsOpen(false);resetWorkspace()}}>New design<small>Start another project</small></button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setMode("work");setSelectedFinding(undefined);setEvidence(undefined)}}>Work items<small>{workStatus==="ready"?`${counts.in_progress||0} active · ${counts.paused||0} paused`:"unavailable"}</small></button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setOverlay(true)}}>Verification details</button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setDeveloper(!developer)}}>Developer panel</button><button role="menuitem" onClick={()=>{setSettingsOpen(false);setModelSettingsOpen(true)}}>Model settings</button></div>}
    </div>
    <button className="connect-device" disabled={!firmware?.supported} title={firmware?.supported?"Upload and monitor over USB":"No firmware for this design"} onClick={()=>setMode("build")}>Connect device</button>
-   <MenuBar menus={menus}/>
+   <MenuBar leading={hamburger} menus={menus}/>
   {modelSettingsOpen&&<ModelSettings onClose={()=>setModelSettingsOpen(false)} onChanged={()=>setModelRev(rev=>rev+1)}/>}
   </header>
 
@@ -451,8 +459,7 @@ export function WorkspaceApp(){
     {live?<LiveBoard firmware={firmware} serial={serial}/>:generic?<GenericSimulation key={firmware.revisionId||"none"} ios={firmware.ios||[]} rules={firmware.rules||[]} revisionId={firmware.revisionId} onMoving={setGenericMoving} onOutputs={values=>scene.current?.setOutputs(Object.fromEntries((firmware.ios||[]).filter(io=>io.role==="output").map(io=>[io.component_id,values[io.id]??0])))}/>:<SimulationPanel firmware={firmware} sim={sim}/>}</div>}
     {mode==="work"&&workStatus==="ready"&&workItems.length>0&&<button className="work-create primary" onClick={openWorkCreate}>CREATE WORK ITEM</button>}
    {mode==="work"&&workStatus==="ready"&&workItems.length>0&&<div className="work-terminal-counts"><b>{(counts.completed||0)+(counts.skipped||0)+(counts.abandoned||0)} DONE</b><span>{counts.skipped||0} SKIPPED · {counts.abandoned||0} ABANDONED</span></div>}
-   {space==="design"&&<button ref={libraryButton} className="library-toggle" aria-label="Open component library" aria-expanded={libraryOpen} onClick={()=>setLibraryOpen(v=>!v)}>☰</button>}
-   {space==="design"&&libraryOpen&&<ComponentLibrary api={API} onAdd={addParts} onClose={()=>{setLibraryOpen(false);libraryButton.current?.focus()}}/>}
+   {space==="design"&&libraryOpen&&<ComponentLibrary api={API} onAdd={addParts} onClose={()=>{setLibraryOpen(false);document.querySelector<HTMLButtonElement>(".app-menu [aria-label=\"Open component library\"]")?.focus()}}/>}
    {space==="design"&&<div className="view-switch" role="group" aria-label="Design view">{DESIGN_VIEWS.map(([view,label])=><button key={view} className={mode===view?"active":""} onClick={()=>setMode(view)}>{label}</button>)}</div>}
     {mode==="build"&&firmware?.supported&&project?.projectId&&<BuildView api={API} projectId={project.projectId} firmware={firmware} serial={serial}/>}
     {mode==="code"&&(firmware?<CodeView key={firmware.revisionId||"none"} firmware={firmware} saveEdit={block=>firmwareEdit("PUT",block)} resetEdit={()=>firmwareEdit("DELETE")} compile={()=>fetch(`${API}/api/projects/${project?.projectId}/firmware/compile`,{method:"POST"}).then(async response=>{const body=await response.json().catch(()=>undefined);if(!response.ok)throw new Error(body?.detail?.code||`HTTP ${response.status}`);return body})}/>:firmwareError?<div className="code-canvas" data-testid="code-view"><section className="code-unsupported" role="alert" data-testid="firmware-error"><h2>Firmware could not be loaded</h2><p>{firmwareError}</p><button onClick={()=>setFirmwareReload(value=>value+1)}>Retry</button></section></div>:<div className="code-canvas" data-testid="code-view"><p>Loading firmware…</p></div>)}
@@ -460,6 +467,7 @@ export function WorkspaceApp(){
      {label:xray?"Solid":"X-ray",icon:"▣",onClick:toggleXray},{label:"Show all",icon:"◉",onClick:showAll}]}/>}
    {pinWireCount>0&&(space==="design"&&mode!=="work"&&mode!=="schematic"||mode==="simulation")&&<p className="wire-note" data-testid="wire-note" title="Illustrative routing — not a measured cable layout">Illustrative routing — not a measured cable layout · {pinWireCount} wires</p>}
    {hoveredPart&&(space==="design"&&mode!=="work"||mode==="simulation")&&<div className="hover-label"><b>{hoveredPart.label}</b><span>{statusLabel(hoveredPart.verificationState)}</span></div>}
+   <Toast message={toast} onDismiss={()=>setToast(undefined)}/>
    {!project&&<div className="loading-curtain"><div className="loading-mark"/><b>AURA // LOADING PROJECT</b><span>Clearing the previous workspace and reading authoritative state.</span></div>}
    </div>
   </section>
@@ -481,7 +489,6 @@ export function WorkspaceApp(){
    </aside>
 
   <span className="sr-only" data-testid="selected">{selected||""}</span><span className="sr-only">Revision {project?.revision||1}</span><input className="sr-only" data-testid="explode-slider" aria-label="Explode amount" type="range" min="0" max="100" value={exploded?100:0} onChange={event=>{const on=+event.target.value>0;setExploded(on);scene.current?.setExploded(on)}}/>
-  <div className="narration-card"><b>AURA</b><span>{narrations.at(-1)?.text||simpleStatus(status)}</span></div>
   <div className="command dock">{commandState==="loading"&&<div className="command-feedback command-loading" role="status" data-testid="command-loading">INTERPRETING ENGINEERING EDIT… THIS CAN TAKE UP TO 20 SECONDS.</div>}{commandState==="error"&&<div className="command-feedback" role="alert" data-testid="command-error">{commandError}</div>}<div className="composer-head"><span className="composer-spark" aria-hidden="true">✦</span><div><b>Build it together</b><small>Your concept is ready. What would you like to refine?</small></div></div><input data-testid="modification-request" aria-label="AURA command" value={command} onChange={event=>{setCommand(event.target.value);if(commandState==="error"){setCommandState("idle");setCommandError("")}}} onKeyDown={event=>{if(event.key==="Enter"){event.preventDefault();submitCommand()}}} placeholder={selected?`Ask AURA to change ${selectedPart?.label||"the selected net"}…`:"Select a component, then ask AURA to change your design…"}/><button data-testid="preview-change" disabled={!command.trim()||commandState==="loading"} onClick={submitCommand}>{commandState==="loading"?"Interpreting…":"Preview ➤"}</button></div>
 
   <AnimatePresence>{proposal&&<motion.section initial={false} animate={false} exit={undefined} className="change-preview" data-testid="proposal-preview"><small>PROPOSED CHANGE</small><h2>{proposal.summary}</h2><div className="proposal-scope"><span><b>{proposal.affectedSemanticIds.length}</b> affected</span><span><b>{proposal.artifactsToRegenerate.length}</b> representations regenerate</span></div>{proposal.operations.slice(0,4).map((operation,index)=><div className="proposal-operation" key={index}><span>{operation.path||"Property"}</span><b>{proposalValue(operation.oldValue)} → {proposalValue(operation.newValue)}{operation.gpio!=null?` · GPIO${operation.gpio}`:""}</b></div>)}{proposal.verification?.checks?.filter(check=>check.state==="WARNING").map((check,index)=><p className="proposal-warning" key={index}>{check.message}</p>)}{proposal.unaffectedAreas?.length>0&&<p>Unaffected: {proposal.unaffectedAreas.join(", ")}</p>}<div className="preview-actions"><button data-testid="cancel-change" onClick={cancel}>CANCEL</button><button className="primary" data-testid="apply-change" onClick={apply}>APPLY CHANGE</button></div></motion.section>}</AnimatePresence>
