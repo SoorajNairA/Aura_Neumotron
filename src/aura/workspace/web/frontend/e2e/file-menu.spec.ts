@@ -4,6 +4,7 @@ import {mock,project} from "./fanFixture";
 // All endpoints are mocked; AURA_E2E_MOCK_ONLY=1 needs no backend.
 const other={...project,projectId:"project-b",objective:"Build a weather station",revision:3,updatedAt:"2026-10-28T10:00:00Z"};
 const fan={...project,updatedAt:"2026-10-29T09:00:00Z"};
+const REASON="Sharing needs a hosted server with access control; not available in this build";
 const emptyLayout={parts:{},wires:{},labels:{}};
 
 async function setup(page:Page){
@@ -55,8 +56,11 @@ test("File menu lists the real actions with shortcuts, separators and submenus",
  const sub=page.getByRole("menu",{name:"Export"});
  await expect(sub.getByRole("menuitem",{name:"Project ZIP",exact:true})).toBeEnabled();
  const share=sub.getByRole("menuitem",{name:"Shareable link"});
- await expect(share).toBeDisabled();
- await expect(share).toHaveAttribute("title","Sharing needs a hosted server with access control; not available in this build");
+ // Unavailable but reachable: focusable (not natively disabled), aria-disabled, reason visible and described.
+ await expect(share).toHaveAttribute("aria-disabled","true");
+ await expect(share).not.toHaveAttribute("disabled","");
+ await expect(share).toHaveAccessibleDescription(REASON);
+ await expect(sub.getByText(REASON)).toBeVisible();
  await page.getByRole("menuitem",{name:"Import",exact:true}).hover();
  await expect(page.getByRole("menu",{name:"Import"}).getByRole("menuitem",{name:"Project ZIP…"})).toBeVisible();
 });
@@ -207,4 +211,78 @@ test("Discard drops the edits and switches; New and Make a copy are guarded too"
  await guard.getByRole("button",{name:"Discard",exact:true}).click();
  await expect(page).toHaveURL(/projectId=project-copy/);
  expect(puts).toHaveLength(0);
+});
+
+test("Shareable link is reachable by keyboard, announces its reason and does nothing",async({page})=>{
+ await setup(page);await ready(page);
+ await fileMenu(page).click();
+ await page.getByRole("menuitem",{name:"Export",exact:true}).focus();
+ await page.keyboard.press("ArrowRight");await page.keyboard.press("ArrowDown");
+ const share=page.getByRole("menuitem",{name:"Shareable link"});
+ await expect(share).toBeFocused();
+ await expect(share).toHaveAccessibleDescription(REASON);
+ await page.keyboard.press("Enter");
+ await expect(page.getByRole("menu",{name:"Export"})).toBeVisible();
+ await expect(share).toBeFocused();
+});
+
+test("the topbar project switcher and the AURA button also ask before leaving unsaved edits",async({page})=>{
+ const {puts}=await setup(page);await ready(page,"&e2e=1");
+ await page.waitForFunction(()=>typeof (window as any).__auraSetLayout==="function");
+ await dirty(page);
+ await page.getByRole("button",{name:/PROJECT/}).click();
+ await page.getByTestId("projects-panel").getByRole("button",{name:/weather station/i}).click();
+ const guard=page.getByRole("dialog",{name:"Unsaved changes"});
+ await expect(guard).toBeVisible();
+ await guard.getByRole("button",{name:"Cancel",exact:true}).click();
+ await expect(page).toHaveURL(/projectId=project-fan/);
+ await page.getByRole("button",{name:"AURA",exact:true}).click();
+ await expect(guard).toBeVisible();
+ await guard.getByRole("button",{name:"Cancel",exact:true}).click();
+ await expect(page.getByTestId("three-host")).toBeVisible();
+ await page.getByRole("button",{name:"AURA",exact:true}).click();
+ await guard.getByRole("button",{name:"Discard",exact:true}).click();
+ await expect(page.getByRole("heading",{name:"What do you want to build?"})).toBeVisible();
+ expect(puts).toHaveLength(0);
+});
+
+test("the header shows Unsaved changes while the layout is dirty and Saved otherwise",async({page})=>{
+ await setup(page);await ready(page,"&e2e=1");
+ await page.waitForFunction(()=>typeof (window as any).__auraSetLayout==="function");
+ const state=page.getByTestId("saved-state");
+ await expect(state).toHaveText(/Saved/);await expect(state).not.toHaveText(/Unsaved/);
+ await dirty(page);
+ await expect(state).toHaveText(/Unsaved changes/);
+ await expect(state).not.toHaveAttribute("aria-hidden","true");
+ await page.keyboard.press("Control+s");
+ await expect(state).toHaveText(/Saved/);await expect(state).not.toHaveText(/Unsaved/);
+});
+
+test("Cancel while the guard Save is still in flight never runs the pending action",async({page})=>{
+ const {puts}=await setup(page);
+ await page.route("**/api/projects/project-fan/layout",async route=>{
+  if(route.request().method()==="PUT"){puts.push(route.request().postDataJSON());await new Promise(r=>setTimeout(r,800));return route.fulfill({json:{updatedAt:"2026-10-29T10:00:00Z"}})}
+  return route.fulfill({json:{layout:emptyLayout,updatedAt:null}});
+ });
+ await ready(page,"&e2e=1");
+ await page.waitForFunction(()=>typeof (window as any).__auraSetLayout==="function");
+ await dirty(page);
+ await page.keyboard.press("Control+o");
+ await page.getByRole("dialog",{name:"Open project"}).getByRole("button",{name:/weather station/i}).click();
+ const guard=page.getByRole("dialog",{name:"Unsaved changes"});
+ await guard.getByRole("button",{name:"Save",exact:true}).click();
+ await page.keyboard.press("Escape");
+ await expect(guard).toHaveCount(0);
+ await expect.poll(()=>puts.length).toBe(1);
+ await page.waitForTimeout(1200);
+ await expect(page).toHaveURL(/projectId=project-fan/);
+});
+
+test("Import works from the Code space too",async({page})=>{
+ await setup(page);await ready(page);
+ await page.getByTestId("space-toolbar").getByRole("button",{name:"Code",exact:true}).click();
+ await expect(page.getByTestId("code-view")).toBeVisible();
+ await fileMenu(page).click();await page.getByRole("menuitem",{name:"Import",exact:true}).hover();
+ const [chooser]=await Promise.all([page.waitForEvent("filechooser"),page.getByRole("menuitem",{name:"Project ZIP…"}).click()]);
+ expect(chooser).toBeTruthy();
 });

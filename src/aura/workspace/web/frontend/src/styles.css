@@ -458,7 +458,7 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .menu-sep{height:1px;margin:5px 4px;background:var(--line)}
 .menu-sub{position:relative;display:flex;flex-direction:column}
 .menu-sub>button[aria-expanded="true"]{background:var(--accent-soft)}
-.menu-submenu{top:-7px;left:calc(100% - 4px);min-width:180px}
+.menu-unavailable{opacity:.7;cursor:default}.menu-unavailable .mi-hint{max-width:230px;white-space:normal}.menu-submenu{top:-7px;left:calc(100% - 4px);min-width:180px}
 .file-scrim{position:fixed;z-index:80}
 .file-dialog{display:flex;flex-direction:column;gap:10px;width:min(480px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:20px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
 .file-dialog h2{margin:0;font:600 18px var(--serif);color:var(--text)}
@@ -474,3 +474,4 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .open-empty{padding:12px 10px}
 .file-dialog .preview-actions button{font:600 13px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;padding:6px 14px}
 @media(max-width:600px){.menu-submenu{top:100%;left:8px}}
+.saved-state.unsaved{color:var(--warn-text,#a8521c);font-weight:600}

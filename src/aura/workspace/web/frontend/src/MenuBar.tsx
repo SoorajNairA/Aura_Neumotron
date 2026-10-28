@@ -1,8 +1,9 @@
-import {KeyboardEvent,useEffect,useRef,useState} from "react";
+import {KeyboardEvent,useEffect,useId,useRef,useState} from "react";
 
 // `shortcut` is a right-aligned hint (the key binding itself lives in the app); `separatorBefore` draws a rule above the row;
+// `unavailable` keeps the row focusable but inert (aria-disabled) and shows the reason as visible, described text;
 // `items` turns the row into a submenu (opens on hover, click or ArrowRight; closes on ArrowLeft or Escape); `title` is a tooltip.
-export type MenuItem={label:string;hint?:string;shortcut?:string;title?:string;separatorBefore?:boolean;disabled?:boolean;checked?:boolean;items?:MenuItem[];onSelect?:()=>void};
+export type MenuItem={label:string;hint?:string;shortcut?:string;title?:string;separatorBefore?:boolean;disabled?:boolean;checked?:boolean;items?:MenuItem[];unavailable?:string;onSelect?:()=>void};
 export type Menu={label:string;items:MenuItem[];ariaLabel?:string};
 
 const ownItems=(list:HTMLElement)=>[...list.querySelectorAll<HTMLButtonElement>("[role^=menuitem]:not(:disabled)")].filter(node=>node.closest("[role=menu]")===list);
@@ -10,10 +11,12 @@ const ownItems=(list:HTMLElement)=>[...list.querySelectorAll<HTMLButtonElement>(
 function aria(shortcut?:string){return shortcut?shortcut.replace(/Ctrl/,"Control"):undefined}
 
 function MenuRow({item,pick}:{item:MenuItem;pick:(item:MenuItem)=>void}){
- const [sub,setSub]=useState(false),wrap=useRef<HTMLDivElement>(null),button=useRef<HTMLButtonElement>(null),focusChild=useRef(false);
+ const uid=useId(),[sub,setSub]=useState(false),wrap=useRef<HTMLDivElement>(null),button=useRef<HTMLButtonElement>(null),focusChild=useRef(false);
  useEffect(()=>{if(sub&&focusChild.current){focusChild.current=false;const list=wrap.current?.querySelector<HTMLElement>(":scope > [role=menu]");if(list)ownItems(list)[0]?.focus()}},[sub]);
  const content=<><span className="mi-label">{item.label}</span>{item.hint&&<small className="mi-hint">{item.hint}</small>}{item.shortcut&&<kbd className="mi-shortcut" aria-hidden="true">{item.shortcut}</kbd>}{item.items&&<span className="mi-caret" aria-hidden="true">▸</span>}</>;
  const separator=item.separatorBefore?<div role="separator" className="menu-sep"/>:null;
+ if(item.unavailable)return <>{separator}<button role="menuitem" aria-disabled="true" aria-labelledby={uid+"-l"} aria-describedby={uid+"-d"} className="menu-unavailable" onClick={event=>event.preventDefault()}>
+  <span className="mi-label" id={uid+"-l"}>{item.label}</span><small className="mi-hint" id={uid+"-d"}>{item.unavailable}</small></button></>;
  if(!item.items)return <>{separator}<button role={item.checked===undefined?"menuitem":"menuitemcheckbox"} aria-checked={item.checked} aria-keyshortcuts={aria(item.shortcut)} disabled={item.disabled} title={item.title} onClick={()=>pick(item)}>{content}</button></>;
  const closeSub=()=>{setSub(false);button.current?.focus()};
  const keys=(event:KeyboardEvent<HTMLDivElement>)=>{

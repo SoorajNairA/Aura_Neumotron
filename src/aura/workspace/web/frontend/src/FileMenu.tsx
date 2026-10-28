@@ -12,7 +12,7 @@ export function fileMenu(a:FileMenuActions):Menu{
   {label:"Open",shortcut:"Ctrl+O",onSelect:a.onOpen},
   {label:"Save",shortcut:"Ctrl+S",onSelect:a.onSave},
   {label:"Make a copy",onSelect:a.onCopy},
-  {label:"Export",separatorBefore:true,items:[{label:"Project ZIP",onSelect:a.onExport},{label:"Shareable link",disabled:true,title:SHARE_DISABLED_REASON,onSelect:()=>{}}]},
+  {label:"Export",separatorBefore:true,items:[{label:"Project ZIP",onSelect:a.onExport},{label:"Shareable link",unavailable:SHARE_DISABLED_REASON}]},
   {label:"Import",separatorBefore:true,items:[{label:"Project ZIP…",onSelect:a.onImport}]},
   {label:"Save local copy",onSelect:a.onLocalCopy},
  ]};
