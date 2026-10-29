@@ -132,7 +132,7 @@ export function SchematicEditor({circuit,mapping,nets=[],selectedNet,selectedId,
    <div className="schematic-layer" ref={layer}><div className="schematic-anchor" ref={anchor}>
     <Suspense fallback={<div className="schematic-loading" role="status">Loading schematic…</div>}><SchematicViewer circuitJson={applied as never} editingEnabled={false} clickToInteractEnabled={false} containerStyle={{height:"100%"}}/></Suspense>
     {selectedWire&&<style>{`.schematic-anchor [data-schematic-trace-id="${CSS.escape(selectedWire)}"] path{stroke:var(--accent,#6f8f7a)!important;stroke-width:3px}`}</style>}
-    {trace&&<div className="bend-handles" data-testid="bend-handles">{handles.map(handle=><button key={handle.index} type="button" className="bend-handle" data-testid="bend-handle" data-bend-handle="" data-wire={wireIds[trace.schematic_trace_id]} data-segment={handle.index} data-orientation={handle.horizontal?"horizontal":"vertical"}
+    {trace&&wireIds[trace.schematic_trace_id]&&<div className="bend-handles" data-testid="bend-handles">{handles.map(handle=><button key={handle.index} type="button" className="bend-handle" data-testid="bend-handle" data-bend-handle="" data-wire={wireIds[trace.schematic_trace_id]} data-segment={handle.index} data-orientation={handle.horizontal?"horizontal":"vertical"}
      style={{left:handle.left,top:handle.top,cursor:handle.horizontal?"ns-resize":"ew-resize"}} aria-label={`Bend segment ${handle.index+1} of wire ${wireIds[trace.schematic_trace_id]}`} onKeyDown={bendKey(wireIds[trace.schematic_trace_id],handle)}/>)}</div>}
    </div></div>
    <div className="wiring-toolbar" role="toolbar" aria-label="Wiring tools">

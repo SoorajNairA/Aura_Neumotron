@@ -16,18 +16,18 @@ const offsetOf=(layout:WiringLayout,id:string|undefined):PartOffset|undefined=>{
  const dx=num(entry.dx),dy=num(entry.dy);return dx||dy?{dx,dy}:undefined;
 };
 
-// Wire id: the graph connection id on the trace when it is unique, else that id plus the pin pair, else the trace id.
+// Wire id: the trace's net (or graph connection) id plus its pin pair, sorted so terminal order does not matter. It does
+// not depend on how many traces the net has or on the positional schematic_trace_id, which regeneration can reassign.
+// Traces without a net and both pins, or whose key is shared by another trace, get no id: they cannot carry bends.
 export function traceWireIds(circuit:any[]):Record<string,string>{
- const traces=circuit.filter(item=>item?.type==="schematic_trace"&&item.schematic_trace_id);
- const graphId=(trace:any):string|undefined=>trace.aura_graph_connection_id??trace.aura_connection?.graphConnectionId;
- const counts=new Map<string,number>();
- for(const trace of traces){const id=graphId(trace);if(id)counts.set(id,(counts.get(id)||0)+1)}
- const out:Record<string,string>={};
- for(const trace of traces){
-  const id=graphId(trace),pins=trace.aura_connection?.from&&trace.aura_connection?.to?`${trace.aura_connection.from}>${trace.aura_connection.to}`:"";
-  out[trace.schematic_trace_id]=!id?trace.schematic_trace_id:counts.get(id)===1?id:pins?`${id}:${pins}`:trace.schematic_trace_id;
- }
- return out;
+ const keyOf=(trace:any):string|undefined=>{
+  const connection=trace.aura_connection||{},scope=connection.netId??trace.aura_net_id??connection.graphConnectionId??trace.aura_graph_connection_id;
+  if(typeof scope!=="string"||!scope||typeof connection.from!=="string"||!connection.from||typeof connection.to!=="string"||!connection.to)return;
+  return `${scope}:${[connection.from,connection.to].sort().join("|")}`;
+ };
+ const keys=new Map<string,string>(),counts=new Map<string,number>();
+ for(const trace of circuit){if(trace?.type!=="schematic_trace"||!trace.schematic_trace_id)continue;const key=keyOf(trace);if(key){keys.set(trace.schematic_trace_id,key);counts.set(key,(counts.get(key)||0)+1)}}
+ return Object.fromEntries([...keys].filter(([,key])=>counts.get(key)===1));
 }
 
 // One connected run of trace edges. `seg[i]` is the original edge index of segment i (-1 for an inserted connector);
@@ -105,7 +105,7 @@ export function applyLayout(circuit:any[],layout:WiringLayout,mapping:Record<str
    return next;
   }
   if(item.type==="source_component"){const label=labelBySource.get(item.source_component_id);return label?{...item,display_name:label}:item}
-  if(item.type==="schematic_trace")return applyTrace(item,layout.wires[wireIds[item.schematic_trace_id]],portAt);
+  if(item.type==="schematic_trace"){const id=wireIds[item.schematic_trace_id];return applyTrace(item,id?layout.wires[id]:undefined,portAt)}
   if(item.type==="schematic_net_label"){
    const offset=item.anchor_position?portAt(item.anchor_position):undefined,label=netKeyLabel.get(item.source_net_id);
    if(!offset&&!label)return item;
@@ -131,7 +131,18 @@ function applyTrace(trace:any,bends:unknown,portAt:(point:Pt,portId?:string)=>Pa
  const edges=Array.isArray(trace.edges)?trace.edges:[];
  const offsets=Array.isArray(bends)?bends.map(num):[];
  const junctions:Pt[]=Array.isArray(trace.junctions)?trace.junctions:[];
- const chains=chainsOf(edges,junctions);
+ // A run that passes through a moved pin (a T at the pin) is split there, so that point moves with the pin like a
+ // run end and stays on the junction dot that moves with it.
+ const chains:Chain[]=[];
+ for(const chain of chainsOf(edges,junctions)){
+  let rest=chain,k=1;
+  while(k<rest.p.length-1){
+   if(!portAt(rest.p[k])){k++;continue}
+   chains.push({p:rest.p.slice(0,k+1),seg:rest.seg.slice(0,k),pin:[...rest.pin.slice(0,k),true],extra:rest.extra.slice(0,k)});
+   rest={p:rest.p.slice(k),seg:rest.seg.slice(k),pin:[true,...rest.pin.slice(k+1)],extra:rest.extra.slice(k)};k=1;
+  }
+  chains.push(rest);
+ }
  const startOffsets=chains.map(chain=>portAt(chain.p[0],chain.extra[0]?.from_schematic_port_id)),endOffsets=chains.map(chain=>portAt(chain.p.at(-1)!,chain.extra.at(-1)?.to_schematic_port_id));
  let changed=false;
  chains.forEach((chain,c)=>{

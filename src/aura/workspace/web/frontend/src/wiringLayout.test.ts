@@ -11,10 +11,11 @@ const circuit=()=>[
  {type:"schematic_port",schematic_port_id:"port_b",schematic_component_id:"sch_b",center:{x:7,y:3}},
  {type:"schematic_text",schematic_text_id:"text_a",schematic_component_id:"sch_a",position:{x:-1,y:-.5},text:""},
  {type:"schematic_text",schematic_text_id:"name_a",schematic_component_id:"sch_a",position:{x:-1,y:.6},text:"Board"},
- {type:"schematic_trace",schematic_trace_id:"trace_0",aura_graph_connection_id:"conn-1",edges:[{from:{x:1,y:0},to:{x:2,y:0}},{from:{x:2,y:0},to:{x:2,y:3}},{from:{x:2,y:3},to:{x:7,y:3}}],junctions:[]},
+ {type:"schematic_trace",schematic_trace_id:"trace_0",aura_graph_connection_id:"conn-1",aura_connection:{from:"U1.OUT",to:"M1.IN",netId:"net-1",graphConnectionId:"conn-1"},edges:[{from:{x:1,y:0},to:{x:2,y:0}},{from:{x:2,y:0},to:{x:2,y:3}},{from:{x:2,y:3},to:{x:7,y:3}}],junctions:[]},
  {type:"aura_electrical_connection",aura_electrical_connection_id:"e0",from:"U1.OUT",to:"M1.IN",netId:"net-1",graphConnectionId:"conn-1"},
 ];
 const mapping={sch_a:"component-a",sch_b:"component-b"};
+const W="net-1:M1.IN|U1.OUT";
 const layout=(patch:Partial<WiringLayout>):WiringLayout=>({...emptyLayout(),...patch});
 const find=(items:any[],type:string,key:string,id:string)=>items.find(item=>item.type===type&&item[key]===id);
 const trace=(items:any[])=>find(items,"schematic_trace","schematic_trace_id","trace_0");
@@ -38,7 +39,7 @@ describe("applyLayout",()=>{
   expect(find(out,"schematic_component","schematic_component_id","sch_b").center).toEqual({x:8,y:3});
  });
  it("bend of segment 1 by +2 moves that segment and keeps the trace connected and orthogonal",()=>{
-  const out=applyLayout(circuit(),layout({wires:{"conn-1":[0,2]}}),mapping);
+  const out=applyLayout(circuit(),layout({wires:{[W]:[0,2]}}),mapping);
   const edges=trace(out).edges;
   expectConnectedOrthogonal(edges);
   const bent=edges.find((edge:any)=>edge.aura_segment_index===1);
@@ -47,12 +48,22 @@ describe("applyLayout",()=>{
   expect(same(edges[0].from,{x:1,y:0})).toBe(true);expect(same(edges.at(-1).to,{x:7,y:3})).toBe(true);
  });
  it("bending an end segment adds a connector instead of moving the port end",()=>{
-  const out=applyLayout(circuit(),layout({wires:{"conn-1":[1.5]}}),mapping);
+  const out=applyLayout(circuit(),layout({wires:{[W]:[1.5]}}),mapping);
   const edges=trace(out).edges;
   expectConnectedOrthogonal(edges);
   expect(same(edges[0].from,{x:1,y:0})).toBe(true);
   const bent=edges.find((edge:any)=>edge.aura_segment_index===0);
   expect(bent.from.y).toBeCloseTo(1.5);expect(bent.to.y).toBeCloseTo(1.5);
+ });
+ it("a junction on a moved pin stays on the trace when the trace passes through that pin",()=>{
+  // T at A's port: the trace runs (1,-2) → (1,0) → (1,3) → (7,3) and branches at the pin.
+  const items=circuit();Object.assign(trace(items),{edges:[{from:{x:1,y:-2},to:{x:1,y:0}},{from:{x:1,y:0},to:{x:1,y:3}},{from:{x:1,y:3},to:{x:7,y:3}}],junctions:[{x:1,y:0}]});
+  const out=applyLayout(items,layout({parts:{"component-a":{dx:.5,dy:1}}}),mapping);
+  const edges=trace(out).edges;
+  expectConnectedOrthogonal(edges);
+  expect(trace(out).junctions).toEqual([{x:1.5,y:1}]);
+  expect(edges.some((edge:any)=>same(edge.from,{x:1.5,y:1})||same(edge.to,{x:1.5,y:1}))).toBe(true);
+  expect(same(edges[0].from,{x:1,y:-2})).toBe(true);expect(same(edges.at(-1).to,{x:7,y:3})).toBe(true);
  });
  it("moving both parts of a straight trace keeps it connected and orthogonal",()=>{
   const items=circuit();trace(items).edges=[{from:{x:1,y:0},to:{x:7,y:0}}];find(items,"schematic_port","schematic_port_id","port_b").center={x:7,y:0};
@@ -87,9 +98,28 @@ describe("applyLayout",()=>{
 });
 
 describe("traceWireIds",()=>{
- it("uses the graph connection id, disambiguated by pins when several traces share it",()=>{
-  const items=[...circuit(),{type:"schematic_trace",schematic_trace_id:"trace_1",aura_graph_connection_id:"conn-2",aura_connection:{from:"U1.GND",to:"Q1.GND"},edges:[]},{type:"schematic_trace",schematic_trace_id:"trace_2",aura_graph_connection_id:"conn-2",aura_connection:{from:"U1.GND",to:"M1.GND"},edges:[]},{type:"schematic_trace",schematic_trace_id:"trace_3",edges:[]}];
-  expect(traceWireIds(items)).toEqual({trace_0:"conn-1",trace_1:"conn-2:U1.GND>Q1.GND",trace_2:"conn-2:U1.GND>M1.GND",trace_3:"trace_3"});
+ const ground=(id:string,from:string,to:string,extra:any={})=>({type:"schematic_trace",schematic_trace_id:id,aura_graph_connection_id:"conn-2",aura_connection:{from,to,netId:"net-gnd",graphConnectionId:"conn-2"},edges:[],...extra});
+ it("keys every wire on its net and the sorted pin pair",()=>{
+  expect(traceWireIds([...circuit(),ground("trace_1","U1.GND","Q1.GND"),ground("trace_2","U1.GND","M1.GND")])).toEqual({trace_0:W,trace_1:"net-gnd:Q1.GND|U1.GND",trace_2:"net-gnd:M1.GND|U1.GND"});
+ });
+ it("keeps the id when the trace count on a net goes from one to two",()=>{
+  const one=traceWireIds([ground("trace_0","U1.GND","Q1.GND")]),two=traceWireIds([ground("trace_0","U1.GND","Q1.GND"),ground("trace_1","U1.GND","M1.GND")]);
+  expect(two.trace_0).toBe(one.trace_0);
+ });
+ it("does not depend on terminal order or the positional trace id",()=>{
+  expect(traceWireIds([ground("trace_5","Q1.GND","U1.GND")]).trace_5).toBe(traceWireIds([ground("trace_0","U1.GND","Q1.GND")]).trace_0);
+ });
+ it("falls back to the graph connection id when there is no net id",()=>{
+  expect(traceWireIds([{type:"schematic_trace",schematic_trace_id:"t",aura_connection:{from:"B.1",to:"A.2",graphConnectionId:"conn-9"},edges:[]}])).toEqual({t:"conn-9:A.2|B.1"});
+ });
+ it("gives no id to traces without a net and pin pair, or with a duplicate key",()=>{
+  const items=[{type:"schematic_trace",schematic_trace_id:"bare",aura_graph_connection_id:"conn-3",edges:[]},{type:"schematic_trace",schematic_trace_id:"nopins",aura_connection:{netId:"net-x"},edges:[]},ground("d1","U1.GND","Q1.GND"),ground("d2","Q1.GND","U1.GND")];
+  expect(traceWireIds(items)).toEqual({});
+ });
+ it("applies no bends to a trace without a stable key, even under its positional id",()=>{
+  const items=circuit();delete trace(items).aura_connection;
+  const out=applyLayout(items,layout({wires:{trace_0:[0,2],"conn-1":[0,2],[W]:[0,2]}}),mapping);
+  expect(trace(out)).toBe(find(items,"schematic_trace","schematic_trace_id","trace_0"));
  });
 });
 
@@ -99,9 +129,9 @@ describe("layoutReducer",()=>{
   let state=layoutReducer(start(),{type:"move",id:"component-a",dx:1,dy:2});
   state=layoutReducer(state,{type:"move",id:"component-a",dx:.5,dy:-1});
   expect(state.layout.parts["component-a"]).toEqual({dx:1.5,dy:1});
-  state=layoutReducer(state,{type:"bend",wire:"conn-1",index:2,delta:1});
-  state=layoutReducer(state,{type:"bend",wire:"conn-1",index:2,delta:.5});
-  expect(state.layout.wires["conn-1"]).toEqual([0,0,1.5]);
+  state=layoutReducer(state,{type:"bend",wire:W,index:2,delta:1});
+  state=layoutReducer(state,{type:"bend",wire:W,index:2,delta:.5});
+  expect(state.layout.wires[W]).toEqual([0,0,1.5]);
   state=layoutReducer(state,{type:"rename",id:"component-a",label:"  Main board "});
   expect(state.layout.labels["component-a"]).toBe("Main board");
   state=layoutReducer(state,{type:"rename",id:"component-a",label:""});
@@ -110,14 +140,14 @@ describe("layoutReducer",()=>{
  it("undo and redo walk the edits in order and a new edit clears redo",()=>{
   let state=start();
   state=layoutReducer(state,{type:"move",id:"component-a",dx:1,dy:0});
-  state=layoutReducer(state,{type:"bend",wire:"conn-1",index:0,delta:2});
+  state=layoutReducer(state,{type:"bend",wire:W,index:0,delta:2});
   state=layoutReducer(state,{type:"rename",id:"component-a",label:"Main"});
   state=layoutReducer(state,{type:"undo"});
-  expect(state.layout.labels).toEqual({});expect(state.layout.wires["conn-1"]).toEqual([2]);
+  expect(state.layout.labels).toEqual({});expect(state.layout.wires[W]).toEqual([2]);
   state=layoutReducer(state,{type:"undo"});
   expect(state.layout.wires).toEqual({});expect(state.layout.parts["component-a"]).toEqual({dx:1,dy:0});
   state=layoutReducer(state,{type:"redo"});
-  expect(state.layout.wires["conn-1"]).toEqual([2]);
+  expect(state.layout.wires[W]).toEqual([2]);
   expect(state.future).toHaveLength(1);
   state=layoutReducer(state,{type:"move",id:"component-b",dx:0,dy:1});
   expect(state.future).toHaveLength(0);
@@ -145,8 +175,8 @@ describe("layoutReducer",()=>{
 
 describe("pruneLayout",()=>{
  it("drops parts, wires and labels whose ids are gone and keeps the rest",()=>{
-  const value=layout({parts:{"component-a":{dx:1,dy:1},"component-gone":{dx:2,dy:2}},wires:{"conn-1":[1],"conn-gone":[2]},labels:{"component-a":"A","component-gone":"G","net-1":"Signal"}});
-  expect(pruneLayout(value,new Set(["component-a","net-1"]),new Set(["conn-1"]))).toEqual(layout({parts:{"component-a":{dx:1,dy:1}},wires:{"conn-1":[1]},labels:{"component-a":"A","net-1":"Signal"}}));
+  const value=layout({parts:{"component-a":{dx:1,dy:1},"component-gone":{dx:2,dy:2}},wires:{[W]:[1],"conn-gone":[2]},labels:{"component-a":"A","component-gone":"G","net-1":"Signal"}});
+  expect(pruneLayout(value,new Set(["component-a","net-1"]),new Set([W]))).toEqual(layout({parts:{"component-a":{dx:1,dy:1}},wires:{[W]:[1]},labels:{"component-a":"A","net-1":"Signal"}}));
  });
 });
 
@@ -169,5 +199,10 @@ describe("applyLayout on a generated fan schematic",()=>{
    const junction=(real.find(item=>item.schematic_trace_id===trace.schematic_trace_id).junctions||[]).some((j:any)=>same(j,end));
    expect(junction||ports.some(port=>same(port.center,end))).toBe(true);
   }
+  // Every junction dot still sits on its trace.
+  const onEdge=(p:any,e:any)=>Math.abs((e.to.x-e.from.x)*(p.y-e.from.y)-(e.to.y-e.from.y)*(p.x-e.from.x))<1e-9&&p.x>=Math.min(e.from.x,e.to.x)-1e-9&&p.x<=Math.max(e.from.x,e.to.x)+1e-9&&p.y>=Math.min(e.from.y,e.to.y)-1e-9&&p.y<=Math.max(e.from.y,e.to.y)+1e-9;
+  let junctions=0;
+  for(const trace of out.filter(item=>item.type==="schematic_trace"))for(const j of trace.junctions||[]){junctions++;expect(trace.edges.some((edge:any)=>onEdge(j,edge))).toBe(true)}
+  expect(junctions).toBeGreaterThan(0);
  });
 });

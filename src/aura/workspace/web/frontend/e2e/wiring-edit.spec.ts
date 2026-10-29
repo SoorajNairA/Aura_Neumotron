@@ -4,7 +4,7 @@ import circuit from "./wiringCircuit.json" with {type:"json"};
 
 // All endpoints are mocked; AURA_E2E_MOCK_ONLY=1 needs no backend. The circuit is a generated desk-fan schematic.
 const FAN="schematic_component_2",CONTROLLER="schematic_component_0",TRACE="schematic_trace_2";
-const WIRE="connection-flyback-diode-power-ground-edge:U1.GND>M1.GND";
+const WIRE="net-ground-63260bbf670d:M1.GND|U1.GND";
 const empty={parts:{},wires:{},labels:{}};
 test.use({viewport:{width:1600,height:1000}});
 const withSchematic={...project,representations:[{type:"circuit_schematic",artifactId:"wiring"}]};
