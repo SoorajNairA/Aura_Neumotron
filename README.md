@@ -152,6 +152,20 @@ hardware evidence.
 - **Component library** (☰ in Design): search the catalogue, add several parts
   as one verified proposal (safe GPIOs, undoable), edit part settings, mount
   parts, and try DS18B20/fan behavioral test benches (not hardware).
+- **Menu bar, File menu and wiring editing**: ☰ (component library plus
+  view/tool actions) sits before File, Edit, Project and Help; the 3D
+  view/Wiring/Split switch is at the viewport's top-left; updates show as
+  dismissible toasts; sidebars run full height. File offers New, Open (Ctrl+O,
+  searchable), Save (Ctrl+S), Make a copy, Export ▸ Project ZIP, Import ▸
+  Project ZIP and Save local copy. The ZIP holds manifest, graph, project,
+  firmware, layout and design artifacts, never keys or env; unsaved wiring
+  edits are guarded on project switch. In the Wiring view: Select/Pan, drag
+  parts, drag wire bends (connections never change), rename via the
+  inspector's Display name, Ctrl+Z/Ctrl+Shift+Z; the layout autosaves and
+  survives reopen and regeneration. Limits: no endpoint reconnection, no
+  firmware pin sync from the wiring view, no shareable links (no hosted server
+  with access control), bends per segment only, layout changes the schematic
+  not 3D placement, and renames show in 3D only in the hover label.
 - Versioned projects, revisions, undo, replayable events, and persistence.
 - Typed assemblies, subsystems, components, interfaces, and relationships.
 - AI-generated creation and edit proposals validated against strict schemas.
