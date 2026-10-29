@@ -146,7 +146,7 @@ hardware evidence.
   "approximate route". Cables run as a tidy harness: straight up, flat on
   their own lane, straight down. Routing is illustrative, not a measured cable
   layout.
-- **Layout**: File/Edit/View/Project/Components/Tools/Help menu; Design, Code,
+- **Layout**: ☰ then File/Edit/Project/Help menu; Design, Code,
   Simulation and Build in the toolbar above the viewport; the round button in
   the viewport corner opens Fit, Explode, Solid and Show all.
 - **Component library** (☰ in Design): search the catalogue, add several parts
