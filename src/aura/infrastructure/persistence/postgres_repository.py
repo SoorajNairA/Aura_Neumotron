@@ -149,6 +149,24 @@ class PostgresProjectRepository:
             return StoredProject(row[0], row[1], row[2], row[3], row[4], graph_from_dict(row[5]), list(row[6]), _iso(row[7]), _iso(row[8]))
         except Exception as exc: raise CorruptProjectData(f"Stored project {project_id} is corrupt") from exc
 
+    _PROJECT_CHILD_TABLES = ("revisions", "events", "artifacts", "work_items", "firmware_edits",
+                             "control_rules", "hardware_evidence", "schematic_layouts")
+
+    def delete_project(self, project_id: str) -> None:
+        """Remove a project and everything keyed by it in one transaction, then its artifact files."""
+        try:
+            with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:
+                cursor.execute("SELECT relative_path FROM artifacts WHERE project_id=%s AND relative_path IS NOT NULL", (project_id,))
+                paths = [row[0] for row in cursor.fetchall()]
+                for table in self._PROJECT_CHILD_TABLES:
+                    cursor.execute(f"DELETE FROM {table} WHERE project_id=%s", (project_id,))
+                cursor.execute("DELETE FROM projects WHERE project_id=%s", (project_id,))
+        except Exception as exc:
+            raise PersistenceFailure(f"Could not delete project: {exc}") from exc
+        for path in paths:
+            try: self.artifact_store.delete(path)
+            except Exception: pass
+
     def list_projects(self) -> list[StoredProject]:
         with self._pool.connection() as connection, connection.cursor() as cursor:
             cursor.execute("SELECT project_id FROM projects ORDER BY created_at,project_id")

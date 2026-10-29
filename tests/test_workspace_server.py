@@ -213,7 +213,9 @@ def test_repeated_live_create_reuses_persisted_project_without_replanning() -> N
     provider=FakeProvider([VALID])
     app=create_app(provider=provider,storage_mode="memory")
     with TestClient(app) as client:
-        first=client.post("/api/projects",json={"objective":OBJECTIVE,"planningMode":"live_model"})
+        # The persisted project must have components: a component-less build_incomplete project is replanned, not reused.
+        first=client.post("/api/projects",json={"objective":OBJECTIVE,"planningMode":"deterministic_test"})
+        assert first.json()["status"]!="build_incomplete"
         prompts_after_first=len(provider.prompts)
         second=client.post("/api/projects",json={"objective":OBJECTIVE,"planningMode":"live_model"})
         assert first.status_code==second.status_code==201

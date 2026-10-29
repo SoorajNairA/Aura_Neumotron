@@ -96,6 +96,7 @@ class ProjectRepository(Protocol):
     def get_layout(self, project_id: str) -> dict[str, Any] | None: ...
     def save_hardware_evidence(self, project_id: str, payload: dict[str, Any]) -> None: ...
     def get_hardware_evidence(self, project_id: str) -> dict[str, Any] | None: ...
+    def delete_project(self, project_id: str) -> None: ...
 
 
 class SQLiteProjectRepository:
@@ -232,6 +233,25 @@ class SQLiteProjectRepository:
                 row["created_at"], row["updated_at"])
         except Exception as exc:
             raise CorruptProjectData(f"Stored project {project_id} is corrupt") from exc
+
+    _PROJECT_CHILD_TABLES = ("revisions", "events", "artifacts", "work_items", "firmware_edits",
+                             "control_rules", "hardware_evidence", "schematic_layouts")
+
+    def delete_project(self, project_id: str) -> None:
+        """Remove a project and everything keyed by it in one transaction, then its artifact files."""
+        with self._lock:
+            try:
+                with self._connection:
+                    paths = [row[0] for row in self._connection.execute(
+                        "SELECT relative_path FROM artifacts WHERE project_id=? AND relative_path IS NOT NULL", (project_id,))]
+                    for table in self._PROJECT_CHILD_TABLES:
+                        self._connection.execute(f"DELETE FROM {table} WHERE project_id=?", (project_id,))
+                    self._connection.execute("DELETE FROM projects WHERE project_id=?", (project_id,))
+            except Exception as exc:
+                raise PersistenceFailure(f"Could not delete project: {exc}") from exc
+        for path in paths:
+            try: self.artifact_store.delete(path)
+            except Exception: pass
 
     def list_projects(self) -> list[StoredProject]:
         with self._lock:

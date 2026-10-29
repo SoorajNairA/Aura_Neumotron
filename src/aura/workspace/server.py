@@ -544,6 +544,20 @@ class WorkspaceApplication:
             await self.publish_with_narration(committed,record.graph,record.representations)
         return record
 
+    def _reusable_project(self, project_id: str) -> StoredProject | None:
+        """Return the stored project to reuse for this id, or None to plan afresh.
+
+        A failed build that never produced a component (build_incomplete, no COMPONENT
+        entities) holds nothing worth keeping and would otherwise be reopened forever
+        for the same objective text, so it is deleted and replanned."""
+        existing=self.repository.get_project(project_id)
+        if existing is not None and existing.status=="build_incomplete" and not any(
+                entity.kind is EntityKind.COMPONENT for entity in existing.graph.entities.values()):
+            self.repository.delete_project(project_id)
+            self.broker.reset(project_id)
+            return None
+        return existing
+
     async def _create_serialized(self, body: CreateProjectBody, *, creation_info: dict[str, Any] | None = None,
                                  planned: PlanningOutcome | None = None) -> StoredProject:
         if creation_info is not None:
@@ -555,7 +569,7 @@ class WorkspaceApplication:
                 if existing:
                     if creation_info is not None: creation_info["reusedProject"] = True
                     return existing
-        existing=self.repository.get_project(PlannerService._id(body.objective,"project"))
+        existing=self._reusable_project(PlannerService._id(body.objective,"project"))
         if existing is not None:
             if creation_info is not None: creation_info["reusedProject"] = True
             return await self._resume_incomplete_representations(self.recover_interrupted(existing))
@@ -574,7 +588,7 @@ class WorkspaceApplication:
             if not component_entities:
                 raise HTTPException(422,detail={"status":"PLANNING_FAILED","reasons":["Supported Planner output contained no semantic components after bounded repair/fallback."]})
         project_id = plan.entities[0].id
-        existing=self.repository.get_project(project_id)
+        existing=self._reusable_project(project_id)
         # Project IDs are objective-derived. Repeating the same create request is
         # idempotent in every planner mode, not only in deterministic tests.
         if existing is not None:
