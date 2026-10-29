@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import io
 import json
+import math
 import os
 import re
 import zipfile
@@ -65,18 +66,59 @@ class PackageContents:
     firmware_edit: dict[str, str] | None
 
 
+MAX_LABEL_CHARS = 200
+MAX_WIRE_POINTS = 64
+
+
+def _finite(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _part_ok(value: Any) -> bool:
+    return isinstance(value, dict) and _finite(value.get("dx")) and _finite(value.get("dy"))
+
+
+def _wire_ok(value: Any) -> bool:
+    return isinstance(value, list) and len(value) <= MAX_WIRE_POINTS and all(_finite(item) for item in value)
+
+
+def _label_ok(value: Any) -> bool:
+    return isinstance(value, str) and len(value) <= MAX_LABEL_CHARS
+
+
+_LAYOUT_ENTRY = {"parts": _part_ok, "wires": _wire_ok, "labels": _label_ok}
+
+
 def validate_layout(value: Any) -> dict[str, Any]:
-    """Wiring layout: an object whose parts, wires and labels (when present) are objects. Extra keys are kept."""
+    """Wiring layout: parts are {dx, dy} finite numbers, wires are lists of finite numbers, labels are short strings.
+
+    Anything else is rejected, because the client renders these values. Extra top-level keys are kept."""
     if not isinstance(value, dict):
         raise PackageError("INVALID_LAYOUT", "Layout must be an object")
     layout = dict(value)
-    for field in ("parts", "wires", "labels"):
+    for field, entry_ok in _LAYOUT_ENTRY.items():
         item = layout.setdefault(field, {})
         if not isinstance(item, dict):
             raise PackageError("INVALID_LAYOUT", f"Layout field '{field}' must be an object")
+        for key, entry in item.items():
+            if not entry_ok(entry):
+                raise PackageError("INVALID_LAYOUT", f"Layout {field} entry '{str(key)[:40]}' has an invalid value")
     if len(json.dumps(layout, separators=(",", ":"))) > MAX_LAYOUT_BYTES:
         raise PackageError("INVALID_LAYOUT", "Layout is too large")
     return layout
+
+
+def sanitize_layout(value: Any) -> dict[str, Any]:
+    """Lenient counterpart for rows already stored: invalid entries are dropped instead of raising."""
+    source = value if isinstance(value, dict) else {}
+    layout: dict[str, Any] = {}
+    for field, entry_ok in _LAYOUT_ENTRY.items():
+        item = source.get(field)
+        layout[field] = {key: entry for key, entry in item.items() if entry_ok(entry)} if isinstance(item, dict) else {}
+    try:
+        return validate_layout(layout)
+    except PackageError:
+        return json.loads(json.dumps(EMPTY_LAYOUT))
 
 
 def rewrite_project_id(value: Any, old: str, new: str) -> Any:
@@ -139,7 +181,7 @@ def build_zip(application: Any, project_id: str) -> bytes:
         "status": record.status, "representations": representations, "latestRevision": latest,
     })
     stored_layout = repository.get_layout(project_id)
-    members["layout.json"] = _dump(stored_layout["layout"] if stored_layout else EMPTY_LAYOUT)
+    members["layout.json"] = _dump(sanitize_layout(stored_layout["layout"]) if stored_layout else EMPTY_LAYOUT)
     rules = repository.get_control_rules(project_id)
     if rules is not None:
         members["control-rules.json"] = _dump(rules)

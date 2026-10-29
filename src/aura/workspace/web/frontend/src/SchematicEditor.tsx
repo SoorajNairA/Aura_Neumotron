@@ -67,6 +67,7 @@ export function SchematicEditor({circuit,mapping,nets=[],selectedNet,selectedId,
  const onPointerDown=(e:React.PointerEvent<HTMLDivElement>)=>{
   const target=e.target as Element;
   if(target.closest?.(".schematic-nets,.wiring-toolbar,.schematic-controls"))return;
+  if(e.button===2)return;// the context menu is not a drag or a pan
   viewport.current?.focus({preventScroll:true});
   const panning=mode==="pan"||spaceHeld||e.button===1;
   const handle=target.closest?.("[data-bend-handle]") as HTMLElement|null;
@@ -101,11 +102,21 @@ export function SchematicEditor({circuit,mapping,nets=[],selectedNet,selectedId,
   setPreview(undefined);
  };
  const partIds=useMemo(()=>new Set(Object.values(mapping)),[mapping]);
+ const wireOrder=useMemo(()=>circuit.filter(item=>item.type==="schematic_trace"&&wireIds[item.schematic_trace_id]).map(item=>item.schematic_trace_id as string),[circuit,wireIds]);
+ const wirePosition=selectedWire?wireOrder.indexOf(selectedWire):-1;
  const onKeyDown=(e:React.KeyboardEvent<HTMLDivElement>)=>{
   const key=e.key.toLowerCase(),mod=e.ctrlKey||e.metaKey;
   if(mod&&(key==="z"||key==="y")){e.preventDefault();e.stopPropagation();dispatch({type:key==="y"||e.shiftKey?"redo":"undo"});return}
   if(e.target!==viewport.current)return;
   if(key===" "){e.preventDefault();setSpaceHeld(true);return}
+  if(key==="escape"&&selectedWire){setSelectedWire(null);return}
+  if(key==="enter"&&selectedWire){const handle=layer.current?.querySelector<HTMLElement>("[data-bend-handle]");if(handle){e.preventDefault();handle.focus()}return}
+  // W / Shift+W: select the next / previous wire, so its bend handles can be reached from the keyboard.
+  if(key==="w"&&!mod&&!e.altKey&&wireOrder.length){
+   e.preventDefault();
+   const at=selectedWire?wireOrder.indexOf(selectedWire):-1,n=wireOrder.length;
+   setSelectedWire(wireOrder[e.shiftKey?(at<0?n-1:(at-1+n)%n):(at+1)%n]);return;
+  }
   const step=(e.shiftKey?10:1)*SNAP,up=(projection?.d??-1)<0?step:-step;
   const move:Record<string,[number,number]>={arrowleft:[-step,0],arrowright:[step,0],arrowup:[0,up],arrowdown:[0,-up]};
   if(move[key]&&selectedId&&partIds.has(selectedId)){e.preventDefault();dispatch({type:"move",id:selectedId,dx:move[key][0],dy:move[key][1]})}
@@ -120,6 +131,7 @@ export function SchematicEditor({circuit,mapping,nets=[],selectedNet,selectedId,
  }):[];
  const bendKey=(wire:string,handle:{index:number;horizontal:boolean})=>(e:React.KeyboardEvent)=>{
   const key=e.key.toLowerCase(),up=(projection?.d??-1)<0?SNAP:-SNAP;
+  if(key==="escape"){e.preventDefault();e.stopPropagation();viewport.current?.focus({preventScroll:true});return}
   const delta=handle.horizontal?{arrowup:up,arrowdown:-up}[key]:{arrowleft:-SNAP,arrowright:SNAP}[key];
   if(delta===undefined)return;e.preventDefault();e.stopPropagation();dispatch({type:"bend",wire,index:handle.index,delta:delta*(e.shiftKey?10:1)});
  };
@@ -127,7 +139,7 @@ export function SchematicEditor({circuit,mapping,nets=[],selectedNet,selectedId,
  const swallow=(e:React.MouseEvent)=>{if(!(e.target as Element).closest?.(".schematic-nets,.wiring-toolbar,.schematic-controls,.bend-handle"))e.stopPropagation()};
  const panning=mode==="pan"||spaceHeld;
  const netList=nets.length?nets:[...new Map(circuit.filter((item:any)=>item.type==="aura_electrical_connection"&&item.netId).map((item:any)=>[item.netId,item])).values()];
- return <div ref={viewport} className="schematic-camera" data-testid="schematic-camera" data-camera="0,0,1" data-mode={panning?"pan":"select"} tabIndex={0} role="application" aria-label="Wiring view. Drag parts or wire handles to rearrange; Ctrl+Z undo, Ctrl+Shift+Z redo; hold Space to pan."
+ return <div ref={viewport} className="schematic-camera" data-testid="schematic-camera" data-camera="0,0,1" data-mode={panning?"pan":"select"} tabIndex={0} role="application" aria-label="Wiring view. Drag parts or wire handles to rearrange; W or Shift+W selects a wire, then Enter reaches its bend handles; Ctrl+Z undo, Ctrl+Shift+Z redo; hold Space to pan."
   onPointerDownCapture={onPointerDown} onPointerMoveCapture={onPointerMove} onPointerUpCapture={onPointerUp} onPointerCancelCapture={onPointerUp} onMouseDownCapture={swallow} onMouseMoveCapture={swallow} onMouseUpCapture={swallow} onKeyDown={onKeyDown} onKeyUp={onKeyUp} onBlur={()=>setSpaceHeld(false)}>
    <div className="schematic-layer" ref={layer}><div className="schematic-anchor" ref={anchor}>
     <Suspense fallback={<div className="schematic-loading" role="status">Loading schematic…</div>}><SchematicViewer circuitJson={applied as never} editingEnabled={false} clickToInteractEnabled={false} containerStyle={{height:"100%"}}/></Suspense>
@@ -135,6 +147,7 @@ export function SchematicEditor({circuit,mapping,nets=[],selectedNet,selectedId,
     {trace&&wireIds[trace.schematic_trace_id]&&<div className="bend-handles" data-testid="bend-handles">{handles.map(handle=><button key={handle.index} type="button" className="bend-handle" data-testid="bend-handle" data-bend-handle="" data-wire={wireIds[trace.schematic_trace_id]} data-segment={handle.index} data-orientation={handle.horizontal?"horizontal":"vertical"}
      style={{left:handle.left,top:handle.top,cursor:handle.horizontal?"ns-resize":"ew-resize"}} aria-label={`Bend segment ${handle.index+1} of wire ${wireIds[trace.schematic_trace_id]}`} onKeyDown={bendKey(wireIds[trace.schematic_trace_id],handle)}/>)}</div>}
    </div></div>
+   <div className="sr-only" role="status" aria-live="polite" data-testid="wire-announcer">{wirePosition>=0?`Wire ${wirePosition+1} of ${wireOrder.length} selected: ${wireIds[selectedWire!]}. Enter moves to its bend handles.`:""}</div>
    <div className="wiring-toolbar" role="toolbar" aria-label="Wiring tools">
     <button type="button" aria-pressed={mode==="select"} onClick={()=>setMode("select")} title="Select and drag parts or wires">Select</button>
     <button type="button" aria-pressed={mode==="pan"} onClick={()=>setMode("pan")} title="Drag to pan (or hold Space)">Pan</button>
@@ -153,6 +166,6 @@ export function DisplayNameField({value,original,onCommit}:{value:string;origina
  const [draft,setDraft]=useState(value||original);
  useEffect(()=>setDraft(value||original),[value,original]);
  const commit=()=>{const next=draft.trim();onCommit(next===original?"":next);if(!next)setDraft(original)};
- return <label className="display-name"><span>Display name</span><input value={draft} placeholder={original} onChange={e=>setDraft(e.target.value)} onBlur={commit}
+ return <label className="display-name"><span>Display name</span><input value={draft} maxLength={200} placeholder={original} onChange={e=>setDraft(e.target.value)} onBlur={commit}
   onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();commit()}if(e.key==="Escape"){e.preventDefault();e.stopPropagation();setDraft(value||original)}}}/></label>;
 }

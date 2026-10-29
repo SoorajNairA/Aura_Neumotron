@@ -1,5 +1,5 @@
 import {expect,Page,test} from "@playwright/test";
-import {mock,project} from "./fanFixture";
+import {mock,project,supported} from "./fanFixture";
 
 // All endpoints are mocked; AURA_E2E_MOCK_ONLY=1 needs no backend.
 const other={...project,projectId:"project-b",objective:"Build a weather station",revision:3,updatedAt:"2026-10-28T10:00:00Z"};
@@ -35,7 +35,7 @@ async function setup(page:Page){
 }
 
 const fileMenu=(page:Page)=>page.getByRole("navigation",{name:"Application menu"}).getByRole("button",{name:"File",exact:true});
-const dirty=(page:Page)=>page.evaluate(()=>(window as any).__auraSetLayout({parts:{"component-fan":{x:12,y:6}},wires:{},labels:{}}));
+const dirty=(page:Page)=>page.evaluate(()=>(window as any).__auraSetLayout({parts:{"component-fan":{dx:12,dy:6}},wires:{},labels:{}}));
 async function ready(page:Page,query=""){
  await page.goto(`/?projectId=project-fan${query}`);
  await expect(page.getByTestId("three-host")).toBeVisible();
@@ -116,14 +116,14 @@ test("Open dialog is keyboard navigable and opens the chosen project",async({pag
  await expect(page).toHaveURL(/projectId=project-b/);
 });
 
-test("Save (menu and Ctrl+S) PUTs the layout and confirms with a Saved toast",async({page})=>{
+test("Save (menu and Ctrl+S) PUTs the layout and confirms with a Layout saved at HH:MM toast",async({page})=>{
  const {puts}=await setup(page);await ready(page,"&e2e=1");
  await page.waitForFunction(()=>typeof (window as any).__auraSetLayout==="function");
  await dirty(page);
  await fileMenu(page).click();await page.getByRole("menuitem",{name:"Save",exact:true}).click();
- await expect(page.getByTestId("toast")).toContainText("Saved");
+ await expect(page.getByTestId("toast")).toContainText(/Layout saved at \d{1,2}:\d{2}/);
  expect(puts).toHaveLength(1);
- expect(puts[0].layout.parts["component-fan"]).toEqual({x:12,y:6});
+ expect(puts[0].layout.parts["component-fan"]).toEqual({dx:12,dy:6});
  await page.keyboard.press("Control+s");
  await expect.poll(()=>puts.length).toBe(2);
 });
@@ -303,4 +303,60 @@ test("Import works from the Code space too",async({page})=>{
  await fileMenu(page).click();await page.getByRole("menuitem",{name:"Import",exact:true}).hover();
  const [chooser]=await Promise.all([page.waitForEvent("filechooser"),page.getByRole("menuitem",{name:"Project ZIP…"}).click()]);
  expect(chooser).toBeTruthy();
+});
+
+const BLOCK="bool fanControl(bool prevOn, float tC, bool valid, float tOn, float tOff) {\n  return tC >= tOn;\n}\n";
+async function codeSetup(page:Page){
+ const state=await setup(page);
+ let block=BLOCK;
+ await page.route("**/api/projects/project-fan/firmware",r=>r.fulfill({json:{...supported,controlBlock:block,edit:null}}));
+ const edits:any[]=[];
+ await page.route("**/api/projects/project-fan/firmware/edit",r=>{const body=r.request().postDataJSON();edits.push(body);block=body.block;return r.fulfill({json:{saved:true}})});
+ return {...state,edits};
+}
+
+test("Ctrl+S in the Code space also saves the control-rule edit instead of only claiming Saved",async({page})=>{
+ const {puts,edits}=await codeSetup(page);await ready(page);
+ await page.getByTestId("space-toolbar").getByRole("button",{name:"Code",exact:true}).click();
+ const editor=page.getByLabel("Edit fanControl");
+ await expect(editor).toHaveValue(BLOCK);
+ const changed=BLOCK.replace("return tC >= tOn;","return tC > tOn;");
+ await editor.fill(changed);
+ await page.keyboard.press("Control+s");
+ await expect.poll(()=>edits.length).toBe(1);
+ expect(edits[0].block).toBe(changed);
+ await expect.poll(()=>puts.length).toBe(1);
+ await expect(page.getByTestId("toast")).toContainText(/Layout and code edit saved at \d{1,2}:\d{2}/);
+ // Nothing left to save in the editor: only the layout is written and the toast says so.
+ await page.keyboard.press("Control+s");
+ await expect.poll(()=>puts.length).toBe(2);
+ expect(edits).toHaveLength(1);
+ await expect(page.getByTestId("toast")).toContainText(/^AURA\s*Layout saved at \d{1,2}:\d{2}/);
+});
+
+test("File > Save in the Code space with a rejected code edit says so and keeps the draft",async({page})=>{
+ const {puts}=await codeSetup(page);
+ await page.route("**/api/projects/project-fan/firmware/edit",r=>r.fulfill({status:422,json:{detail:{message:"Block does not splice"}}}));
+ await ready(page);
+ await page.getByTestId("space-toolbar").getByRole("button",{name:"Code",exact:true}).click();
+ const editor=page.getByLabel("Edit fanControl");
+ await editor.fill(BLOCK+"// draft");
+ await fileMenu(page).click();await page.getByRole("menuitem",{name:"Save",exact:true}).click();
+ await expect(page.getByTestId("toast")).toContainText("code edit could not be saved");
+ await expect(page.getByRole("alert").filter({hasText:"Block does not splice"})).toBeVisible();
+ await expect(editor).toHaveValue(BLOCK+"// draft");
+ expect(puts).toHaveLength(1);
+});
+
+test("a second save restarts the toast timer",async({page})=>{
+ test.setTimeout(30000);
+ await setup(page);await ready(page);
+ await page.keyboard.press("Control+s");
+ const toast=page.getByTestId("toast");
+ await expect(toast).toContainText("Layout saved at");
+ await page.waitForTimeout(4000);
+ await page.keyboard.press("Control+s");
+ await page.waitForTimeout(3500);// 7.5 s after the first save, 3.5 s after the second
+ await expect(toast).toBeVisible();
+ await expect(toast).toBeHidden({timeout:5000});
 });

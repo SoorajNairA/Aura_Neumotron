@@ -1,4 +1,4 @@
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import {CompileInfo,FirmwareInfo} from "./SimulationPanel";
 import {ruleSentence} from "./ideaHelpers";
 import {evidenceText} from "./hardware";
@@ -10,10 +10,15 @@ const PIN_LABEL:Record<string,string>={temperature_data:"DS18B20 data",fan_gate:
 
 // Mount with key={firmware.revisionId}: a new revision starts from the server's own lastCompileCurrent flag.
 type Firmware=FirmwareInfo&{fqbn?:string;libraries?:string[];controlBlock?:string;edit?:{revisionId:string;needsReview:boolean}|null};
-export function CodeView({firmware,compile,saveEdit,resetEdit}:{firmware:Firmware;compile:()=>Promise<CompileInfo>;saveEdit?:(block:string)=>Promise<void>;resetEdit?:()=>Promise<void>}){
+// `registerSave` hands the workspace a way to save a pending control-rule draft (Ctrl+S / File > Save): "none" when there is nothing to save.
+export type CodeSaveResult="none"|"saved"|"failed";
+export function CodeView({firmware,compile,saveEdit,resetEdit,registerSave}:{firmware:Firmware;compile:()=>Promise<CompileInfo>;saveEdit?:(block:string)=>Promise<void>;resetEdit?:()=>Promise<void>;registerSave?:(save:(()=>Promise<CodeSaveResult>)|null)=>void}){
  const [draft,setDraft]=useState(firmware.controlBlock||""),[editError,setEditError]=useState(""),[saving,setSaving]=useState(false);
  useEffect(()=>setDraft(firmware.controlBlock||""),[firmware.controlBlock]);
- const save=async(action:()=>Promise<void>)=>{setSaving(true);setEditError("");try{await action()}catch(failure){setEditError((failure as Error).message)}finally{setSaving(false)}};
+ const save=async(action:()=>Promise<void>):Promise<boolean>=>{setSaving(true);setEditError("");try{await action();return true}catch(failure){setEditError((failure as Error).message);return false}finally{setSaving(false)}};
+ const pendingSave=useRef<()=>Promise<CodeSaveResult>>(async()=>"none");
+ pendingSave.current=async()=>!saveEdit||firmware.controlBlock===undefined||draft===firmware.controlBlock?"none":await save(()=>saveEdit(draft))?"saved":"failed";
+ useEffect(()=>{registerSave?.(()=>pendingSave.current());return()=>registerSave?.(null)},[registerSave]);
  const [result,setResult]=useState<CompileInfo|null>(firmware.lastCompile??null),[current,setCurrent]=useState(!!firmware.lastCompileCurrent);
  const [compiling,setCompiling]=useState(false),[error,setError]=useState("");
  if(!firmware.supported)return <div className="code-canvas" data-testid="code-view"><section className="code-unsupported"><h2>No firmware for this design</h2><ul>{firmware.reasons.map(reason=><li key={reason}>{reason}</li>)}</ul></section></div>;

@@ -30,7 +30,7 @@ import {connectedParts,pinLabel,polarity} from "./pinout";
 import {assignLanes,harnessPath,laneHeights,resolveWires,Wire as PinWire} from "./wiring3d";
 import {pinAnchors} from "./silkscreen";
 import {ComponentCard} from "./ComponentCard";
-import {CodeView} from "./CodeView";
+import {CodeView,type CodeSaveResult} from "./CodeView";
 import {buildStudioModel} from "./studioModels";
 import {renderThumbnails} from "./thumbnails";
 import {markStudioParts,modelBadge,neighbours} from "./studio";
@@ -246,7 +246,8 @@ class HolographicScene{
 
 export function WorkspaceApp(){
  const [libraryOpen,setLibraryOpen]=useState(false);
- const [toast,setToast]=useState<string>();
+ const [toast,setToast]=useState<string>(),[toastNonce,setToastNonce]=useState(0),codeSave=useRef<(()=>Promise<CodeSaveResult>)|null>(null);
+ const registerCodeSave=useCallback((save:(()=>Promise<CodeSaveResult>)|null)=>{codeSave.current=save},[]);
  // File menu state: Open dialog, the Save/Discard/Cancel guard, and the wiring layout it protects.
  const [openDialog,setOpenDialog]=useState(false),[guard,setGuard]=useState<{run:()=>void|Promise<void>}|null>(null),[guardBusy,setGuardBusy]=useState(false),importInput=useRef<HTMLInputElement>(null);
  const host=useRef<HTMLDivElement>(null),scene=useRef<HolographicScene>(),session=useRef(new WorkspaceSession()),creatingLock=useRef(false),mutationLock=useRef(false),store=useMemo(()=>new SelectionStore(),[]);
@@ -299,11 +300,21 @@ export function WorkspaceApp(){
   const guarded=(run:()=>void|Promise<void>)=>{if(wiring.dirty)setGuard({run});else void run()};
   // After the save finishes the guard may have been cancelled meanwhile; only then-current guards run their action.
   const guardRef=useRef(guard);guardRef.current=guard;
+  // While the guard asks what to do with the edits, a pending autosave must not write them behind its back.
+  useEffect(()=>{if(guard)wiring.pauseAutosave();else wiring.resumeAutosave()},[guard,wiring.pauseAutosave,wiring.resumeAutosave]);
   const resolveGuard=async(save:boolean)=>{const pending=guard;if(!pending)return;
+   if(!save)wiring.discard();
    if(save){setGuardBusy(true);const saved=await wiring.flush();setGuardBusy(false);if(guardRef.current!==pending)return;if(!saved){setToast("Could not save the layout. Your changes are still here.");return}}
    setGuard(null);void pending.run()};
   const newDesign=()=>guarded(resetWorkspace);
-  const saveProject=async()=>{if(!projectId)return;const saved=await wiring.flush();setToast(saved?"Saved":"Could not save the layout.")};
+  // Ctrl+S / File > Save writes the wiring layout and, in the Code space, a pending control-rule edit too.
+  const saveProject=async()=>{if(!projectId)return;
+   const code=await (codeSave.current?.()??Promise.resolve<CodeSaveResult>("none")),saved=await wiring.flush();
+   const at=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+   setToast(!saved?(code==="failed"?"Could not save the layout or the code edit.":"Could not save the layout.")
+    :code==="failed"?`Layout saved at ${at}. The code edit could not be saved.`
+    :code==="saved"?`Layout and code edit saved at ${at}`:`Layout saved at ${at}`);
+   setToastNonce(value=>value+1)};
   const openProject=(id:string)=>{setOpenDialog(false);guarded(()=>{if(id!==projectId)switchProject(id)})};
   const makeCopy=()=>guarded(async()=>{
    if(!projectId)return;
@@ -506,12 +517,12 @@ export function WorkspaceApp(){
    {space==="design"&&libraryOpen&&<ComponentLibrary api={API} onAdd={addParts} onClose={()=>{setLibraryOpen(false);document.querySelector<HTMLButtonElement>(".app-menu [aria-label=\"Open component library\"]")?.focus()}}/>}
    {space==="design"&&<div className="view-switch" role="group" aria-label="Design view">{DESIGN_VIEWS.map(([view,label])=><button key={view} className={mode===view?"active":""} onClick={()=>setMode(view)}>{label}</button>)}</div>}
     {mode==="build"&&firmware?.supported&&project?.projectId&&<BuildView api={API} projectId={project.projectId} firmware={firmware} serial={serial}/>}
-    {mode==="code"&&(firmware?<CodeView key={firmware.revisionId||"none"} firmware={firmware} saveEdit={block=>firmwareEdit("PUT",block)} resetEdit={()=>firmwareEdit("DELETE")} compile={()=>fetch(`${API}/api/projects/${project?.projectId}/firmware/compile`,{method:"POST"}).then(async response=>{const body=await response.json().catch(()=>undefined);if(!response.ok)throw new Error(body?.detail?.code||`HTTP ${response.status}`);return body})}/>:firmwareError?<div className="code-canvas" data-testid="code-view"><section className="code-unsupported" role="alert" data-testid="firmware-error"><h2>Firmware could not be loaded</h2><p>{firmwareError}</p><button onClick={()=>setFirmwareReload(value=>value+1)}>Retry</button></section></div>:<div className="code-canvas" data-testid="code-view"><p>Loading firmware…</p></div>)}
+    {mode==="code"&&(firmware?<CodeView key={firmware.revisionId||"none"} firmware={firmware} registerSave={registerCodeSave} saveEdit={block=>firmwareEdit("PUT",block)} resetEdit={()=>firmwareEdit("DELETE")} compile={()=>fetch(`${API}/api/projects/${project?.projectId}/firmware/compile`,{method:"POST"}).then(async response=>{const body=await response.json().catch(()=>undefined);if(!response.ok)throw new Error(body?.detail?.code||`HTTP ${response.status}`);return body})}/>:firmwareError?<div className="code-canvas" data-testid="code-view"><section className="code-unsupported" role="alert" data-testid="firmware-error"><h2>Firmware could not be loaded</h2><p>{firmwareError}</p><button onClick={()=>setFirmwareReload(value=>value+1)}>Retry</button></section></div>:<div className="code-canvas" data-testid="code-view"><p>Loading firmware…</p></div>)}
     {(space==="design"&&mode!=="work"||mode==="simulation")&&<ViewFab actions={[{label:"Fit",icon:"⤢",onClick:fit},{label:exploded?"Assemble":"Explode",icon:"◫",onClick:toggleExplode},
      {label:xray?"Solid":"X-ray",icon:"▣",onClick:toggleXray},{label:"Show all",icon:"◉",onClick:showAll}]}/>}
    {pinWireCount>0&&(space==="design"&&mode!=="work"&&mode!=="schematic"||mode==="simulation")&&<p className="wire-note" data-testid="wire-note" title="Illustrative routing — not a measured cable layout">Illustrative routing — not a measured cable layout · {pinWireCount} wires</p>}
    {hoveredPart&&(space==="design"&&mode!=="work"||mode==="simulation")&&<div className="hover-label"><b>{displayLabel(hoveredPart.semanticId,hoveredPart.label)}</b><span>{statusLabel(hoveredPart.verificationState)}</span></div>}
-   <Toast message={toast} onDismiss={()=>setToast(undefined)}/>
+   <Toast message={toast} nonce={toastNonce} onDismiss={()=>setToast(undefined)}/>
    <input ref={importInput} type="file" accept=".zip,application/zip" hidden tabIndex={-1} aria-hidden="true" data-testid="import-file" onChange={event=>{const file=event.target.files?.[0];event.target.value="";if(file)void importFile(file)}}/>
    {!project&&<div className="loading-curtain"><div className="loading-mark"/><b>AURA // LOADING PROJECT</b><span>Clearing the previous workspace and reading authoritative state.</span></div>}
    </div>

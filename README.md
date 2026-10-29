@@ -156,12 +156,15 @@ hardware evidence.
   view/tool actions) sits before File, Edit, Project and Help; the 3D
   view/Wiring/Split switch is at the viewport's top-left; updates show as
   dismissible toasts; sidebars run full height. File offers New, Open (Ctrl+O,
-  searchable), Save (Ctrl+S), Make a copy, Export ▸ Project ZIP, Import ▸
+  searchable), Save (Ctrl+S: the layout, plus a pending Code-space
+  control-rule edit), Make a copy, Export ▸ Project ZIP, Import ▸
   Project ZIP and Save local copy. The ZIP holds manifest, graph, project,
   firmware, layout and design artifacts, never keys or env; unsaved wiring
   edits are guarded on project switch. In the Wiring view: Select/Pan, drag
   parts, drag wire bends (connections never change), rename via the
-  inspector's Display name, Ctrl+Z/Ctrl+Shift+Z; the layout autosaves and
+  inspector's Display name, Ctrl+Z/Ctrl+Shift+Z; with the view focused, W /
+  Shift+W selects the next / previous wire and Enter moves to its bend
+  handles (arrow keys bend); the layout autosaves and
   survives reopen and regeneration. Limits: no endpoint reconnection, no
   firmware pin sync from the wiring view, no shareable links (no hosted server
   with access control), bends per segment only, layout changes the schematic

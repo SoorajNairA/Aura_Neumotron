@@ -6,22 +6,32 @@ export type {WiringLayout} from "./wiringLayout";
 export {emptyLayout} from "./wiringLayout";
 export const AUTOSAVE_MS=1000;
 
-const record=(value:any)=>value&&typeof value==="object"&&!Array.isArray(value)?value:{};
-const normalize=(raw:any):WiringLayout=>({parts:record(raw?.parts),wires:record(raw?.wires),labels:record(raw?.labels)});
+const record=(value:any):Record<string,any>=>value&&typeof value==="object"&&!Array.isArray(value)?value:{};
+const finite=(value:unknown):value is number=>typeof value==="number"&&Number.isFinite(value);
+const filtered=<T,>(value:any,keep:(entry:any)=>boolean):Record<string,T>=>Object.fromEntries(Object.entries(record(value)).filter(([,entry])=>keep(entry)));
+// Same limits as the server's validate_layout. Entries the viewer would render (labels) or compute with (offsets, bends) must be sane.
+const MAX_LABEL=200,MAX_WIRE_POINTS=64;
+export const normalizeLayout=(raw:any):WiringLayout=>({
+ parts:filtered(raw?.parts,entry=>!!entry&&typeof entry==="object"&&finite(entry.dx)&&finite(entry.dy)),
+ wires:filtered(raw?.wires,entry=>Array.isArray(entry)&&entry.length<=MAX_WIRE_POINTS&&entry.every(finite)),
+ labels:filtered(raw?.labels,entry=>typeof entry==="string"&&entry.length<=MAX_LABEL),
+});
+const normalize=normalizeLayout;
 
 // GET the layout when the project loads (empty when none or 404); `setLayout` marks it dirty; `flush()` PUTs it and clears dirty.
 // `dispatch` applies a wiring-view edit (with undo/redo history) and autosaves AUTOSAVE_MS after the last edit.
-// `setLayout` alone does not autosave. `flush` resolves true on success (or when there is nothing loaded to write), false on failure.
+// `setLayout` alone does not autosave. `pauseAutosave` cancels a pending autosave and holds further ones (a dialog is asking what to do with
+// the edits); `resumeAutosave` re-arms it if edits are waiting. `discard` reverts to the last loaded/saved layout and clears dirty. `flush` resolves true on success (or when there is nothing loaded to write), false on failure.
 // Writing is refused until the first GET finished, so a slow load can never overwrite a saved layout with an empty one.
 export function useWiringLayout(projectId:string|null,apiBase=""){
  const [layout,setLayoutState]=useState<WiringLayout>(emptyLayout),[dirty,setDirty]=useState(false),[loaded,setLoaded]=useState(false);
  const [history,setHistory]=useState({undo:0,redo:0});
- const latest=useRef(layout),version=useRef(0),loadedRef=useRef(false),active=useRef(projectId);
+ const latest=useRef(layout),version=useRef(0),loadedRef=useRef(false),active=useRef(projectId),saved=useRef<WiringLayout>(layout),paused=useRef(false),pending=useRef(false);
  const stacks=useRef<{past:WiringLayout[];future:WiringLayout[]}>({past:[],future:[]}),timer=useRef<ReturnType<typeof setTimeout>>();
  const cancelAutosave=()=>{if(timer.current){clearTimeout(timer.current);timer.current=undefined}};
  const resetHistory=()=>{stacks.current={past:[],future:[]};setHistory({undo:0,redo:0})};
  useEffect(()=>{
-  cancelAutosave();resetHistory();
+  cancelAutosave();resetHistory();paused.current=false;pending.current=false;saved.current=emptyLayout();
   active.current=projectId;loadedRef.current=false;setLoaded(false);version.current=0;latest.current=emptyLayout();setLayoutState(latest.current);setDirty(false);
   if(!projectId)return;
   const id=projectId;let live=true;
@@ -33,7 +43,8 @@ export function useWiringLayout(projectId:string|null,apiBase=""){
    if(!live)return;
    loadedRef.current=true;setLoaded(true);
    // Edits made before the load finished win over the stored copy.
-   if(version.current===0){latest.current=normalize(body?.layout);setLayoutState(latest.current)}
+   saved.current=normalize(body?.layout);
+   if(version.current===0){latest.current=saved.current;setLayoutState(latest.current)}
   }).catch(()=>undefined);
   return()=>{live=false;cancelAutosave()};
  },[projectId,apiBase]);
@@ -45,15 +56,24 @@ export function useWiringLayout(projectId:string|null,apiBase=""){
   cancelAutosave();
   const id=active.current;
   if(!id||!loadedRef.current)return !id;
-  const sent=version.current,body=JSON.stringify({layout:latest.current});
+  pending.current=false;
+  const sent=version.current,sentLayout=latest.current,body=JSON.stringify({layout:sentLayout});
   try{
    const response=await fetch(`${apiBase}/api/projects/${id}/layout`,{method:"PUT",headers:{"content-type":"application/json"},body});
    if(!response.ok)return false;
-   if(active.current===id){if(version.current===sent)setDirty(false)}
+   if(active.current===id){saved.current=sentLayout;if(version.current===sent)setDirty(false)}
    return true;
   }catch{return false}
  },[apiBase]);
  const flushRef=useRef(flush);flushRef.current=flush;
+ const armAutosave=useCallback(()=>{
+  cancelAutosave();
+  if(paused.current)return;
+  const id=active.current;
+  // Waits for the first GET (flush refuses before it), then saves.
+  const save=()=>{timer.current=undefined;if(active.current!==id||paused.current)return;if(!loadedRef.current){timer.current=setTimeout(save,AUTOSAVE_MS);return}void flushRef.current()};
+  timer.current=setTimeout(save,AUTOSAVE_MS);
+ },[]);
  const dispatch=useCallback((action:LayoutAction)=>{
   const before:LayoutHistory={layout:latest.current,...stacks.current};
   const after=layoutReducer(before,action);
@@ -61,11 +81,13 @@ export function useWiringLayout(projectId:string|null,apiBase=""){
   stacks.current={past:after.past,future:after.future};setHistory({undo:after.past.length,redo:after.future.length});
   if(after.layout===latest.current)return;
   setLayout(after.layout);
-  cancelAutosave();
-  const id=active.current;
-  // Waits for the first GET (flush refuses before it), then saves.
-  const save=()=>{timer.current=undefined;if(active.current!==id)return;if(!loadedRef.current){timer.current=setTimeout(save,AUTOSAVE_MS);return}void flushRef.current()};
-  timer.current=setTimeout(save,AUTOSAVE_MS);
- },[setLayout]);
- return {layout,setLayout,dirty,flush,loaded,dispatch,canUndo:history.undo>0,canRedo:history.redo>0};
+  pending.current=true;armAutosave();
+ },[setLayout,armAutosave]);
+ const pauseAutosave=useCallback(()=>{paused.current=true;cancelAutosave()},[]);
+ const resumeAutosave=useCallback(()=>{paused.current=false;if(pending.current)armAutosave()},[armAutosave]);
+ const discard=useCallback(()=>{
+  cancelAutosave();pending.current=false;resetHistory();
+  version.current+=1;latest.current=saved.current;setLayoutState(saved.current);setDirty(false);
+ },[]);
+ return {layout,setLayout,dirty,flush,loaded,dispatch,pauseAutosave,resumeAutosave,discard,canUndo:history.undo>0,canRedo:history.redo>0};
 }

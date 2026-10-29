@@ -50,7 +50,7 @@ from .representation_service import RepresentationService, initial_records, repr
 from .representations import RepresentationRecord, RepresentationStatus, RepresentationType
 from .modifications import LiveModificationPlanner,ModificationError,ModificationProposal,inverse_proposal,propose,propose_add_components,part_interfaces,propose_connection,propose_parameter_change,propose_pin_change
 from .narration import NarrationService
-from .project_package import EMPTY_LAYOUT, MAX_PACKAGE_BYTES, PackageContents, PackageError, build_zip, edit_fits, read_zip, rewrite_project_id, slug, validate_layout
+from .project_package import EMPTY_LAYOUT, MAX_PACKAGE_BYTES, PackageContents, PackageError, build_zip, edit_fits, read_zip, rewrite_project_id, sanitize_layout, slug, validate_layout
 from .work_items import EngineeringWorkService, WorkDomainError
 from .scenarios import EngineeringScenario,LiveScenarioAnalyzer,ScenarioError,analyze as analyze_scenario
 from aura.firmware import FirmwareUnsupported, generate_fan_sketch
@@ -968,7 +968,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
     def get_layout(project_id: str) -> dict[str, Any]:
         _record(application, project_id)
         stored = application.repository.get_layout(project_id)
-        return {"layout": validate_layout(stored["layout"]) if stored else json.loads(json.dumps(EMPTY_LAYOUT)),
+        return {"layout": sanitize_layout(stored["layout"]) if stored else json.loads(json.dumps(EMPTY_LAYOUT)),
                 "updatedAt": stored["updatedAt"] if stored else None}
 
     @app.put("/api/projects/{project_id}/layout")

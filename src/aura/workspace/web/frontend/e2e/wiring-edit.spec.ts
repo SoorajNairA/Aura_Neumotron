@@ -215,3 +215,105 @@ test("a drag then reload keeps the position",async({page})=>{
  await expect(part(page,FAN)).toBeVisible();
  await expect.poll(async()=>Math.abs((await relative(page)).x-before.x)).toBeLessThan(.05);
 });
+
+test("a hostile stored layout (object labels, non-numeric offsets) is ignored instead of crashing the workspace",async({page})=>{
+ const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
+ await setup(page,{parts:{"component-fan":{x:1,y:2},"component-controller":{dx:"3",dy:null}},wires:{[WIRE]:{bends:[3]}},labels:{"component-fan":{x:1},"component-controller":7}});
+ await openWiring(page);
+ await part(page,FAN).click();
+ await expect(page.getByTestId("part-info").getByRole("heading",{level:2})).toHaveText("Desk fan");
+ await expect(drawing(page)).toContainText("Desk fan");
+ expect(errors).toEqual([]);
+});
+
+test("right-click does not drag a part or pan the camera",async({page})=>{
+ const state=await setup(page);await openWiring(page);
+ const from=await center(page,FAN),cameraBefore=await camera(page).getAttribute("data-camera");
+ await page.mouse.move(from.x,from.y);await page.mouse.down({button:"right"});
+ for(let i=1;i<=6;i++)await page.mouse.move(from.x+10*i,from.y+5*i);
+ await page.mouse.up({button:"right"});
+ const after=await center(page,FAN);
+ expect(Math.abs(after.x-from.x)).toBeLessThan(2);expect(Math.abs(after.y-from.y)).toBeLessThan(2);
+ const box=(await camera(page).boundingBox())!,blank={x:box.x+box.width/2,y:box.y+box.height-40};
+ await page.mouse.move(blank.x,blank.y);await page.mouse.down({button:"right"});
+ for(let i=1;i<=6;i++)await page.mouse.move(blank.x+15*i,blank.y);
+ await page.mouse.up({button:"right"});
+ expect(await camera(page).getAttribute("data-camera")).toBe(cameraBefore);
+ await page.waitForTimeout(1300);
+ expect(state.puts).toHaveLength(0);
+});
+
+test("wires can be selected and bent with the keyboard alone",async({page})=>{
+ const state=await setup(page);await openWiring(page);
+ const announcer=page.getByTestId("wire-announcer"),handles=page.getByTestId("bend-handle");
+ await camera(page).focus();
+ await expect(handles).toHaveCount(0);
+ await page.keyboard.press("w");
+ await expect(announcer).toHaveText(/^Wire 1 of \d+ selected: /);
+ await expect(announcer).toHaveAttribute("aria-live","polite");
+ expect(await handles.count()).toBeGreaterThan(0);
+ const first=(await announcer.textContent())!;
+ await page.keyboard.press("Shift+W");
+ await expect(announcer).not.toHaveText(first);// wraps backwards to the last wire
+ await expect(announcer).toHaveText(/^Wire (\d+) of \1 selected: /);
+ await page.keyboard.press("w");
+ await expect(announcer).toHaveText(first);
+ // Enter moves focus onto the first bend handle (the viewer has its own tab stops before them); arrows bend the focused segment.
+ await page.keyboard.press("Enter");
+ await expect(handles.first()).toBeFocused();
+ await page.keyboard.press("Tab");
+ await expect(handles.nth(1)).toBeFocused();
+ await page.keyboard.press("Shift+Tab");
+ await expect(handles.first()).toBeFocused();
+ const horizontal=(await handles.first().getAttribute("data-orientation"))==="horizontal";
+ await page.keyboard.press(horizontal?"ArrowUp":"ArrowRight");
+ await expect.poll(()=>state.puts.length,{timeout:3000}).toBe(1);
+ const wire=await handles.first().getAttribute("data-wire");
+ expect(state.puts[0].body.layout.wires[wire!].some((value:number)=>value!==0)).toBe(true);
+ // Escape on a handle returns to the viewport; Escape there clears the selection.
+ await page.keyboard.press("Escape");
+ await expect(camera(page)).toBeFocused();
+ await page.keyboard.press("Escape");
+ await expect(handles).toHaveCount(0);
+ await expect(announcer).toHaveText("");
+});
+
+test("autosave does not write edits while the unsaved-changes dialog is open; Discard reverts them even when the action does not leave the project",async({page})=>{
+ test.setTimeout(30000);
+ const state=await setup(page);
+ await page.route("**/api/projects/import",r=>r.fulfill({status:400,json:{detail:{code:"NOT_A_ZIP",message:"That file is not a ZIP."}}}));
+ await openWiring(page);
+ const before=await relative(page);
+ await drag(page,await center(page,FAN),70,0);
+ await expect.poll(async()=>(await relative(page)).x-before.x).toBeGreaterThan(.2);
+ await page.getByRole("navigation",{name:"Application menu"}).getByRole("button",{name:"File",exact:true}).click();
+ await page.getByRole("menuitem",{name:"Import",exact:true}).hover();
+ await page.getByRole("menuitem",{name:"Project ZIP…"}).click();
+ const guard=page.getByRole("dialog",{name:"Unsaved changes"});
+ await expect(guard).toBeVisible();
+ await page.waitForTimeout(1600);
+ expect(state.puts).toHaveLength(0);
+ const [chooser]=await Promise.all([page.waitForEvent("filechooser"),guard.getByRole("button",{name:"Discard",exact:true}).click()]);
+ await expect(guard).toHaveCount(0);
+ // The layout is back where it was and nothing was or will be saved.
+ await expect.poll(async()=>Math.abs((await relative(page)).x-before.x)).toBeLessThan(.05);
+ await expect(page.getByTestId("saved-state")).toHaveText(/Saved/);
+ await chooser.setFiles({name:"bad.zip",mimeType:"application/zip",buffer:Buffer.from("bad")});
+ await expect(page.getByTestId("toast")).toContainText("That file is not a ZIP.");
+ await page.waitForTimeout(1600);
+ expect(state.puts).toHaveLength(0);
+ expect(Math.abs((await relative(page)).x-before.x)).toBeLessThan(.05);
+});
+
+test("cancelling the unsaved-changes dialog lets the pending autosave run again",async({page})=>{
+ const state=await setup(page);await openWiring(page);
+ await drag(page,await center(page,FAN),70,0);
+ await page.getByRole("navigation",{name:"Application menu"}).getByRole("button",{name:"File",exact:true}).click();
+ await page.getByRole("menuitem",{name:"New",exact:true}).click();
+ const guard=page.getByRole("dialog",{name:"Unsaved changes"});
+ await expect(guard).toBeVisible();
+ await page.waitForTimeout(1400);
+ expect(state.puts).toHaveLength(0);
+ await guard.getByRole("button",{name:"Cancel",exact:true}).click();
+ await expect.poll(()=>state.puts.length,{timeout:3000}).toBe(1);
+});

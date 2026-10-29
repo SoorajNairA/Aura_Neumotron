@@ -19,7 +19,13 @@ EDITED = """bool fanControl(bool prevOn, float tC, bool valid, float tOn, float 
   return tC >= tOn;  // edited: no hysteresis
 }
 """
-LAYOUT = {"parts": {"component-controller": {"x": 12, "y": -4}}, "wires": {"wire-1": {"bends": [3]}}, "labels": {"component-controller": "Brain"}}
+LAYOUT = {"parts": {"component-controller": {"dx": 12, "dy": -4}}, "wires": {"wire-1": [3, -1.5]}, "labels": {"component-controller": "Brain"}}
+HOSTILE = [
+    {"labels": {"component-fan": {"x": 1}}}, {"labels": {"component-fan": 3}}, {"labels": {"component-fan": "x" * 201}},
+    {"parts": {"component-fan": {"x": 1, "y": 2}}}, {"parts": {"component-fan": {"dx": "1", "dy": 2}}}, {"parts": {"component-fan": {"dx": 1e999, "dy": 2}}},
+    {"parts": {"component-fan": [1, 2]}}, {"parts": {"component-fan": {"dx": True, "dy": 2}}},
+    {"wires": {"wire-1": {"bends": [3]}}}, {"wires": {"wire-1": [1, "2"]}}, {"wires": {"wire-1": [1, 1e999]}}, {"wires": {"wire-1": list(range(65))}},
+]
 
 
 @pytest.fixture
@@ -279,3 +285,33 @@ def test_representation_spec_failure_rejects_before_any_write(api, fan, monkeypa
     response = api.post(f"/api/projects/{fan}/copy")
     assert response.status_code == 400 and response.json()["detail"]["code"] == "CORRUPT_GRAPH"
     assert len(api.get("/api/projects").json()) == before
+
+
+def test_layout_value_shapes_are_validated(api, fan):
+    """A hostile layout must never be stored: values are rendered by the client."""
+    for bad in HOSTILE:
+        body = json.dumps({"layout": bad})  # not json=: httpx refuses to encode Infinity
+        assert api.put(f"/api/projects/{fan}/layout", content=body, headers={"Content-Type": "application/json"}).status_code == 422, bad
+    assert api.get(f"/api/projects/{fan}/layout").json()["layout"] == LAYOUT
+
+
+def test_hostile_layout_in_package_is_rejected(api, fan):
+    good = good_members(api, fan)
+    before = len(api.get("/api/projects").json())
+    for bad in HOSTILE:
+        assert code_of(post_import(api, zip_bytes(good | {"layout.json": json.dumps(bad)}))) == "CORRUPT_GRAPH", bad
+    assert len(api.get("/api/projects").json()) == before
+
+
+def test_get_layout_survives_bad_stored_row(api, fan):
+    stored = {"parts": {"a": {"dx": 1, "dy": 2}, "b": {"x": 1}}, "wires": {"w": [1, 2], "v": "no"}, "labels": {"a": "ok", "b": {"x": 1}}, "extra": 5}
+    api.application.repository.save_layout(fan, stored)
+    response = api.get(f"/api/projects/{fan}/layout")
+    assert response.status_code == 200
+    layout = response.json()["layout"]
+    assert layout["parts"] == {"a": {"dx": 1, "dy": 2}} and layout["wires"] == {"w": [1, 2]} and layout["labels"] == {"a": "ok"}
+    api.application.repository.save_layout(fan, "garbage")
+    assert api.get(f"/api/projects/{fan}/layout").json()["layout"] == {"parts": {}, "wires": {}, "labels": {}}
+    # Export does not carry the bad entries into a package either.
+    with zipfile.ZipFile(io.BytesIO(api.get(f"/api/projects/{fan}/export").content)) as archive:
+        assert json.loads(archive.read("layout.json")) == {"parts": {}, "wires": {}, "labels": {}}
