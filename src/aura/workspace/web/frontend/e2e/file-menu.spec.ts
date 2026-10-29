@@ -213,6 +213,24 @@ test("Discard drops the edits and switches; New and Make a copy are guarded too"
  expect(puts).toHaveLength(0);
 });
 
+test("Settings ▸ New design also asks before leaving unsaved edits",async({page})=>{
+ const {puts}=await setup(page);await ready(page,"&e2e=1");
+ await page.waitForFunction(()=>typeof (window as any).__auraSetLayout==="function");
+ await dirty(page);
+ const newDesign=async()=>{await page.getByRole("button",{name:"Settings",exact:true}).click();await page.getByRole("menuitem",{name:/New design/}).click()};
+ await newDesign();
+ const guard=page.getByRole("dialog",{name:"Unsaved changes"});
+ await expect(guard).toBeVisible();
+ await guard.getByRole("button",{name:"Cancel",exact:true}).click();
+ await expect(guard).toHaveCount(0);
+ await expect(page.getByTestId("three-host")).toBeVisible();
+ await expect(page).toHaveURL(/projectId=project-fan/);
+ await newDesign();
+ await guard.getByRole("button",{name:"Discard",exact:true}).click();
+ await expect(page.getByRole("heading",{name:"What do you want to build?"})).toBeVisible();
+ expect(puts).toHaveLength(0);
+});
+
 test("Shareable link is reachable by keyboard, announces its reason and does nothing",async({page})=>{
  await setup(page);await ready(page);
  await fileMenu(page).click();

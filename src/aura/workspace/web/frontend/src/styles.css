@@ -475,3 +475,18 @@ button.active{background:var(--accent-soft);color:var(--accent);border-color:tra
 .file-dialog .preview-actions button{font:600 13px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;padding:6px 14px}
 @media(max-width:600px){.menu-submenu{top:100%;left:8px}}
 .saved-state.unsaved{color:var(--warn-text,#a8521c);font-weight:600}
+/* Editable wiring view: the anchor holds the drawing still while the viewer refits; handles and toolbar sit above it. */
+.schematic-camera:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.schematic-camera[data-mode=select]{cursor:default}.schematic-camera[data-mode=select]:active{cursor:default}.schematic-camera[data-mode=select] [data-schematic-component-id]{cursor:move}
+.schematic-camera[data-mode=pan],.schematic-camera[data-mode=pan] *{cursor:grab}
+.schematic-anchor{position:absolute;inset:0;transform-origin:0 0}
+.bend-handles{position:absolute;inset:0;pointer-events:none}
+.bend-handle{position:absolute;z-index:2;width:12px;min-width:12px!important;height:12px;min-height:12px!important;margin:-6px 0 0 -6px;padding:0;border:2px solid var(--accent);border-radius:50%;background:var(--surface);pointer-events:auto;box-shadow:0 1px 3px rgba(30,39,34,.25)}
+.bend-handle:hover,.bend-handle:focus-visible{background:var(--accent);outline:2px solid var(--accent);outline-offset:2px}
+.wiring-toolbar{position:absolute;z-index:4;top:12px;right:10px;display:flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--line-strong);border-radius:var(--radius-sm,4px);background:var(--surface);box-shadow:0 2px 10px rgba(30,39,34,.08)}
+.wiring-toolbar button{padding:5px 10px;border:1px solid transparent;border-radius:var(--radius-sm,4px);background:transparent;color:var(--text-soft);font:600 12px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;letter-spacing:0}
+.wiring-toolbar button[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft);color:var(--text)}
+.wiring-toolbar-sep{width:1px;height:18px;margin:0 3px;background:var(--line)}
+.display-name{display:flex;flex-direction:column;gap:4px;margin:10px 0}
+.display-name span{color:var(--text-dim);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.display-name input{min-height:32px;padding:5px 9px;border:1px solid var(--line-strong);border-radius:var(--radius-sm,4px);background:var(--surface);color:var(--text)}
