@@ -64,6 +64,21 @@ def test_override_pin_names_and_roles():
     assert names("ds18b20-module")["signal"] == ("DAT", "digital_out")
 
 
+def test_overrides_and_settings_only_name_catalogue_parts():
+    assert set(pins_module.PART_PIN_OVERRIDES) | set(pins_module.PART_SETTINGS) <= set(BY_ID)
+
+
+def test_pin_labels_are_unique_per_part():
+    for d in CATALOGUE:
+        labels = [p.label for p in d.pins]
+        assert len(labels) == len(set(labels)), (d.component_definition_id, labels)
+
+
+def test_hc_sr04_has_trig_and_echo_not_sda():
+    pins = {p.name: (p.label, p.role) for p in BY_ID["hc-sr04-class"].pins}
+    assert pins["trig"] == ("TRIG", "digital_in") and pins["echo"] == ("ECHO", "digital_out") and "signal" not in pins
+
+
 def test_family_template_roles_and_fallback():
     assert {p.name: p.role for p in pins_for_definition(None, "servo")}["signal"] == "pwm_in"
     assert {p.name: p.role for p in pins_for_definition("soil", "soil_moisture_sensor")}["signal"] == "analog_out"

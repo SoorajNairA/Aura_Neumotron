@@ -434,9 +434,9 @@ def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: l
         raise ModificationError("NO_CONTROLLER", "These parts need a controller pin, but the design has no controller.", 409)
     params = dict(controller.metadata.get("parameters", {})) if controller else {}
     old_map = dict(params.get("gpio_map") or {}); gpio_map = dict(old_map)
-    # Only ports the controller declares can carry a net terminal.
+    # Only ports the controller declares can carry a net terminal; the I2C/SPI bus ports are not general GPIO.
     ports = [i.name for i in component_interfaces(_family(controller), _dimensions(controller), params)
-             if i.kind == "control_output" and i.name not in gpio_map] if controller else []
+             if i.kind == "control_output" and i.name.startswith("signal-") and i.name not in gpio_map] if controller else []
     used = set(gpio_map.values()); picks = []
     for d in definitions:
         pin = allocate_gpio(d.family, d.component_definition_id, used) if d.family in SIGNAL_FAMILIES else None

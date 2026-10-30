@@ -36,6 +36,7 @@ from aura.planner.schemas import ProjectRequest
 from aura.planner.service import PlannerService
 from aura.verification.service import VerificationService
 from aura.verification.catalogue import CATALOGUE, search as search_catalogue
+from aura.verification.pins import pins_for_definition
 from aura.verification.results import VerificationState
 from aura.verification.delta import verification_readiness
 from .bridge import WorkspaceBridge
@@ -1025,7 +1026,7 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.get("/api/projects/{project_id}/graph")
     def get_graph(project_id: str) -> dict[str, Any]:
-        return graph_to_dict(_record(application, project_id).graph)
+        return _with_pins(graph_to_dict(_record(application, project_id).graph))
 
     @app.get("/api/projects/{project_id}/provenance")
     def get_provenance(project_id: str) -> dict[str, Any]:
@@ -1708,6 +1709,18 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         finally:
             application.broker.listeners.get(project_id, set()).discard(queue)
     return app
+
+
+def _with_pins(graph: dict[str, Any]) -> dict[str, Any]:
+    """Give every component `metadata.pins`: its stored snapshot, else the catalogue/family pins (older projects). Read-only."""
+    entities = []
+    for entity in graph.get("entities", []):
+        metadata = entity.get("metadata") or {}
+        if entity.get("kind") == "component" and "pins" not in metadata:
+            definition = metadata.get("component_definition_id") or (metadata.get("parameters") or {}).get("component_definition_id")
+            entity = {**entity, "metadata": {**metadata, "pins": [pin.to_dict() for pin in pins_for_definition(definition, metadata.get("family", ""))]}}
+        entities.append(entity)
+    return {**graph, "entities": entities}
 
 
 def _record(application: WorkspaceApplication, project_id: str) -> StoredProject:

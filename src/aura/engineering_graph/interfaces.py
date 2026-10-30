@@ -22,6 +22,7 @@ ESP32_INPUT_ONLY_GPIOS = (34, 35, 36, 37, 38, 39)
 # ADC2 is unusable while Wi-Fi runs, so analog inputs only get ADC1 pins (Espressif ESP32 datasheet, ADC section).
 ESP32_ADC1_GPIOS = (32, 33, 34, 35, 36, 39)
 ESP32_STRAPPING_GPIOS = (0, 2, 5, 12, 15)
+BUS_GPIOS = {"i2c-sda": 21, "i2c-scl": 22, "spi-sck": 18, "spi-mosi": 23, "spi-miso": 19}
 ANALOG_FAMILIES = frozenset({"soil_moisture_sensor", "light_sensor"})
 ANALOG_DEFINITIONS = frozenset({"capacitive-soil-v1", "photoresistor-module"})
 INPUT_FAMILIES = frozenset({"temperature_sensor", "environmental_sensor", "distance_sensor", "light_sensor", "motion_sensor",
@@ -36,7 +37,23 @@ def allocate_gpio(family: str, definition_id: str | None, used: set[int]) -> int
     """Lowest free pin for this part: ADC1 for analog inputs, never input-only pins for outputs, never strapping pins."""
     safe = [pin for pin in ESP32_OUTPUT_GPIOS if pin not in ESP32_STRAPPING_GPIOS]
     pool = ESP32_ADC1_GPIOS if is_analog(family, definition_id) else (*safe, *ESP32_INPUT_ONLY_GPIOS) if family in INPUT_FAMILIES else safe
-    return next((pin for pin in pool if pin not in used), None)
+    # The I2C/SPI bus pins stay free for bus parts: they are only handed out when nothing else is left.
+    return next((pin for pin in (*(p for p in pool if p not in BUS_GPIOS.values()), *(p for p in pool if p in BUS_GPIOS.values())) if pin not in used), None)
+
+
+_SENSOR_BUS = (("sda", "signal_output"), ("scl", "signal_output"))
+_MODULE_SPI = (("sck", "control_input"), ("mosi", "control_input"), ("miso", "signal_output"), ("cs", "control_input"))
+# Ports a part may carry in place of the family `signal` (I2C, SPI, UART...). They are appended after the family's own
+# ports so no existing port position moves; parts that do not use them simply leave them unwired.
+FAMILY_EXTRA_PORTS: dict[str, tuple[tuple[str, str], ...]] = {
+    "microcontroller_board": (*((f"signal-{index}", "control_output") for index in range(9, 17)), *((name, "control_output") for name in BUS_GPIOS)),
+    "temperature_sensor": _SENSOR_BUS, "environmental_sensor": _SENSOR_BUS, "light_sensor": _SENSOR_BUS, "orientation_sensor": _SENSOR_BUS,
+    "distance_sensor": (*_SENSOR_BUS, ("trig", "control_input"), ("echo", "signal_output")),
+    "oled_display": (("sda", "control_input"), ("scl", "control_input")), "character_display": (("sda", "control_input"), ("scl", "control_input")),
+    "led_matrix": (("sck", "control_input"), ("mosi", "control_input"), ("cs", "control_input")), "addressable_led": (("din", "control_input"),),
+    "gps_module": (("tx", "signal_output"), ("rx", "control_input")),
+    "lora_module": _MODULE_SPI, "rf_module": _MODULE_SPI, "rfid_module": _MODULE_SPI,
+}
 
 
 def component_interfaces(family: str, dimensions: tuple[float, float, float], parameters: dict[str, Any] | None = None) -> tuple[InterfaceDefinition, ...]:
@@ -68,8 +85,17 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
         "flyback_diode": (("anode", "passive_terminal"), ("cathode", "passive_terminal")),
         "resistor": (("terminal-a", "passive_terminal"), ("terminal-b", "passive_terminal")),
         "wireless_module": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")),
+        "capacitor": (("terminal-a", "passive_terminal"), ("terminal-b", "passive_terminal")),
+        "switch": (("signal", "signal_output"), ("ground", "electrical_ground")),
+        "battery": (("power", "electrical_power_out"), ("ground", "electrical_ground")),
+        **{name: (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("vcc-out", "electrical_power_out")) for name in ("buck_converter", "ldo_regulator", "battery_charger")},
+        "potentiometer": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")),
+        "buzzer": (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "control_input")),
+        **{name: (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "control_input")) for name in ("oled_display", "character_display", "led_matrix", "addressable_led")},
+        **{name: (("power", "electrical_power_in"), ("ground", "electrical_ground"), ("signal", "signal_output")) for name in ("bluetooth_module", "lora_module", "rf_module", "gps_module", "rfid_module")},
     }
-    electrical_ports = electrical.get(family, ())
+    own_ports = electrical.get(family, ())
+    electrical_ports = (*own_ports, *FAMILY_EXTRA_PORTS.get(family, ()))
     result = []
     for index, (name, kind) in enumerate(electrical_ports):
         # Electrical ports live on a visible edge/cable exit rather than at the
@@ -82,7 +108,8 @@ def component_interfaces(family: str, dimensions: tuple[float, float, float], pa
         elif family in {"low_voltage_power_source", "system power"}:
             position = ((-1 if index else 1) * width * .22, -length / 2, height / 2)
         else:
-            position = (-width / 2 + index * max(width / max(len(electrical_ports), 1), 2), -length / 2, height / 2)
+            # Appended override ports share the last own port's spot (where `signal` sits) instead of running off the part.
+            position = (-width / 2 + min(index, len(own_ports) - 1) * max(width / max(len(own_ports), 1), 2), -length / 2, height / 2)
         result.append(InterfaceDefinition(name, kind, position, compatible=("electrical_connector",)))
     if family in {"servo", "small_dc_motor"}:
         output_name = "output" if family == "servo" else "shaft"

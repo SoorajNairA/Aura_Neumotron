@@ -65,7 +65,7 @@
   },
   "indicator": {
    "ground": "K",
-   "power": "A",
+   "power": "V+",
    "signal": "A"
   },
   "ldo_regulator": {
@@ -216,9 +216,9 @@
    "scl": "SCL",
    "sda": "SDA"
   },
-  "hc05-bluetooth": {
-   "rx": "RX",
-   "tx": "TX"
+  "hc-sr04-class": {
+   "echo": "ECHO",
+   "trig": "TRIG"
   },
   "lcd1602-i2c": {
    "scl": "SCL",

@@ -59,7 +59,8 @@ FAMILY_PINS: dict[str, tuple[PinDefinition, ...]] = {
     "relay_module": (*_supply(), _pin("signal", "IN", "digital_in"), _pin("load-output", "NO", "power_out")),
     "flyback_diode": (_pin("anode", "A", "passive"), _pin("cathode", "K", "passive")),
     "resistor": _PASSIVE, "capacitor": _PASSIVE,
-    "indicator": (_pin("signal", "A", "digital_in"), _pin("power", "A", "power_in"), _pin("ground", "K", "ground")),
+    # The LED model anchors only A (anode) and K (cathode); the driven `signal` pin is the anode, `power` is the supply side of it.
+    "indicator": (_pin("signal", "A", "digital_in"), _pin("power", "V+", "power_in"), _pin("ground", "K", "ground")),
     "switch": (_pin("signal", "1", "digital_out"), _pin("ground", "2", "ground")),
     "low_voltage_power_source": (_pin("power", "+", "power_out"), _pin("ground", "-", "ground")),
     "battery": (_pin("power", "+", "power_out"), _pin("ground", "-", "ground")),
@@ -87,7 +88,8 @@ PART_PIN_OVERRIDES: dict[str, tuple[PinDefinition, ...]] = {
     **{part: _I2C for part in ("bme280-breakout", "bme280-i2c-module", "aht20-module", "bh1750-module", "mpu6050-module", "vl53l0x-module",
                                "ssd1306-oled-128x64", "lcd1602-i2c")},
     "max7219-matrix": _spi(miso=False, sck="CLK", mosi="DIN"), "rfm95w-lora": _spi("NSS"), "nrf24l01-plus": _spi("CSN"), "mfrc522-rfid": _spi(),
-    "hc05-bluetooth": _UART, "neo6m-gps": _UART, "ws2812b-stick-8": (_pin("din", "DIN", "digital_in"),),
+    "neo6m-gps": _UART, "ws2812b-stick-8": (_pin("din", "DIN", "digital_in"),),
+    "hc-sr04-class": (_pin("trig", "TRIG", "digital_in"), _pin("echo", "ECHO", "digital_out")),
 }
 
 CATEGORY_BY_FAMILY: dict[str, str] = {

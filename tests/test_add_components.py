@@ -8,6 +8,7 @@ from aura.workspace.server import create_app
 
 USED = (4, 16)  # fan demo: temperature_data, fan_gate
 SAFE = [g for g in ESP32_OUTPUT_GPIOS if g not in ESP32_STRAPPING_GPIOS]
+FREE_PORTS = 16 - len(USED)  # the board declares signal-1..signal-16; the bus ports (i2c/spi) are never handed out as plain GPIO
 
 
 @pytest.fixture()
@@ -81,7 +82,7 @@ def test_errors(fan):
     assert empty.status_code == 422 and empty.json()["detail"]["code"] == "EMPTY_SELECTION"
     stale = add(client, project_id, ["ds18b20-module"], base=0)
     assert stale.status_code == 409 and stale.json()["detail"]["code"] == "stale_revision"
-    full = add(client, project_id, ["ds18b20-module"] * (len(SAFE) - len(USED) + 1))
+    full = add(client, project_id, ["ds18b20-module"] * (FREE_PORTS + 1))
     assert full.status_code == 409 and full.json()["detail"]["code"] == "NO_FREE_PIN"
     with pytest.raises(ModificationError) as error:
         propose_add_components(EngineeringGraph("project-empty"), 0, ["ds18b20-module"])
@@ -127,10 +128,10 @@ def test_firmware_lists_added_parts_without_driver(fan):
 
 def test_adds_stay_within_declared_controller_ports_and_later_edits_still_verify(fan):
     client, project_id = fan
-    # The ESP32 declares signal-1..signal-8; the fan uses two, so six more fit.
-    too_many = add(client, project_id, ["ds18b20-module"] * 7)
+    # The ESP32 declares signal-1..signal-16; the fan uses two, so fourteen more fit.
+    too_many = add(client, project_id, ["ds18b20-module"] * (FREE_PORTS + 1))
     assert too_many.status_code == 409 and too_many.json()["detail"]["code"] == "NO_FREE_PIN"
-    assert commit(client, project_id, add(client, project_id, ["ds18b20-module"] * 6).json()).status_code == 200
+    assert commit(client, project_id, add(client, project_id, ["ds18b20-module"] * FREE_PORTS).json()).status_code == 200
     edit = client.post(f"/api/projects/{project_id}/parameter-proposals",
                        json={"baseRevision": 2, "componentId": "component-temperature-sensor", "key": "threshold_c", "value": 30.0}).json()
     assert client.post(f"/api/projects/{project_id}/modification-proposals/{edit['proposalId']}/commit").status_code == 200
