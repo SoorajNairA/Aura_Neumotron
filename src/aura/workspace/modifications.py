@@ -338,6 +338,7 @@ def inverse_proposal(graph: EngineeringGraph, revision: dict[str, Any]) -> Modif
     diff = revision.get("verification", {}).get("diff")
     if not diff or not diff.get("changed"): raise ValueError("nothing_to_undo")
     patch, changed = revision["patch"], diff["changed"]
+    if changed[0].get("operation") == "snapshot_edit": return _inverse_snapshot(graph, patch, diff)
     added = [item for item in changed if item.get("operation") == "add_component"]
     if added:
         patch_ops = []
@@ -395,6 +396,64 @@ def inverse_proposal(graph: EngineeringGraph, revision: dict[str, Any]) -> Modif
     return ModificationProposal(f"undo-{uuid4().hex}", len(graph.revisions), (target_id,), f"Undo: {patch.summary}", "undo", tuple(inverse),
         tuple(diff.get("affected", [target_id])), tuple(diff.get("unchanged", [])), tuple(diff.get("regenerated", [])),
         {"outcome": "accepted_with_warnings", "checks": [{"state": "PASSED", "message": "Prior structured values restored"}]}, graph_patch)
+
+
+def _inverse_snapshot(graph: EngineeringGraph, patch: Any, diff: dict[str, Any]) -> ModificationProposal:
+    """Undo of a `snapshot_proposal` edit: drop what it added, restore the before-image of what it touched.
+
+    Its own operation is a snapshot_edit too (before = the graph as it is now), so undoing the undo redoes the edit.
+    """
+    from aura.engineering_graph.serialization import entity_from_dict, relationship_from_dict
+    from .edits import snapshot_images
+    item = diff["changed"][0]
+    before_entities = {e["id"]: e for e in item["before"]["entities"]}
+    before_relationships = {r["id"]: r for r in item["before"]["relationships"]}
+    added_entities, added_relationships = list(item["addedEntityIds"]), list(item["addedRelationshipIds"])
+    if any(i not in graph.entities for i in added_entities): raise ValueError("nothing_to_undo")
+    gone = set(added_entities)
+    # Relationships to drop: the ones the edit added, plus any left on a part being removed (unless the image restores them).
+    drop_relationships = [i for i in added_relationships if i in graph.relationships]
+    drop_relationships += [r.id for r in graph.relationships.values() if r.id not in drop_relationships and r.id not in before_relationships
+                           and (r.source_id in gone or r.target_id in gone)]
+    # Nets were materialized on commit; drop the ones that would point at removed parts.
+    nets = [e.id for e in graph.entities.values() if e.metadata.get("semantic_type") == "electrical_net"
+            and any(t.get("componentId") in gone for t in e.metadata.get("terminals", []))]
+    missing = {i for i in before_entities if i not in graph.entities}
+    restored_entities, placed = [], set()
+    while len(placed) < len(missing):  # parents before children
+        ready = [i for i in before_entities if i in missing and i not in placed and before_entities[i].get("parent_id") not in missing - placed]
+        if not ready: raise ValueError("nothing_to_undo")
+        restored_entities += ready; placed |= set(ready)
+    ops = [GraphOperation(PatchOperation.REMOVE_RELATIONSHIP, target_id=i) for i in drop_relationships]
+    ops += [GraphOperation(PatchOperation.ADD_ENTITY, entity=entity_from_dict(before_entities[i])) for i in restored_entities]
+    for i, data in before_entities.items():
+        if i in missing: continue
+        entity = entity_from_dict(data)
+        if entity != graph.entities[i]:
+            ops.append(GraphOperation(PatchOperation.UPDATE_ENTITY, target_id=i, changes={
+                "name": entity.name, "parent_id": entity.parent_id, "metadata": entity.metadata, "source_refs": entity.source_refs,
+                "verification_status": entity.verification_status, "representation_refs": entity.representation_refs}))
+    for i, data in before_relationships.items():
+        relationship = relationship_from_dict(data)
+        if i not in graph.relationships: ops.append(GraphOperation(PatchOperation.ADD_RELATIONSHIP, relationship=relationship))
+        elif relationship != graph.relationships[i]:
+            ops.append(GraphOperation(PatchOperation.UPDATE_RELATIONSHIP, target_id=i, changes={
+                "source_id": relationship.source_id, "target_id": relationship.target_id, "type": relationship.type, "metadata": relationship.metadata}))
+    ops += [GraphOperation(PatchOperation.REMOVE_ENTITY, target_id=i) for i in nets]
+    def depth(entity_id: str) -> int:
+        count, current = 0, graph.entities[entity_id].parent_id
+        while current in graph.entities and count <= len(graph.entities): count, current = count + 1, graph.entities[current].parent_id
+        return count
+    ops += [GraphOperation(PatchOperation.REMOVE_ENTITY, target_id=i) for i in sorted(added_entities, key=depth, reverse=True)]
+    if not ops: raise ValueError("nothing_to_undo")
+    summary = f"Undo: {patch.summary}"
+    inverse = {"operation": "snapshot_edit", "mode": "undo",
+               "before": snapshot_images(graph, [*added_entities, *before_entities], [*drop_relationships, *before_relationships]),
+               "addedEntityIds": sorted(missing), "addedRelationshipIds": [i for i in before_relationships if i not in graph.relationships]}
+    affected = tuple(diff.get("affected", []))
+    return ModificationProposal(f"undo-{uuid4().hex}", len(graph.revisions), affected, summary, "undo", (inverse,), affected,
+        tuple(diff.get("unchanged", [])), tuple(diff.get("regenerated", [])), {"outcome": "pending_graph_verification", "checks": []},
+        GraphPatch(f"patch-{uuid4().hex}", tuple(ops), summary, graph.current_revision_id))
 
 
 # Strapping pins (0, 2, 5, 12, 15) set the ESP32 boot mode; the picker keeps them out of user-chosen assignments.

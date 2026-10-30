@@ -54,6 +54,18 @@ def graph_from_dict(payload: dict[str, Any]) -> EngineeringGraph:
     return graph
 
 
+def entity_from_dict(item: dict[str, Any]) -> EngineeringEntity:
+    """One entity from the shape graph_to_dict emits (used to restore a before-image)."""
+    return EngineeringEntity(
+        id=item["id"], kind=EntityKind(item["kind"]), name=item["name"], parent_id=item.get("parent_id"),
+        metadata=dict(item.get("metadata", {})), source_refs=tuple(item.get("source_refs", ())),
+        verification_status=item.get("verification_status", "conceptual"), representation_refs=tuple(item.get("representation_refs", ())))
+
+
+def relationship_from_dict(item: dict[str, Any]) -> Relationship:
+    return Relationship(id=item["id"], source_id=item["source_id"], target_id=item["target_id"], type=item["type"], metadata=dict(item.get("metadata", {})))
+
+
 def dumps(graph: EngineeringGraph, *, indent: int | None = 2) -> str:
     return json.dumps(graph_to_dict(graph), indent=indent, sort_keys=True)
 
