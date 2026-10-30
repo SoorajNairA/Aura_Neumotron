@@ -152,6 +152,30 @@ hardware evidence.
 - **Component library** (☰ in Design): search the catalogue, add several parts
   as one verified proposal (safe GPIOs, undoable), edit part settings, mount
   parts, and try DS18B20/fan behavioral test benches (not hardware).
+- **IoT catalogue with pins**: 66 curated parts in eight categories (boards,
+  sensors, actuators, displays, communication, power, breadboards, basic),
+  each with a manufacturer source, printed pin labels, pin roles and
+  datasheet-range settings (`GET /api/catalogue?category=displays`). New:
+  SSD1306 OLED, LCD1602 I²C, MAX7219 matrix, WS2812B stick, RFM95W LoRa,
+  nRF24L01+, NEO-6M GPS, MFRC522 RFID, AMS1117-3.3, TP4056, potentiometer,
+  active buzzer, 400-point breadboard. Only the ESP32-DevKitC is a full
+  controller; other boards are listed only.
+- **Auto-wiring on add**: an added part is wired to the ESP32 by fixed rules,
+  with no model call: VCC to 3V3 or 5V by its supply range, GND, analog to
+  ADC1, I²C on GPIO21/22, SPI on GPIO18/23/19 with its own CS pin, UART on two
+  free pins (one UART part per project). A part the board cannot power (for
+  example 12 V) is added with its supply unwired and a warning.
+- **Pin-to-pin wire edits (API)**: `POST /api/projects/{id}/wire-proposals`
+  connects, reconnects or disconnects a wire as a verified, undoable revision.
+- **Electrical rule checks**: these flag two outputs on one net, a supply
+  outside a part's range, ground mixed with signals, a 5 V logic signal into
+  an ESP32 pin, duplicate I²C addresses, an unwired required pin, and a 3V3
+  budget above 500 mA (warning). They are rule checks, not simulation.
+- **Not yet done**: library category tabs, Replace/Delete/Rename and settings
+  forms in the inspector, wire editing in the Wiring view, and broken-rule
+  handling after a delete. The backend for wire edits exists, but the UI does
+  not use it yet. The HC-05 and an 18650 holder were left out because no
+  manufacturer source could be confirmed.
 - **Menu bar, File menu and wiring editing**: ☰ (component library plus
   view/tool actions) sits before File, Edit, Project and Help; the 3D
   view/Wiring/Split switch is at the viewport's top-left; updates show as
