@@ -49,6 +49,7 @@ from .assembly import engineering_assembly
 from .events import WorkspaceEvent
 from .representation_service import RepresentationService, initial_records, representation_specs
 from .representations import RepresentationRecord, RepresentationStatus, RepresentationType
+from .edits import propose_wire
 from .modifications import LiveModificationPlanner,ModificationError,ModificationProposal,inverse_proposal,propose,propose_add_components,part_interfaces,propose_connection,propose_parameter_change,propose_pin_change
 from .narration import NarrationService
 from .project_package import EMPTY_LAYOUT, MAX_PACKAGE_BYTES, PackageContents, PackageError, build_zip, edit_fits, read_zip, rewrite_project_id, sanitize_layout, slug, validate_layout
@@ -172,6 +173,18 @@ class PinProposalBody(BaseModel):
     controllerId: str = Field(min_length=1,max_length=128)
     port: str = Field(min_length=1,max_length=64)
     gpio: int
+
+
+class WireProposalBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    baseRevision: int
+    action: Literal["connect","reconnect","disconnect"]
+    sourceId: Optional[str] = Field(default=None,max_length=160)
+    sourceInterface: Optional[str] = Field(default=None,max_length=64)
+    targetId: Optional[str] = Field(default=None,max_length=160)
+    targetInterface: Optional[str] = Field(default=None,max_length=64)
+    connectionId: Optional[str] = Field(default=None,max_length=200)
+    end: Optional[Literal["source","target"]] = None
 
 
 class ProposalBody(BaseModel):
@@ -1222,6 +1235,19 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
         except ValueError as exc:
             raise HTTPException(409,detail={"code":str(exc),"currentRevision":len(record.graph.revisions)}) from exc
         # Committed through the shared commit route, so revisions, verification and undo stay one path.
+        _remember_bounded(application.modification_proposals,proposal.proposal_id,proposal)
+        return proposal.to_dict()
+
+    @app.post("/api/projects/{project_id}/wire-proposals")
+    def create_wire_proposal(project_id:str,body:WireProposalBody)->dict[str,Any]:
+        record=_record(application,project_id)
+        source=(body.sourceId,body.sourceInterface) if body.sourceId and body.sourceInterface else None
+        target=(body.targetId,body.targetInterface) if body.targetId and body.targetInterface else None
+        try: proposal=propose_wire(record.graph,body.baseRevision,body.action,source=source,target=target,connection_id=body.connectionId,end=body.end)
+        except ModificationError as exc:
+            raise HTTPException(exc.status,detail={"code":exc.code,"message":exc.message,"currentRevision":len(record.graph.revisions)}) from exc
+        except ValueError as exc:
+            raise HTTPException(409,detail={"code":str(exc),"currentRevision":len(record.graph.revisions)}) from exc
         _remember_bounded(application.modification_proposals,proposal.proposal_id,proposal)
         return proposal.to_dict()
 
