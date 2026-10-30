@@ -1,0 +1,270 @@
+{
+ "families": {
+  "addressable_led": {
+   "ground": "GND",
+   "power": "5V",
+   "signal": "DIN"
+  },
+  "battery": {
+   "ground": "-",
+   "power": "+"
+  },
+  "battery_charger": {
+   "ground": "GND",
+   "power": "IN+",
+   "vcc-out": "BAT+"
+  },
+  "bluetooth_module": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "TX"
+  },
+  "breadboard": {},
+  "buck_converter": {
+   "ground": "GND",
+   "power": "VIN",
+   "vcc-out": "VOUT"
+  },
+  "buzzer": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "I/O"
+  },
+  "capacitor": {
+   "terminal-a": "A",
+   "terminal-b": "B"
+  },
+  "character_display": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "SDA"
+  },
+  "distance_sensor": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "SDA"
+  },
+  "enclosure": {},
+  "environmental_sensor": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "SDA"
+  },
+  "fan": {
+   "ground": "-",
+   "power": "+"
+  },
+  "flyback_diode": {
+   "anode": "A",
+   "cathode": "K"
+  },
+  "gps_module": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "TX"
+  },
+  "indicator": {
+   "ground": "K",
+   "power": "A",
+   "signal": "A"
+  },
+  "ldo_regulator": {
+   "ground": "GND",
+   "power": "VIN",
+   "vcc-out": "VOUT"
+  },
+  "led_matrix": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "DIN"
+  },
+  "light_sensor": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "AO"
+  },
+  "lora_module": {
+   "ground": "GND",
+   "power": "3.3V",
+   "signal": "MOSI"
+  },
+  "low_voltage_power_source": {
+   "ground": "-",
+   "power": "+"
+  },
+  "microcontroller_board": {
+   "ground": "GND",
+   "i2c-scl": "i2c-scl",
+   "i2c-sda": "i2c-sda",
+   "power": "5V",
+   "signal-1": "signal-1",
+   "signal-10": "signal-10",
+   "signal-11": "signal-11",
+   "signal-12": "signal-12",
+   "signal-13": "signal-13",
+   "signal-14": "signal-14",
+   "signal-15": "signal-15",
+   "signal-16": "signal-16",
+   "signal-2": "signal-2",
+   "signal-3": "signal-3",
+   "signal-4": "signal-4",
+   "signal-5": "signal-5",
+   "signal-6": "signal-6",
+   "signal-7": "signal-7",
+   "signal-8": "signal-8",
+   "signal-9": "signal-9",
+   "spi-miso": "spi-miso",
+   "spi-mosi": "spi-mosi",
+   "spi-sck": "spi-sck",
+   "vcc-out": "3V3"
+  },
+  "mosfet_driver": {
+   "ground": "V-",
+   "load-output": "OUT+",
+   "power": "V+",
+   "signal": "IN"
+  },
+  "motion_sensor": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "OUT"
+  },
+  "motor_driver": {
+   "ground": "GND",
+   "load-output": "OUT",
+   "power": "VCC",
+   "signal": "IN"
+  },
+  "oled_display": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "SDA"
+  },
+  "orientation_sensor": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "SDA"
+  },
+  "potentiometer": {
+   "ground": "3",
+   "power": "1",
+   "signal": "W"
+  },
+  "relay_module": {
+   "ground": "GND",
+   "load-output": "NO",
+   "power": "VCC",
+   "signal": "IN"
+  },
+  "resistor": {
+   "terminal-a": "A",
+   "terminal-b": "B"
+  },
+  "rf_module": {
+   "ground": "GND",
+   "power": "3.3V",
+   "signal": "MOSI"
+  },
+  "rfid_module": {
+   "ground": "GND",
+   "power": "3.3V",
+   "signal": "MOSI"
+  },
+  "servo": {
+   "ground": "GND",
+   "power": "V+",
+   "signal": "SIG"
+  },
+  "small_dc_motor": {
+   "ground": "-",
+   "power": "+"
+  },
+  "small_dc_pump": {
+   "ground": "-",
+   "power": "+"
+  },
+  "soil_moisture_sensor": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "AOUT"
+  },
+  "switch": {
+   "ground": "2",
+   "signal": "1"
+  },
+  "temperature_sensor": {
+   "ground": "GND",
+   "power": "VCC",
+   "signal": "DAT"
+  },
+  "terminal_block": {}
+ },
+ "overrides": {
+  "aht20-module": {
+   "scl": "SCL",
+   "sda": "SDA"
+  },
+  "bh1750-module": {
+   "scl": "SCL",
+   "sda": "SDA"
+  },
+  "bme280-breakout": {
+   "scl": "SCL",
+   "sda": "SDA"
+  },
+  "bme280-i2c-module": {
+   "scl": "SCL",
+   "sda": "SDA"
+  },
+  "hc05-bluetooth": {
+   "rx": "RX",
+   "tx": "TX"
+  },
+  "lcd1602-i2c": {
+   "scl": "SCL",
+   "sda": "SDA"
+  },
+  "max7219-matrix": {
+   "cs": "CS",
+   "mosi": "DIN",
+   "sck": "CLK"
+  },
+  "mfrc522-rfid": {
+   "cs": "CS",
+   "miso": "MISO",
+   "mosi": "MOSI",
+   "sck": "SCK"
+  },
+  "mpu6050-module": {
+   "scl": "SCL",
+   "sda": "SDA"
+  },
+  "neo6m-gps": {
+   "rx": "RX",
+   "tx": "TX"
+  },
+  "nrf24l01-plus": {
+   "cs": "CSN",
+   "miso": "MISO",
+   "mosi": "MOSI",
+   "sck": "SCK"
+  },
+  "rfm95w-lora": {
+   "cs": "NSS",
+   "miso": "MISO",
+   "mosi": "MOSI",
+   "sck": "SCK"
+  },
+  "ssd1306-oled-128x64": {
+   "scl": "SCL",
+   "sda": "SDA"
+  },
+  "vl53l0x-module": {
+   "scl": "SCL",
+   "sda": "SDA"
+  },
+  "ws2812b-stick-8": {
+   "din": "DIN"
+  }
+ }
+}

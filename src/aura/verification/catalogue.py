@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from .evidence import EvidenceKind, EvidenceRecord
+from .pins import CATEGORY_BY_FAMILY, PART_SETTINGS, PinDefinition, pins_for_definition
 from .units import in_range
 
 CATALOGUE_VERSION = "catalogue-v1"
@@ -32,13 +33,18 @@ class ComponentDefinition:
     evidence_ids: tuple[str, ...]
     representation: dict[str, Any]
     price: dict[str, Any] | None = None
+    category: str = "basic"
+    pins: tuple[PinDefinition, ...] = ()
+    settings: dict[str, dict] = field(default_factory=dict)
+    support: str = "full"
 
     def to_dict(self) -> dict[str, Any]:
         return {"componentDefinitionId": self.component_definition_id, "componentDefinitionVersion": CATALOGUE_VERSION, "family": self.family,
                 "manufacturer": self.manufacturer, "partNumber": self.part_number,
                 "properties": {k: v.to_dict() for k, v in self.properties.items()},
                 "interfaces": list(self.interfaces), "evidenceIds": list(self.evidence_ids),
-                "representation": self.representation, "price": self.price}
+                "representation": self.representation, "price": self.price, "category": self.category,
+                "pins": [pin.to_dict() for pin in self.pins], "settings": self.settings, "support": self.support}
 
 
 _SOURCES = {
@@ -63,6 +69,32 @@ _SOURCES = {
     "analog-ds18b20": EvidenceRecord.curated("evidence-analog-ds18b20", EvidenceKind.MANUFACTURER_DATASHEET,
         "DS18B20 Programmable Resolution 1-Wire Digital Thermometer", "https://cdn.sparkfun.com/datasheets/Sensors/Temp/DS18B20.pdf", "Maxim Integrated (Analog Devices)",
         ("supply_voltage", "current", "accuracy"), "DS18B20 datasheet; retrieved 2026-10-27"),
+    "solomon-ssd1306": EvidenceRecord.curated("evidence-solomon-ssd1306", EvidenceKind.MANUFACTURER_DATASHEET,
+        "SSD1306 128x64 Dot Matrix OLED/PLED Segment/Common Driver with Controller", "https://cdn-shop.adafruit.com/datasheets/SSD1306.pdf", "Solomon Systech", ("supply_voltage", "current", "dimensions"), "SSD1306 datasheet; retrieved 2026-10-30"),
+    "nxp-pcf8574": EvidenceRecord.curated("evidence-nxp-pcf8574", EvidenceKind.MANUFACTURER_DATASHEET,
+        "PCF8574/PCF8574A Remote 8-bit I/O expander for I2C-bus", "https://www.nxp.com/docs/en/data-sheet/PCF8574_PCF8574A.pdf", "NXP Semiconductors", ("supply_voltage", "current", "logic_voltage", "dimensions"), "PCF8574 datasheet; retrieved 2026-10-30"),
+    "analog-max7219": EvidenceRecord.curated("evidence-analog-max7219", EvidenceKind.MANUFACTURER_DATASHEET,
+        "MAX7219/MAX7221 Serially Interfaced, 8-Digit LED Display Drivers", "https://www.analog.com/media/en/technical-documentation/data-sheets/MAX7219-MAX7221.pdf", "Analog Devices (Maxim Integrated)", ("supply_voltage", "current", "dimensions"), "MAX7219 datasheet; retrieved 2026-10-30"),
+    "worldsemi-ws2812b": EvidenceRecord.curated("evidence-worldsemi-ws2812b", EvidenceKind.MANUFACTURER_DATASHEET,
+        "WS2812B Intelligent control LED integrated light source", "https://cdn-shop.adafruit.com/datasheets/WS2812B.pdf", "Worldsemi", ("supply_voltage", "current", "dimensions"), "WS2812B datasheet; retrieved 2026-10-30"),
+    "hoperf-rfm95w": EvidenceRecord.curated("evidence-hoperf-rfm95w", EvidenceKind.MANUFACTURER_PRODUCT_PAGE,
+        "RFM95W LoRa transceiver module", "https://www.hoperf.com/modules/lora/RFM95W.html", "HOPERF", ("supply_voltage", "current", "dimensions"), "RFM95W; retrieved 2026-10-30"),
+    "nordic-nrf24": EvidenceRecord.curated("evidence-nordic-nrf24", EvidenceKind.MANUFACTURER_PRODUCT_PAGE,
+        "nRF24 Series 2.4 GHz transceivers", "https://www.nordicsemi.com/Products/nRF24-series", "Nordic Semiconductor", ("supply_voltage", "current", "dimensions"), "nRF24L01+; retrieved 2026-10-30"),
+    "ublox-neo6": EvidenceRecord.curated("evidence-ublox-neo6", EvidenceKind.MANUFACTURER_PRODUCT_PAGE,
+        "u-blox 6 NEO-6 series GPS modules", "https://www.u-blox.com/en/product/neo-6-series", "u-blox", ("supply_voltage", "current", "dimensions"), "NEO-6M; retrieved 2026-10-30"),
+    "nxp-mfrc522": EvidenceRecord.curated("evidence-nxp-mfrc522", EvidenceKind.MANUFACTURER_DATASHEET,
+        "MFRC522 Standard performance MIFARE and NTAG frontend", "https://www.nxp.com/docs/en/data-sheet/MFRC522.pdf", "NXP Semiconductors", ("supply_voltage", "current", "dimensions"), "MFRC522 datasheet; retrieved 2026-10-30"),
+    "ams-ams1117": EvidenceRecord.curated("evidence-ams-ams1117", EvidenceKind.MANUFACTURER_DATASHEET,
+        "AMS1117 1 A low dropout voltage regulator", "http://www.advanced-monolithic.com/pdf/ds1117.pdf", "Advanced Monolithic Systems", ("supply_voltage", "current", "dimensions"), "AMS1117 datasheet; retrieved 2026-10-30"),
+    "topower-tp4056": EvidenceRecord.curated("evidence-topower-tp4056", EvidenceKind.MANUFACTURER_DATASHEET,
+        "TP4056 1 A standalone linear Li-ion battery charger", "https://dlnmh9ip6v2uc.cloudfront.net/datasheets/Prototyping/TP4056.pdf", "NanJing Top Power ASIC Corp.", ("supply_voltage", "current", "dimensions"), "TP4056 datasheet; retrieved 2026-10-30"),
+    "bourns-ptv09": EvidenceRecord.curated("evidence-bourns-ptv09", EvidenceKind.MANUFACTURER_DATASHEET,
+        "PTV09 9 mm rotary potentiometer", "https://www.bourns.com/docs/Product-Datasheets/ptv09.pdf", "Bourns", ("supply_voltage", "current", "dimensions"), "PTV09 datasheet; retrieved 2026-10-30"),
+    "pui-ai1223": EvidenceRecord.curated("evidence-pui-ai1223", EvidenceKind.MANUFACTURER_PRODUCT_PAGE,
+        "AI-1223-TWT-5V-R active buzzer", "https://www.puiaudio.com/products/ai-1223-twt-5v-r", "PUI Audio", ("supply_voltage", "current", "dimensions"), "AI-1223-TWT-5V-R; retrieved 2026-10-30"),
+    "busboard-bb400": EvidenceRecord.curated("evidence-busboard-bb400", EvidenceKind.MANUFACTURER_PRODUCT_PAGE,
+        "BB400 400-point solderless breadboard", "https://www.busboard.com/BB400", "BusBoard Prototype Systems", ("dimensions",), "BB400; retrieved 2026-10-30"),
 }
 
 
@@ -136,6 +168,19 @@ _SPECS = (
  ("battery-aa4","battery","Curated","4xAA holder","assumption",(4,6.4),2000,(58,32,16)),
  ("enclosure-100x120","enclosure","Curated","Splash-resistant 100x120","assumption",(0,1),0,(100,120,60)),
  ("enclosure-160x200","enclosure","Curated","Splash-resistant 160x200","assumption",(0,1),0,(160,200,80)),
+ # Voltage ranges for modules (ssd1306, lcd1602) include the board's regulator, not the bare chip's.
+ ("ssd1306-oled-128x64","oled_display","Solomon Systech","SSD1306 0.96in OLED 128x64 (I2C)","solomon-ssd1306",(3.0,5.0),20,(27,27,4)),
+ ("lcd1602-i2c","character_display","NXP","LCD1602 with PCF8574 I2C backpack","nxp-pcf8574",(4.5,5.5),30,(80,36,20)),
+ ("max7219-matrix","led_matrix","Analog Devices","MAX7219 8x8 LED matrix (SPI)","analog-max7219",(4.0,5.5),330,(32,32,15)),
+ ("ws2812b-stick-8","addressable_led","Worldsemi","WS2812B 8-LED stick","worldsemi-ws2812b",(3.5,5.3),480,(51,10,3)),
+ ("rfm95w-lora","lora_module","HOPERF","RFM95W LoRa","hoperf-rfm95w",(1.8,3.7),120,(16,16,2)),
+ ("nrf24l01-plus","rf_module","Nordic Semiconductor","nRF24L01+","nordic-nrf24",(1.9,3.6),14,(29,15,4)),
+ ("neo6m-gps","gps_module","u-blox","NEO-6M GPS","ublox-neo6",(2.7,3.6),67,(25,35,8)),
+ ("mfrc522-rfid","rfid_module","NXP","MFRC522 RFID reader","nxp-mfrc522",(2.5,3.6),100,(60,40,5)),
+ ("ams1117-3v3","ldo_regulator","Advanced Monolithic Systems","AMS1117-3.3","ams-ams1117",(4.5,15),800,(10,7,2)),
+ ("tp4056-charger","battery_charger","NanJing Top Power","TP4056 Li-ion charger","topower-tp4056",(4.0,8.0),1000,(26,17,4)),
+ ("pot-10k","potentiometer","Bourns","PTV09 10 kohm potentiometer","bourns-ptv09",(0,5.5),1,(9.5,10,6)),
+ ("buzzer-active-5v","buzzer","PUI Audio","AI-1223-TWT-5V-R active buzzer","pui-ai1223",(3.5,5.5),30,(12,12,9.5)),
 )
 
 # Single-unit list prices with their source and retrieval date; parts without an exact listing stay unpriced.
@@ -151,8 +196,27 @@ _PRICES = {
 _BREADBOARD = ComponentDefinition("breadboard-830", "breadboard", "Generic", "830-point solderless breadboard",
                                   {"dimensions": _p([165.1, 54.6, 8.5], "mm", "assumption", "nominal standard size")}, (),
                                   (_SOURCES["assumption"].evidence_id,), {"type": "proxy", "dimensionsProperty": "dimensions"})
-CATALOGUE = tuple(replace(item, price={"usd": _PRICES[item.component_definition_id][0], "source": _PRICES[item.component_definition_id][1], "retrieved": "2026-10-27"})
-                  if item.component_definition_id in _PRICES else item for item in (_definition(*spec) for spec in _SPECS)) + (_BREADBOARD,)
+_BREADBOARD_400 = ComponentDefinition("breadboard-400", "breadboard", "BusBoard", "BB400 400-point solderless breadboard",
+                                      {"dimensions": _p([82, 55, 9], "mm", "busboard-bb400", "nominal standard size")}, (),
+                                      (_SOURCES["busboard-bb400"].evidence_id,), {"type": "proxy", "dimensionsProperty": "dimensions"})
+# Facts that are not a supply range or current: logic levels the electrical checks compare against the controller.
+_EXTRA_PROPERTIES = {
+    "pir-hc-sr501": {"logic_voltage": _p(3.3, "V", "assumption", "typical")},  # HC-SR501 output is 3.3 V
+    "lcd1602-i2c": {"logic_voltage": _p(5.0, "V", "nxp-pcf8574", "typical")},
+}
+
+
+def _finish(item: ComponentDefinition) -> ComponentDefinition:
+    """Attach category, pins, settings and support level; boards other than the DevKit are listed only."""
+    identifier, category = item.component_definition_id, CATEGORY_BY_FAMILY[item.family]
+    if identifier in _PRICES:
+        item = replace(item, price={"usd": _PRICES[identifier][0], "source": _PRICES[identifier][1], "retrieved": "2026-10-27"})
+    return replace(item, properties={**item.properties, **_EXTRA_PROPERTIES.get(identifier, {})}, category=category,
+                   pins=pins_for_definition(identifier, item.family), settings=PART_SETTINGS.get(identifier, {}),
+                   support="listed" if category == "boards" and identifier != "esp32-devkit-v1" else "full")
+
+
+CATALOGUE = tuple(_finish(item) for item in (*(_definition(*spec) for spec in _SPECS), _BREADBOARD, _BREADBOARD_400))
 BY_ID = {item.component_definition_id: item for item in CATALOGUE}
 
 

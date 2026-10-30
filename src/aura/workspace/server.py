@@ -944,9 +944,10 @@ def create_app(provider: Any | None = None, planner_timeout: float | None = None
 
     @app.get("/api/catalogue")
     def get_catalogue(family: Optional[str] = None, voltage: Optional[float] = None,
-                      minimumCurrentMa: Optional[float] = None, interface: Optional[str] = None) -> list[dict[str, Any]]:
+                      minimumCurrentMa: Optional[float] = None, interface: Optional[str] = None,
+                      category: Optional[str] = None) -> list[dict[str, Any]]:
         return [item.to_dict() for item in search_catalogue(family=family, voltage=voltage,
-            minimum_current_ma=minimumCurrentMa, interface=interface)]
+            minimum_current_ma=minimumCurrentMa, interface=interface) if not category or item.category == category]
 
     @app.get("/api/catalogue/{component_definition_id}")
     def get_catalogue_item(component_definition_id: str) -> dict[str, Any]:
