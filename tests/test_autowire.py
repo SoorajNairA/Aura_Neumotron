@@ -152,12 +152,23 @@ def test_second_uart_part_refused(client):
     assert twice.status_code == 409 and twice.json()["detail"]["code"] == "UART_IN_USE"
 
 
-def test_12v_pump_needs_external_supply(client):
+def test_12v_pump_is_added_with_power_unwired_and_a_warning(client):
     project_id = project(client)
-    response = add(client, project_id, ["micro-pump-12v"])
-    assert response.status_code == 409
-    detail = response.json()["detail"]
-    assert detail["code"] == "NEEDS_EXTERNAL_SUPPLY" and "9–12 V" in detail["message"] and "add a supply first" in detail["message"]
+    proposal = add(client, project_id, ["micro-pump-12v"]).json()
+    warnings = [c["message"] for c in proposal["verification"]["checks"] if c["state"] == "WARNING"]
+    assert "12 V micro pump needs 9–12 V; not powered from the board — add a supply and wire it." in warnings
+    assert commit(client, project_id, proposal).status_code == 200
+    found = wires(client, project_id, part_id(proposal))
+    assert "power" not in found and found["ground"][:3] == ("ground", "ground", "component-controller")
+
+
+def test_buck_converter_can_be_added_with_input_unwired_and_ground_wired(client):
+    project_id = project(client)
+    proposal = add(client, project_id, ["buck-5v-3a"]).json()
+    assert any(c["state"] == "WARNING" and "7–24 V; not powered from the board" in c["message"] for c in proposal["verification"]["checks"])
+    assert commit(client, project_id, proposal).status_code == 200
+    found = wires(client, project_id, part_id(proposal))
+    assert set(found) == {"ground"}
 
 
 def test_undo_add_removes_all_wires(client):

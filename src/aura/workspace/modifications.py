@@ -398,7 +398,7 @@ def inverse_proposal(graph: EngineeringGraph, revision: dict[str, Any]) -> Modif
 
 
 # Strapping pins (0, 2, 5, 12, 15) set the ESP32 boot mode; the picker keeps them out of user-chosen assignments.
-from aura.engineering_graph.interfaces import ESP32_STRAPPING_GPIOS, INPUT_FAMILIES, allocate_gpio
+from aura.engineering_graph.interfaces import ESP32_STRAPPING_GPIOS
 
 
 def propose_pin_change(graph: EngineeringGraph, base: int, controller_id: str, port: str, gpio: int) -> ModificationProposal:
@@ -418,10 +418,6 @@ def propose_pin_change(graph: EngineeringGraph, base: int, controller_id: str, p
     verification = {"outcome": "pending_graph_verification", "checks": [{"state": "PASSED", "message": "Pin is output-capable and not a strapping pin"}]}
     return ModificationProposal(f"proposal-{uuid4().hex}", base, (controller.id,), summary, "pin_change", operations, (controller.id,),
                                 ("mechanical assembly",), ("firmware",), verification, patch)
-
-
-SIGNAL_FAMILIES = frozenset({"temperature_sensor", "environmental_sensor", "distance_sensor", "light_sensor", "motion_sensor", "orientation_sensor",
-                             "soil_moisture_sensor", "relay_module", "mosfet_driver", "motor_driver", "servo", "indicator", "switch"})
 
 
 def _supplied_pins(definition: Any) -> tuple[PinDefinition, ...]:
@@ -479,7 +475,6 @@ def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: l
     patch = GraphPatch(f"patch-{uuid4().hex}", tuple(patch_ops), summary, graph.current_revision_id)
     return ModificationProposal(f"proposal-{uuid4().hex}", base, affected, summary, "add_component", tuple(operations), affected,
                                 ("existing components",), ("firmware",), {"outcome": "pending_graph_verification", "checks": checks}, patch)
-
 
 
 # Settings users may change. Ratings, identity and safety claims come from the catalogue and are never editable.

@@ -99,7 +99,8 @@ def autowire(graph: EngineeringGraph, controller: EngineeringEntity, entity_id: 
             low, high = pin.voltage_range or (3.3, 3.3)
             if low <= 3.3 <= high: connect(pin, "vcc-out", "power")
             elif low <= 5.0 <= high: connect(pin, "power", "power")
-            else: raise _error("NEEDS_EXTERNAL_SUPPLY", f"{name} needs {low:g}–{high:g} V; add a supply first")
+            # Neither board rail suits it: leave the pin unwired (spec 2) and say so; ground and signals are still wired.
+            else: checks.append({"state": "WARNING", "message": f"{name} needs {low:g}–{high:g} V; not powered from the board — add a supply and wire it."})
             if pin.voltage_range is None:
                 checks.append({"state": "WARNING", "message": f"{name}: supply range unknown; wired to 3V3, check its datasheet."})
         elif pin.role == "ground": connect(pin, "ground", "ground")
