@@ -109,7 +109,6 @@ def test_reconnect_moves_one_end_keeps_id(client, led):
     assert (entity["metadata"]["target_id"], edge["target_id"]) == ("component-driver", "component-driver") and edge["source_id"] == CONTROLLER
 
 
-@pytest.mark.xfail(strict=True, reason="Task 6")
 def test_disconnect_removes_wire_and_warns_unwired(client, led):
     pid, led_id, signal = led
     proposal = wire_edit(client, pid, action="disconnect", connectionId=signal).json()

@@ -8,6 +8,8 @@ from aura.engineering_graph.electrical import electrical_nets
 from aura.engineering_graph.interfaces import ESP32_ADC1_GPIOS, ESP32_INPUT_ONLY_GPIOS, ESP32_OUTPUT_GPIOS, is_analog
 from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind
 
+from .catalogue import BY_ID as CATALOGUE_BY_ID
+from .pins import PART_SETTINGS, pins_for_definition
 from .results import VerificationState
 
 
@@ -96,12 +98,123 @@ def _gpio_assignments(graph: EngineeringGraph, components: dict[str, Engineering
                     category="electrical",interface_ids=(ends[controller.id],),expected={"adc1Gpios":list(ESP32_ADC1_GPIOS)},actual={"gpio":gpio[ends[controller.id]]},blocking=True)
 
 
+DRIVER_ROLES={"digital_out","power_out","uart_tx"}
+LOGIC_ROLES={"digital_out","uart_tx","i2c_sda","i2c_scl"}
+SIGNAL_ROLES={"digital_in","digital_out","analog_out","pwm_in","i2c_sda","i2c_scl","spi_sck","spi_mosi","spi_miso","spi_cs","uart_tx","uart_rx"}
+BOARD_SUPPLY_V={"vcc-out":3.3,"power":5.0}
+# ESP32-DevKitC V4 on-board 3.3 V LDO is rated 500 mA (Espressif "ESP32-DevKitC V4 Getting Started Guide", power supply notes).
+BOARD_3V3_BUDGET_MA=500.0
+
+
+def _definition_id(entity: EngineeringEntity) -> str | None:
+    return (entity.metadata.get("parameters") or {}).get("component_definition_id") or entity.metadata.get("component_definition_id")
+
+
+def _part_pins(entity: EngineeringEntity, board: bool) -> dict[str, dict[str, Any]]:
+    """The part's pin snapshot, else its catalogue pins. Legacy parts with neither are left out rather than guessed."""
+    if entity.metadata.get("pins"): return {str(p["name"]):dict(p) for p in entity.metadata["pins"]}
+    definition=_definition_id(entity)
+    if not definition and not board: return {}
+    return {p.name:p.to_dict() for p in pins_for_definition(definition,str(entity.metadata.get("family","")))}
+
+
+def _catalogue_value(entity: EngineeringEntity, key: str) -> Any:
+    definition=CATALOGUE_BY_ID.get(_definition_id(entity) or "");fact=definition.properties.get(key) if definition else None
+    return fact.value if fact else None
+
+
+def _pin_role_checks(graph: EngineeringGraph, components: dict[str, EngineeringEntity], nets: list[dict[str, Any]], add: AddFinding) -> None:
+    """Judge wires by pin role: drivers, supply range, ground, logic level, I2C address, 3V3 budget and unwired pins."""
+    board=next((c for c in sorted(components.values(),key=lambda item:item.id) if _data(c).get("gpio_map") is not None),None)
+    pins={cid:_part_pins(c,c is board) for cid,c in components.items()}
+    is_board=lambda c: board is not None and c.id==board.id
+    pin_name=lambda c,p: f"{c.name} {p.get('label') or p['name']}"
+    def driving(c: EngineeringEntity, p: dict[str, Any]) -> bool:
+        # The board's GPIOs are set by firmware, so only its power pins count as drivers.
+        return p["name"] in BOARD_SUPPLY_V if is_board(c) else p.get("role") in DRIVER_ROLES
+    def supply_range(c: EngineeringEntity, p: dict[str, Any]) -> tuple[float,float] | None:
+        if is_board(c): return (BOARD_SUPPLY_V[p["name"]],)*2 if p["name"] in BOARD_SUPPLY_V else None
+        if p.get("voltageRange"): return tuple(map(float,p["voltageRange"]))
+        # A pure source's catalogue range is its output; a converter's is its input, so it is unknown here.
+        value=_catalogue_value(c,"supply_voltage_range")
+        if value and (p.get("role")=="power_in" or not any(q.get("role")=="power_in" for q in pins[c.id].values())): return float(value[0]),float(value[1])
+        return None
+    members: dict[str,list[tuple[EngineeringEntity,dict[str,Any]]]]={};pin_net: dict[tuple[str,str],str]={}
+    for net in sorted(nets,key=lambda item:item["netId"]):
+        for raw in net.get("terminals",()):
+            cid=str(raw.get("componentId",""));pin=pins.get(cid,{}).get(str(raw.get("interfaceId","")))
+            if pin is None: continue
+            members.setdefault(net["netId"],[]).append((components[cid],pin));pin_net[(cid,pin["name"])]=net["netId"]
+    board_net=lambda name: pin_net.get((board.id,name)) if board else None
+    # A net is judged once a library-added part (one with a pin snapshot) is on it; planner-built nets keep their older rules.
+    judged={net_id for net_id,terms in members.items() if any(c.metadata.get("pins") and not is_board(c) for c,_ in terms)}
+    for net_id,terms in members.items():
+        if net_id not in judged: continue
+        ids=lambda items: tuple(dict.fromkeys(c.id for c,_ in items));names=lambda items: tuple(p["name"] for _,p in items)
+        drivers=[t for t in terms if driving(*t)]
+        # The board's 5V pin is also its VIN: an external supply that is (or may be) 5 V feeds it rather than fighting it.
+        feeding=[t for t in drivers if not is_board(t[0]) and t[1].get("role")=="power_out" and ((r:=supply_range(*t)) is None or r[0]<=5.0<=r[1])]
+        if feeding: drivers=[t for t in drivers if not (is_board(t[0]) and t[1]["name"]=="power")]
+        if len(drivers)>1:
+            add("ELEC_DRIVER_CONFLICT",VerificationState.FAILED,"critical",f"{' and '.join(pin_name(*t) for t in drivers)} all drive the same net.",ids(drivers),
+                category="electrical",net_ids=(net_id,),interface_ids=names(drivers),expected={"drivers":1},actual={"drivers":[f"{c.id}:{p['name']}" for c,p in drivers]},blocking=True)
+        for source in (t for t in terms if driving(*t) and t[1].get("role")=="power_out"):
+            supplied=supply_range(*source)
+            if supplied is None: continue
+            for load in (t for t in terms if t[1].get("role")=="power_in"):
+                accepted=supply_range(*load)
+                if accepted and (supplied[0]<accepted[0] or supplied[1]>accepted[1]):
+                    voltage=f"{supplied[0]:g} V" if supplied[0]==supplied[1] else f"{supplied[0]:g}–{supplied[1]:g} V"
+                    add("ELEC_SUPPLY_RANGE",VerificationState.FAILED,"critical",f"{pin_name(*load)} accepts {accepted[0]:g}–{accepted[1]:g} V but {pin_name(*source)} supplies {voltage}.",ids((source,load)),
+                        category="electrical",net_ids=(net_id,),interface_ids=names((source,load)),expected={"inputRangeV":list(accepted)},actual={"sourceRangeV":list(supplied)},blocking=True)
+        grounds=[t for t in terms if t[1].get("role")=="ground"];others=[t for t in terms if t[1].get("role") not in {"ground","passive"}]
+        if grounds and others:
+            add("ELEC_GROUND_MIX",VerificationState.FAILED,"critical",f"{', '.join(pin_name(*t) for t in others)} {'is' if len(others)==1 else 'are'} wired to ground ({', '.join(pin_name(*t) for t in grounds)}).",ids(grounds+others),
+                category="electrical",net_ids=(net_id,),interface_ids=names(others),expected={"onlyGroundAndPassivePins":True},actual={"nonGroundPins":[f"{c.id}:{p['name']}" for c,p in others]},blocking=True)
+        bus=[t for t in terms if t[1].get("role")=="i2c_sda" and not is_board(t[0])]
+        addresses: dict[int,list[EngineeringEntity]]=defaultdict(list)
+        for part,_ in bus:
+            value=(part.metadata.get("parameters") or {}).get("i2c_address")
+            if value is None: value=next(iter(PART_SETTINGS.get(_definition_id(part) or "",{}).get("i2c_address",{}).get("choices",())),None)
+            if value is not None: addresses[int(value,0) if isinstance(value,str) else int(value)].append(part)
+        for address,parts in sorted(addresses.items()):
+            if len(parts)>1:
+                add("ELEC_I2C_ADDRESS",VerificationState.FAILED,"critical",f"{' and '.join(p.name for p in parts)} both use I2C address {address} (0x{address:02X}) on the same bus.",tuple(p.id for p in parts),
+                    category="electrical",net_ids=(net_id,),actual={"address":address},required_capability="distinct_i2c_addresses",blocking=True)
+    five=board_net("power")
+    for part in sorted(components.values(),key=lambda item:item.id):
+        if is_board(part) or not five or not any(pin_net.get((part.id,p["name"]))==five for p in pins[part.id].values() if p.get("role")=="power_in"): continue
+        logic=_catalogue_value(part,"logic_voltage")
+        if _definition_id(part)=="pir-hc-sr501" or (logic is not None and float(logic)<=3.6): continue
+        exposed=[p for p in pins[part.id].values() if p.get("role") in LOGIC_ROLES and pin_net.get((part.id,p["name"])) in judged and any(is_board(c) for c,_ in members.get(pin_net.get((part.id,p["name"]),""),()))]
+        if exposed:
+            ports=[q["name"] for p in exposed for c,q in members[pin_net[(part.id,p["name"])]] if is_board(c)]
+            add("ELEC_LOGIC_LEVEL",VerificationState.FAILED,"critical",f"{part.name} runs from 5 V, so its {', '.join(p.get('label') or p['name'] for p in exposed)} {'pulls' if len(exposed)==1 else 'pull'} ESP32 {', '.join(ports)} to 5 V. Use a 3.3 V part or a level shifter.",(part.id,board.id),
+                category="electrical",net_ids=tuple(sorted({pin_net[(part.id,p['name'])] for p in exposed})),interface_ids=tuple(p["name"] for p in exposed),expected={"logicVoltageV":3.3},actual={"supplyV":5.0},required_capability="level_shifter_in_signal_path",blocking=True)
+    three=board_net("vcc-out")
+    if three:
+        loads={c.id:c for c,p in members[three] if p.get("role")=="power_in" and not is_board(c)}
+        currents={cid:float(_catalogue_value(c,"current") or 0) for cid,c in loads.items()}
+        total=sum(currents.values())
+        if total>BOARD_3V3_BUDGET_MA:
+            add("ELEC_3V3_BUDGET",VerificationState.ESTIMATED,"warning",f"Parts on {board.name} 3V3 draw up to {total:g} mA, above the {BOARD_3V3_BUDGET_MA:g} mA its regulator supplies: {', '.join(c.name for c in loads.values())}.",(board.id,*loads),
+                category="electrical",net_ids=(three,),interface_ids=("vcc-out",),expected={"maximumMa":BOARD_3V3_BUDGET_MA},actual={"demandMa":total,"byPart":currents},blocking=False)
+    # Only library-added parts carry a pin snapshot; planner-built parts are judged by the older required-port rules.
+    for part in sorted(components.values(),key=lambda item:item.id):
+        if is_board(part) or not part.metadata.get("pins"): continue
+        for pin in pins[part.id].values():
+            if pin.get("role") in {"power_in","ground",*SIGNAL_ROLES} and (part.id,pin["name"]) not in pin_net:
+                add("ELEC_UNWIRED",VerificationState.ESTIMATED,"warning",f"{part.name}: {pin.get('label') or pin['name']} is not wired — not electrically complete.",(part.id,),
+                    category="electrical",interface_ids=(pin["name"],),expected={"wired":True},actual={"wired":False},blocking=False)
+
+
 def evaluate_graph(graph: EngineeringGraph, add: AddFinding) -> None:
     """Inspect a complete graph without changing it; graph-owned nets are authoritative."""
     components={item.id:item for item in graph.find(kind=EntityKind.COMPONENT)}
     ports={key:_port_records(value) for key,value in components.items()}
     _gpio_assignments(graph,components,add)
     nets=electrical_nets(graph)
+    _pin_role_checks(graph,components,nets,add)
     terminal_net: dict[tuple[str,str],str]={}
     net_terminals: dict[str,list[Terminal]]={}
 

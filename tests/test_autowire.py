@@ -97,12 +97,17 @@ def test_five_volt_part_uses_the_5v_pin(client):
 
 def test_hc_sr04_gets_two_signal_ports_by_its_own_pin_names(client):
     project_id = project(client)
-    proposal = add(client, project_id, ["hc-sr04-class"]).json()
-    assert commit(client, project_id, proposal).status_code == 200
-    found = wires(client, project_id, part_id(proposal))
+    stored = client.app.state.workspace.repository.get_project(project_id).graph
+    proposal = propose_add_components(stored, 1, ["hc-sr04-class"])
+    part = proposal.operations[0]["targetId"]
+    found = {m["target_interface"] if m["target_id"] == part else m["source_interface"]: (m["source_interface"] if m["target_id"] == part else m["target_interface"], m["connection_type"])
+             for op in proposal.patch.operations if op.entity is not None and op.entity.kind is EntityKind.CONNECTION for m in [op.entity.metadata]}
     assert set(found) == {"power", "ground", "trig", "echo"}
     assert found["trig"][1] == "control" and found["echo"][1] == "signal"
     assert found["trig"][0] != found["echo"][0] and "signal" not in found
+    # Its 5 V ECHO into an ESP32 pin is refused on commit (Task 6 ELEC_LOGIC_LEVEL).
+    rejected = commit(client, project_id, add(client, project_id, ["hc-sr04-class"]).json())
+    assert rejected.status_code == 422 and "level shifter" in json.dumps(rejected.json())
 
 
 def test_two_i2c_parts_share_bus_ports(client):
