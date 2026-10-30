@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 from aura.engineering_graph.interfaces import ESP32_OUTPUT_GPIOS
 from aura.engineering_graph.model import EngineeringGraph
-from aura.workspace.modifications import ESP32_STRAPPING_GPIOS, ModificationError, propose_add_components
+from aura.workspace.modifications import ESP32_STRAPPING_GPIOS, propose_add_components
 from aura.workspace.server import create_app
 
 USED = (4, 16)  # fan demo: temperature_data, fan_gate
@@ -43,7 +43,7 @@ def test_adds_one_part_and_allocates_lowest_safe_free_pin(fan):
     proposal = response.json()
     assert proposal["mode"] == "add_component"
     assert added_pins(proposal) == [min(g for g in SAFE if g not in USED)]
-    assert any(c["state"] == "WARNING" for c in proposal["verification"]["checks"])
+    assert any(c["state"] == "PASSED" and "wired" in c["message"] for c in proposal["verification"]["checks"])
 
 
 def test_same_definition_twice_gets_distinct_ids_and_pins(fan):
@@ -84,9 +84,9 @@ def test_errors(fan):
     assert stale.status_code == 409 and stale.json()["detail"]["code"] == "stale_revision"
     full = add(client, project_id, ["ds18b20-module"] * (FREE_PORTS + 1))
     assert full.status_code == 409 and full.json()["detail"]["code"] == "NO_FREE_PIN"
-    with pytest.raises(ModificationError) as error:
-        propose_add_components(EngineeringGraph("project-empty"), 0, ["ds18b20-module"])
-    assert error.value.code == "NO_CONTROLLER"
+    # No controller is no longer an error: the part is added unwired, with a warning (see test_autowire.py).
+    unwired = propose_add_components(EngineeringGraph("project-empty"), 0, ["ds18b20-module"])
+    assert any(c["state"] == "WARNING" and "No supported controller" in c["message"] for c in unwired.verification["checks"])
 
 
 def test_route_commit_then_undo(fan):
@@ -137,13 +137,14 @@ def test_adds_stay_within_declared_controller_ports_and_later_edits_still_verify
     assert client.post(f"/api/projects/{project_id}/modification-proposals/{edit['proposalId']}/commit").status_code == 200
 
 
-def test_every_add_warns_power_and_ground_are_unwired_and_switch_is_an_input(fan):
+def test_wired_adds_no_longer_warn_power_and_ground_are_unwired_and_switch_is_an_input(fan):
     client, project_id = fan
     relay = add(client, project_id, ["relay-module-5v"]).json()
-    assert any(c["state"] == "WARNING" and "Power and ground" in c["message"] for c in relay["verification"]["checks"])
+    assert not any("Power and ground" in c["message"] for c in relay["verification"]["checks"])
+    assert any(c["state"] == "PASSED" and "wired" in c["message"] for c in relay["verification"]["checks"])
     switch_id = next(d for d in __import__("aura.verification.catalogue", fromlist=["BY_ID"]).BY_ID.values() if d.family == "switch").component_definition_id
     proposal = add(client, project_id, [switch_id]).json()
     assert commit(client, project_id, proposal).status_code == 200
     part = next(op["targetId"] for op in proposal["operations"] if op["operation"] == "add_component")
-    wire = next(e for e in client.get(f"/api/projects/{project_id}/graph").json()["entities"] if e["kind"] == "connection" and part in (e["metadata"].get("source_id"), e["metadata"].get("target_id")))
+    wire = next(e for e in client.get(f"/api/projects/{project_id}/graph").json()["entities"] if e["kind"] == "connection" and part in (e["metadata"].get("source_id"), e["metadata"].get("target_id")) and e["metadata"].get("target_interface") != "ground")
     assert wire["metadata"]["source_id"] == part and wire["metadata"]["connection_type"] == "signal"

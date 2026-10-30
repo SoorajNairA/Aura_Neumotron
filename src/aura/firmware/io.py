@@ -62,9 +62,11 @@ def io_points(graph: EngineeringGraph) -> list[IoPoint]:
         if c.get("connection_type") not in {"signal", "control"}: continue
         if c.get("source_id") == controller.id and c.get("source_interface") in gpio_map: wired.setdefault(c["source_interface"], c["target_id"])
         if c.get("target_id") == controller.id and c.get("target_interface") in gpio_map: wired.setdefault(c["target_interface"], c["source_id"])
-    counts: dict[str, int] = {}; points = []
+    counts: dict[str, int] = {}; points = []; seen: set[str] = set()
     for port in gpio_map:
-        if port not in wired or wired[port] not in graph.entities: continue
+        # A part wired to several ports (I2C SDA+SCL, trig+echo) is one I/O point, on its first port.
+        if port not in wired or wired[port] not in graph.entities or wired[port] in seen: continue
+        seen.add(wired[port])
         part = graph.entities[wired[port]]; definition = definition_id(part); driver = DRIVERS.get(definition or "")
         slug = SLUGS.get(definition or "") or str(part.metadata.get("family", "part"))
         # Switching modules are named for their load, so the fan fail-safe follows the fan whichever driver switches it.

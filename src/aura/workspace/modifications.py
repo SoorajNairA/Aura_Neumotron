@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 from typing import Any, Literal, Optional
 from uuid import uuid4
@@ -11,6 +11,8 @@ from aura.engineering_graph.interfaces import component_interfaces
 from aura.engineering_graph.model import EngineeringEntity, EngineeringGraph, EntityKind, Relationship, dimension_mm
 from aura.engineering_graph.patches import GraphOperation, GraphPatch, PatchOperation, apply_patch
 from aura.verification.catalogue import CATALOGUE, CATALOGUE_VERSION
+from aura.verification.pins import PinDefinition
+from .autowire import autowire
 
 
 class ModificationError(ValueError):
@@ -341,9 +343,10 @@ def inverse_proposal(graph: EngineeringGraph, revision: dict[str, Any]) -> Modif
         patch_ops = []
         for item in added:
             if item["targetId"] not in graph.entities: raise ValueError("nothing_to_undo")
-            if item.get("connectionId"):
-                patch_ops += [GraphOperation(PatchOperation.REMOVE_RELATIONSHIP, target_id=f"{item['connectionId']}-edge"),
-                              GraphOperation(PatchOperation.REMOVE_ENTITY, target_id=item["connectionId"])]
+            # Older revisions store a single `connectionId`; auto-wired adds store every wire in `connectionIds`.
+            for connection_id in (*item.get("connectionIds", ()), *((item["connectionId"],) if item.get("connectionId") else ())):
+                patch_ops += [GraphOperation(PatchOperation.REMOVE_RELATIONSHIP, target_id=f"{connection_id}-edge"),
+                              GraphOperation(PatchOperation.REMOVE_ENTITY, target_id=connection_id)]
             patch_ops.append(GraphOperation(PatchOperation.REMOVE_ENTITY, target_id=item["targetId"]))
         # Nets were materialized on commit; drop the ones that would point at removed parts.
         removed = {item["targetId"] for item in added}
@@ -421,8 +424,14 @@ SIGNAL_FAMILIES = frozenset({"temperature_sensor", "environmental_sensor", "dist
                              "soil_moisture_sensor", "relay_module", "mosfet_driver", "motor_driver", "servo", "indicator", "switch"})
 
 
+def _supplied_pins(definition: Any) -> tuple[PinDefinition, ...]:
+    """The part's pins, with each power input carrying the catalogue supply range autowire picks 3V3/5V from."""
+    supply = definition.properties.get("supply_voltage_range")
+    return tuple(replace(pin, voltage_range=(float(supply.value[0]), float(supply.value[1]))) if pin.role == "power_in" and supply else pin for pin in definition.pins)
+
+
 def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: list[str]) -> ModificationProposal:
-    """Add catalogue parts; signal parts get the lowest free safe GPIO. Verification still decides on commit."""
+    """Add catalogue parts and auto-wire them to the project's controller. Verification still decides on commit."""
     from aura.verification.catalogue import BY_ID
     if base != len(graph.revisions): raise ValueError("stale_revision")
     if not definition_ids: raise ModificationError("EMPTY_SELECTION", "Select at least one part to add.", 422)
@@ -430,43 +439,35 @@ def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: l
     if unknown: raise ModificationError("UNKNOWN_COMPONENT", f"Not in the catalogue: {', '.join(unknown)}.", 404)
     definitions = [BY_ID[item] for item in definition_ids]
     controller = next((e for e in graph.find(kind=EntityKind.COMPONENT) if e.metadata.get("parameters", {}).get("gpio_map") is not None), None)
-    if controller is None and any(d.family in SIGNAL_FAMILIES for d in definitions):
-        raise ModificationError("NO_CONTROLLER", "These parts need a controller pin, but the design has no controller.", 409)
+    # A listed-only board has no pin map or firmware support here, so parts are added unwired beside it.
+    held = BY_ID.get(str((controller.metadata.get("parameters", {}).get("component_definition_id") or "") if controller else ""))
+    if held is not None and held.support != "full": controller = None
     params = dict(controller.metadata.get("parameters", {})) if controller else {}
     old_map = dict(params.get("gpio_map") or {}); gpio_map = dict(old_map)
     # Only ports the controller declares can carry a net terminal; the I2C/SPI bus ports are not general GPIO.
     ports = [i.name for i in component_interfaces(_family(controller), _dimensions(controller), params)
              if i.kind == "control_output" and i.name.startswith("signal-") and i.name not in gpio_map] if controller else []
-    used = set(gpio_map.values()); picks = []
-    for d in definitions:
-        pin = allocate_gpio(d.family, d.component_definition_id, used) if d.family in SIGNAL_FAMILIES else None
-        if d.family in SIGNAL_FAMILIES and (pin is None or len(picks) >= len(ports)):
-            raise ModificationError("NO_FREE_PIN", "Not enough free safe ESP32 pins for these parts.", 409)
-        if pin is not None: used.add(pin); picks.append(pin)
-    patch_ops, operations, ids = [], [], []
+    patch_ops, operations, ids, checks, claimed = [], [], [], [{"state": "PASSED", "message": "Parts come from the catalogue; pins avoid strapping and used GPIOs"}], set()
     for definition in definitions:
         suffix = uuid4().hex[:8]; entity_id = f"component-user-{definition.family.replace('_', '-')}-{suffix}"
-        size = definition.properties.get("dimensions")
+        size = definition.properties.get("dimensions"); pins = _supplied_pins(definition)
         dims = {key: {"value": value, "unit": "mm"} for key, value in zip(("width", "length", "height"), size.value)} if size else {}
         metadata = {"family": definition.family, "role": definition.family, "component_definition_id": definition.component_definition_id,
-                    "interfaces": list(definition.interfaces), "dimensions": dims, "representation_status": "placeholder",
+                    "interfaces": [p.name for p in pins] or list(definition.interfaces), "dimensions": dims, "representation_status": "placeholder", "pins": [p.to_dict() for p in pins],
                     "parameters": {"component_definition_id": definition.component_definition_id, "component_definition_version": CATALOGUE_VERSION}}
         if size and size.qualifier != "rated": metadata["dimensions_qualifier"] = size.qualifier
         parent = controller.parent_id if controller else graph.project_id
         patch_ops.append(GraphOperation(PatchOperation.ADD_ENTITY, entity=EngineeringEntity(entity_id, EntityKind.COMPONENT, definition.part_number, parent, metadata)))
         operation = {"operation": "add_component", "targetId": entity_id, "componentDefinitionId": definition.component_definition_id,
                      "path": "components", "oldValue": None, "newValue": definition.part_number, "gpio": None}
-        if definition.family in SIGNAL_FAMILIES:
-            gpio, port = picks.pop(0), ports.pop(0); gpio_map[port] = gpio
-            sensor = definition.family in INPUT_FAMILIES
-            source, target = (entity_id, controller.id) if sensor else (controller.id, entity_id)
-            kind = "signal" if sensor else "control"
-            connection_id = f"connection-user-wire-{suffix}"
-            wire = {"source_id": source, "target_id": target, "connection_type": kind,
-                    "source_interface": "signal" if sensor else port, "target_interface": port if sensor else "signal"}
-            patch_ops += [GraphOperation(PatchOperation.ADD_ENTITY, entity=EngineeringEntity(connection_id, EntityKind.CONNECTION, f"{definition.part_number} signal", graph.project_id, wire)),
-                          GraphOperation(PatchOperation.ADD_RELATIONSHIP, relationship=Relationship(f"{connection_id}-edge", source, target, kind, {"connection_id": connection_id}))]
-            operation |= {"gpio": gpio, "port": port, "connectionId": connection_id}
+        if controller is not None and definition.category != "boards":
+            wires, notes = autowire(graph, controller, entity_id, pins, gpio_map, ports, name=definition.part_number, claimed=claimed); checks += notes
+            for wire in wires: patch_ops += wire.to_ops()
+            # `port`/`gpio` describe the first controller GPIO port the part took (firmware lists parts without a driver by it).
+            port = next((end for wire in wires for end in (wire.source_interface, wire.target_interface) if end in gpio_map and end.startswith("signal-")), None)
+            operation |= {"connectionIds": [wire.connection_id for wire in wires]} | ({"gpio": gpio_map[port], "port": port} if port else {})
+        elif controller is None and any(p.role not in ("passive", "power_out") for p in pins):
+            checks.append({"state": "WARNING", "message": f"No supported controller — {definition.part_number} added unwired."})
         operations.append(operation); ids.append(entity_id)
     affected = tuple(ids)
     if gpio_map != old_map:
@@ -475,13 +476,10 @@ def propose_add_components(graph: EngineeringGraph, base: int, definition_ids: l
         operations.append({"operation": "replace_parameter", "targetId": controller.id, "path": "parameters.gpio_map", "oldValue": old_map, "newValue": gpio_map})
         affected += (controller.id,)
     summary = f"Add {', '.join(d.part_number for d in definitions)}"
-    checks = [{"state": "PASSED", "message": "Parts come from the catalogue; pins avoid strapping and used GPIOs"},
-              {"state": "WARNING", "message": "Power and ground are not wired for added parts; they are not electrically complete."}]
-    if any(d.family.endswith("_sensor") for d in definitions):
-        checks.append({"state": "WARNING", "message": "Single signal pin assigned; bus parts (I2C/SPI) need wiring review."})
     patch = GraphPatch(f"patch-{uuid4().hex}", tuple(patch_ops), summary, graph.current_revision_id)
     return ModificationProposal(f"proposal-{uuid4().hex}", base, affected, summary, "add_component", tuple(operations), affected,
                                 ("existing components",), ("firmware",), {"outcome": "pending_graph_verification", "checks": checks}, patch)
+
 
 
 # Settings users may change. Ratings, identity and safety claims come from the catalogue and are never editable.
